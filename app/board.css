@@ -4,6 +4,39 @@
   align-items: center;
   gap: 7px;
 }
+[hidden] { display:none !important; }
+.layout-comparison { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:0 0 16px; font-size:14px; }
+.layout-comparison > span { color:#637085; margin-right:4px; }
+.layout-comparison small { color:#637085; margin-left:6px; }
+.layout-comparison button[aria-pressed="true"] { color:#234ebc; background:#e6edff; border-color:#8ea9ea; }
+.task-editor { display:grid; gap:16px; }
+.focus-layout .board-layout.tray-closed { grid-template-columns:minmax(0,1fr); }
+.focus-layout .coming-up { padding:12px 16px; margin-bottom:10px; }
+.focus-layout .semester-title { margin-top:20px; margin-bottom:16px; }
+.focus-layout .attention-line { margin-bottom:12px; }
+.focus-layout .unit-head small { display:none; }
+.focus-layout .grid-head button.unit-head { padding:14px; }
+.focus-layout .board .unit-cell { gap:8px; padding:12px; }
+.focus-layout .condensed-week { min-height:78px; }
+.focus-layout .condensed-week .unit-cell { padding:8px 12px; }
+.focus-layout .condensed-week .task-card { padding:7px 10px; }
+.focus-layout .condensed-week .task-top { display:none; }
+.focus-layout .condensed-week .hurdle-card .task-top { display:flex; }
+.focus-layout .week-label { padding:12px; }
+.focus-layout .week-label small { font-size:12px; }
+.focus-layout .week-expand { padding:2px 0; border:0; background:none; color:#526da3; font-size:12px; display:block; }
+.focus-layout .week-summary { text-align:left; justify-content:flex-start; padding:2px 0; border:0; background:none; color:#637085; font-weight:400; font-size:13px; }
+.focus-layout .routine-item { border-left:0; padding-left:0; }
+.focus-layout .routine-item strong { font-weight:500; }
+.focus-layout .learning small { font-size:12px; }
+.focus-layout .task-card small { letter-spacing:0; }
+@media (max-width:700px) {
+  .layout-comparison > span { width:100%; }
+  .layout-comparison small { width:100%; margin:0; }
+  .focus-layout .week-label { flex-wrap:wrap; }
+  .focus-layout .week-expand { margin-left:auto; }
+  .focus-layout .condensed-week .unit-cell { padding:8px 0; }
+}
 .routine-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:10px 0; font-size:14px; color:#637085; }
 .routine-strip > button { border:0; background:transparent; padding:4px 0; }
 .routine-list { width:100%; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }

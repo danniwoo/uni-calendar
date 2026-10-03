@@ -97,6 +97,10 @@ export default function SemesterBoard() {
     [showPast, setShowPast] = useState(false),
     [showWarnings, setShowWarnings] = useState(false),
     [showRoutines, setShowRoutines] = useState(false),
+    [focus, setFocus] = useState(false),
+    [showTray, setShowTray] = useState(false),
+    [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
+    [editingTask, setEditingTask] = useState(false),
     [caughtUpWeek, setCaughtUpWeek] = useState("0"),
     [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
     [clock, setClock] = useState(() => new Date());
@@ -106,6 +110,8 @@ export default function SemesterBoard() {
     pending = useRef<Semester | null>(null),
     saving = useRef(false);
   const today = sydneyDate(clock);
+  useEffect(()=>{try {setFocus(localStorage.getItem("semester-layout") === "focus");} catch {}},[]);
+  function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem("semester-layout",next ? "focus" : "full");} catch {}}
   useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
     setLoadError("");
@@ -136,6 +142,7 @@ export default function SemesterBoard() {
       registerSemesterTools(
         () => current.current,
         (t) => {
+          setEditingTask(false);
           setDetail({ type: "task", task: t });
           setDraft({ ...t });
           setEditError("");
@@ -262,6 +269,7 @@ export default function SemesterBoard() {
       });
   }
   function openTask(t: Task) {
+    setEditingTask(false);
     setDetail({ type: "task", task: t });
     setDraft({ ...t });
     setEditError("");
@@ -282,6 +290,7 @@ export default function SemesterBoard() {
       group: false,
       manual: true,
     });
+    setEditingTask(true);
   }
   function saveTask() {
     if (!semester || !draft) return;
@@ -407,6 +416,27 @@ export default function SemesterBoard() {
     semester?.weeks.filter((w) => showPast || w.end >= today) || [];
   const focusWeek = selectedWeek?.number ? selectedWeek : semester?.weeks.find(w=>w.kind === "teaching" && w.start >= today);
   const routineTasks = semester?.tasks.filter(t=>isRoutine(t) && (t.week === focusWeek?.number && !!focusWeek?.number)) || [];
+  const closeWeeks = semester?.weeks.filter(w=>w.kind === "teaching" && w.end >= today).slice(0,2).map(w=>w.id) || [];
+  const expanded = (id:string) => expandedWeeks[id] ?? closeWeeks.includes(id);
+  const flipWeek = (id:string) => setExpandedWeeks(p=>({...p,[id]:!expanded(id)}));
+  const soon = semester?.tasks.filter(t=>!t.done && !needsPlacement(t) && !t.rules?.optional && !/participation/i.test(t.title)
+    && t.date && t.date >= today && Date.parse(t.date+"T12:00:00Z")-Date.parse(today+"T12:00:00Z") <= 7*86400000 && !isPast(t,semester,clock))
+    .sort((a,b)=>((a.date||"")+(a.time||"23:59")).localeCompare((b.date||"")+(b.time||"23:59"))) || [];
+  const highlighted = focus && soon.length ? soon : upcoming;
+  const participationFor = (c:ClassEvent) => /tutorial/i.test(c.activity)
+    ? semester?.tasks.find(t=>t.unit === c.unit && t.date === c.date && /participation/i.test(t.title)) : undefined;
+  function displayTitle(t:Task) {
+    if (!focus) return t.title;
+    if (/lecture.*quiz/i.test(t.title)) return "Lecture quiz";
+    if (/^weekly quizzes$/i.test(t.title)) return "Weekly quiz";
+    if (/tutorial prework/i.test(t.title)) return "Submit prework";
+    return t.title;
+  }
+  function displayTime(t:Task) {
+    if (!focus || !t.date || t.timeBasis !== "class") return timingLabel(t);
+    const day=new Date(t.date+"T12:00:00Z").toLocaleDateString("en-AU",{weekday:"short",timeZone:"UTC"});
+    return t.timing.startsWith("Before") ? `${day} · before ${t.time || "class"}` : `${day} · in ${/lecture/i.test(t.timing) ? "lecture" : /lab|practical/i.test(t.timing) ? "lab" : "tutorial"}`;
+  }
   function retryClasses(task: Task) {
     if (!semester || task.passed || !task.date || !task.rules?.attempts || task.rules.attempts < 2) return [];
     return semester.classes.filter(c=>c.unit === task.unit && /tutorial/i.test(c.activity) && c.date > task.date!)
@@ -421,7 +451,7 @@ export default function SemesterBoard() {
   }) {
     return (
       <div
-        className={`task-card ${task.done ? "is-done" : ""} ${task.series ? "recurring-card" : ""}`}
+        className={`task-card ${task.hurdle ? "hurdle-card" : ""} ${task.done ? "is-done" : ""} ${task.series ? "recurring-card" : ""}`}
         style={{ "--unit": color(task.unit) } as React.CSSProperties}
       >
         <div className="task-top">
@@ -440,9 +470,9 @@ export default function SemesterBoard() {
           />
         </div>
         <button className="task-open" onClick={() => openTask(task)}>
-          <strong>{task.title}</strong>
+          <strong>{displayTitle(task)}</strong>
           <span>
-            {timingLabel(task)}
+            {displayTime(task)}
           </span>
           {task.weight && (
             <span className="weight">
@@ -459,12 +489,12 @@ export default function SemesterBoard() {
   function RoutineItem({task}: {task:Task}) {
     return <div className={`routine-item ${task.done ? "is-done" : ""}`} style={{"--unit":color(task.unit)} as React.CSSProperties}>
       <Checkbox aria-label={`Mark ${task.unit} ${task.title} week ${task.week} complete`} checked={!!task.done} onCheckedChange={()=>toggleTask(task)}/>
-      <button onClick={()=>openTask(task)}><strong>{task.title}</strong><span>{timingLabel(task)}</span></button>
+      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span>{displayTime(task)}</span></button>
       {task.rules?.perOccurrence !== undefined && <small>{task.rules.perOccurrence}%</small>}
     </div>;
   }
   return (
-    <main>
+    <main className={focus ? "focus-layout" : "full-layout"}>
       <header>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
@@ -624,13 +654,19 @@ export default function SemesterBoard() {
               </button>
             </div>
           </section>
+          <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
+            <span>Compare views</span>
+            <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>A · Full overview</button>
+            <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>B · Focus</button>
+            <small>Same tasks & progress</small>
+          </div>
           <section className="coming-up">
             <div className="coming-title">
-              <p className="eyebrow">UPCOMING MILESTONES</p>
-              <span>Assignments & key quizzes · next {Math.min(3,upcoming.length)} of {upcoming.length}</span>
+              <p className="eyebrow">{focus && soon.length ? "NEXT 7 DAYS" : "UPCOMING MILESTONES"}</p>
+              <span>{focus && soon.length ? "Tasks & quizzes" : "Assignments & key quizzes"} · next {Math.min(3,highlighted.length)} of {highlighted.length}</span>
             </div>
             <div className="upcoming-cards">
-              {upcoming.slice(0, 3).map((t) => (
+              {highlighted.slice(0, 3).map((t) => (
                 <TaskCard key={t.id} task={t} compact />
               ))}
               {!upcoming.length && (
@@ -641,7 +677,7 @@ export default function SemesterBoard() {
               )}
             </div>
           </section>
-          <section className="routine-strip">
+          <section className="routine-strip" hidden={focus}>
             <button aria-expanded={showRoutines} onClick={()=>setShowRoutines(!showRoutines)}>
               {focusWeek?.label || "Weekly"} routines · {routineTasks.filter(t=>!t.done).length} unrecorded <ChevronDown size={14}/>
             </button>
@@ -664,11 +700,12 @@ export default function SemesterBoard() {
               Review past assessments ({overdue.length})
             </button>
             <button
-              onClick={() =>
+              onClick={() => {
+                if(focus) {setShowTray(!showTray);return;}
                 document
                   .getElementById("needs-details")
-                  ?.scrollIntoView({ behavior: "smooth" })
-              }
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
             >
               {unplaced.filter((t) => !t.done).length} need details
             </button>
@@ -705,7 +742,7 @@ export default function SemesterBoard() {
               </p>
             </section>
           )}
-          <div className="board-layout">
+          <div className={`board-layout ${focus && !showTray ? "tray-closed" : ""}`}>
             <section
               className="board"
               style={
@@ -742,11 +779,12 @@ export default function SemesterBoard() {
                 (w) => (
                   <div
                     id={w.id}
-                    className={`week-row ${selectedWeek?.id === w.id ? "current" : ""} ${w.kind !== "teaching" ? "non-teaching" : ""}`}
+                    className={`week-row ${selectedWeek?.id === w.id ? "current" : ""} ${w.kind !== "teaching" ? "non-teaching" : ""} ${focus && w.number && !expanded(w.id) ? "condensed-week" : ""}`}
                     key={w.id}
                   >
                     <div className="week-label">
                       <strong>{w.label}</strong>
+                      {focus && w.number && <button className="week-expand" aria-label={`${expanded(w.id) ? "Collapse" : "Expand"} ${w.label}`} aria-expanded={expanded(w.id)} onClick={()=>flipWeek(w.id)}>{expanded(w.id) ? "Less" : "Details"}</button>}
                       <small>
                         {shortDate(w.start)} – {shortDate(w.end)}
                       </small>
@@ -771,6 +809,9 @@ export default function SemesterBoard() {
                           c.date >= w.start &&
                           c.date <= w.end,
                       );
+                      const folded = focus && !!w.number && !expanded(w.id);
+                      const orderedTasks = focus ? [...tasks].sort((a,b)=>((a.date||"")+(a.time||"23:59")).localeCompare((b.date||"")+(b.time||"23:59"))) : tasks;
+                      const taskRows = orderedTasks.filter(t=>!focus || !learning.some(c=>participationFor(c)?.id === t.id));
                       const active = semester.tasks.filter(
                         (t) =>
                           t.unit === u.code &&
@@ -804,28 +845,32 @@ export default function SemesterBoard() {
                               <small>Planned work · due W{t.week}</small>
                             </button>
                           ))}
-                          {tasks.map((t) => (
+                          {taskRows.filter(t=>!folded || !isRoutine(t)).map((t) => (
                             isRoutine(t) ? <RoutineItem key={t.id} task={t}/> : <TaskCard key={t.id} task={t} />
                           ))}
-                          {learning.length > 0 && (
+                          {folded && (tasks.some(isRoutine) || learning.length > 0) && <button className="week-summary" onClick={()=>flipWeek(w.id)}>{taskRows.filter(isRoutine).length > 0 ? `${taskRows.filter(isRoutine).length} routine task${taskRows.filter(isRoutine).length === 1 ? "" : "s"} · ` : ""}{learning.length} {learning.length === 1 ? "class" : "classes"}</button>}
+                          {!folded && learning.length > 0 && (
                             <div className="learning">
-                              {learning.map((c) => (
+                              {learning.map((c) => {
+                                const participation = focus ? participationFor(c) : undefined;
+                                return (
                                 <div className="learning-item" key={c.id}>
-                                  <Checkbox
+                                  {!participation && <Checkbox
                                     aria-label={`Complete ${c.unit} ${c.activity} week ${c.week} ${c.date}`}
                                     checked={!!semester.completed[c.id]}
                                     onCheckedChange={() => toggleClass(c)}
-                                  />
+                                  />}
                                   <button
-                                    className={`learning-open ${semester.completed[c.id] ? "checked" : ""}`}
+                                    className={`learning-open ${!participation && semester.completed[c.id] ? "checked" : ""}`}
                                     onClick={() =>
                                       setDetail({ type: "class", event: c })
                                     }
                                   >
                                     {c.activity}
+                                    {participation && <small> · {participation.done ? "participation recorded" : "participation unrecorded"}</small>}
                                   </button>
                                 </div>
-                              ))}
+                              );})}
                             </div>
                           )}
                           {!tasks.length &&
@@ -841,7 +886,8 @@ export default function SemesterBoard() {
                 ),
               )}
             </section>
-            <aside id="needs-details">
+            <aside id="needs-details" hidden={focus && !showTray}>
+              {focus && <button onClick={()=>setShowTray(false)}>Close pending details</button>}
               <CalendarDays size={21} />
               <h3>
                 Needs details{" "}
@@ -928,6 +974,7 @@ export default function SemesterBoard() {
               {draft.sourceConflict && <p className="notice error">{draft.sourceConflict}</p>}
               {draft.warning && (!/individual occurrences|Recurring assessment/i.test(draft.warning) || needsPlacement(draft)) && <p className="notice">{draft.warning}</p>}
               <section className="rule-card">
+                {focus && <p><strong>{timingLabel(draft)}</strong></p>}
                 <strong>{weightLabel(draft)}</strong>
                 {draft.rules?.coverageText && <p><b>Quiz / exam scope</b><br/>{draft.rules.coverageText}</p>}
                 {draft.rules?.coverageText && !draft.coverage?.length && <p className="hint">The outline names topics, not exact week numbers. No week range has been guessed.</p>}
@@ -936,6 +983,14 @@ export default function SemesterBoard() {
                 {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>
+              {focus && !editingTask && <>
+                <p>{draft.description}</p>
+                {!!draft.coverage?.length && <p>Covers weeks {draft.coverage.join(", ")}</p>}
+                <button className="primary" onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id);if(task){toggleTask(task);setDraft({...draft,done:!task.done});}}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button>
+                {draft.source && <a href={draft.source} target="_blank" rel="noreferrer">Open assessment source</a>}
+                <button onClick={()=>setEditingTask(true)}>{needsPlacement(draft) ? "Add missing details" : "Edit details"}</button>
+              </>}
+              <div className="task-editor" hidden={focus && !editingTask}>
               <label>
                 Task name
                 <input
@@ -1155,10 +1210,17 @@ export default function SemesterBoard() {
                   Create an individual occurrence
                 </button>
               )}
+              </div>
             </div>
           )}
           {detail?.type === "class" && semester && (
             <div className="detail-body">
+              {focus && participationFor(detail.event) && <section className="rule-card">
+                <strong>Tutorial participation</strong>
+                <label className="inline-label"><Checkbox checked={!!participationFor(detail.event)?.done} onCheckedChange={()=>toggleTask(participationFor(detail.event)!)} />I participated in this tutorial</label>
+                <p className="hint">Your own record—not the tutor’s mark. Learning progress is separate below.</p>
+                <button onClick={()=>openTask(participationFor(detail.event)!)}>View participation rules</button>
+              </section>}
               <p>
                 {shortDate(detail.event.date)} · {detail.event.time}–
                 {detail.event.end}
