@@ -38,6 +38,24 @@ export type Task = {
   warning?: string;
   manual?: boolean;
   done?: boolean;
+  rules?: AssessmentRules;
+  routine?: boolean;
+  parentId?: string;
+  endTime?: string;
+  timeBasis?: "class" | "deadline";
+  passed?: boolean;
+  overrides?: string[];
+  sourceConflict?: string;
+};
+export type AssessmentRules = {
+  text: string;
+  perOccurrence?: number;
+  total?: number;
+  bestOf?: number;
+  threshold?: number;
+  attempts?: number;
+  coverageText?: string;
+  optional?: boolean;
 };
 export type Unit = {
   code: string;
@@ -140,6 +158,8 @@ export function shortDate(date: string) {
   });
 }
 export function timingLabel(t: Task) {
+  if (t.date && t.timeBasis === "class")
+    return `${shortDate(t.date)} · ${t.timing.startsWith("Before") ? "before" : "in"} ${/lecture/i.test(t.timing) ? "lecture" : /practical|lab/i.test(t.timing) ? "lab" : "tutorial"}${t.time ? ` ${t.time}${t.endTime ? `–${t.endTime}` : ""}` : ""}`;
   return t.date
     ? `${shortDate(t.date)}${t.time ? ` · ${t.time}` : " · time TBC"}`
     : t.kind === "exam"
@@ -157,9 +177,15 @@ export function mergeSemester(
   const map = new Map(old.tasks.map((t) => [t.id, t]));
   fresh.tasks = fresh.tasks.map((t) => {
     const prev = map.get(t.id);
-    return prev?.manual
-      ? { ...prev, source: t.source, sourceText: t.sourceText }
-      : { ...t, done: prev?.done };
+    if (!prev) return t;
+    if (prev.manual && !prev.overrides)
+      return { ...t, ...prev, rules: t.rules, source: t.source, sourceText: t.sourceText,
+        sourceConflict: t.sourceConflict,
+        warning: [t.warning, "Previously edited: your dates are preserved. Compare with the current outline."].filter(Boolean).join(" ") };
+    const next = { ...t, done: prev.done, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
+    for (const key of prev.overrides || [])
+      (next as unknown as Record<string, unknown>)[key] = (prev as unknown as Record<string, unknown>)[key];
+    return next;
   });
   const ids = new Set(fresh.tasks.map((t) => t.id));
   const retained = old.tasks.filter((t) => !ids.has(t.id));
@@ -176,4 +202,23 @@ export function mergeSemester(
   );
   fresh.completed = old.completed;
   return fresh;
+}
+
+export const needsPlacement = (t: Task) => !t.week && !t.date && t.kind !== "exam";
+export const isRoutine = (t: Task) => !!t.routine || (!!t.series && !t.hurdle);
+export function weightLabel(t: Task) {
+  if (t.rules?.optional && /bonus/i.test(t.title)) return "Optional bonus";
+  if (t.series || t.parentId) return t.rules?.perOccurrence !== undefined
+    ? `${t.rules.perOccurrence}% each · ${t.rules.total ?? parseFloat(t.weight)}% cap`
+    : `${t.weight.replace(/\s*total$/, "")} across semester`;
+  return t.weight;
+}
+export function isPast(t: Task, s: Semester, now: Date) {
+  const day = sydneyDate(now);
+  if (!t.date) return !!t.week && (s.weeks.find(w=>w.number === t.week)?.end || "9999") < day;
+  if (t.date !== day) return t.date < day;
+  const time = t.timeBasis === "class" && !t.timing.startsWith("Before") ? t.endTime : t.time;
+  if (!time) return false;
+  const current = new Intl.DateTimeFormat("en-GB",{timeZone:"Australia/Sydney",hour:"2-digit",minute:"2-digit",hourCycle:"h23"}).format(now);
+  return time < current;
 }

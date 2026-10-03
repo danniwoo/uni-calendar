@@ -4,6 +4,35 @@
   align-items: center;
   gap: 7px;
 }
+.routine-strip { display:flex; flex-wrap:wrap; align-items:center; gap:8px 16px; padding:10px 0; font-size:14px; color:#637085; }
+.routine-strip > button { border:0; background:transparent; padding:4px 0; }
+.routine-list { width:100%; display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr)); gap:16px; }
+.routine-item { display:flex; align-items:flex-start; gap:8px; border-left:2px solid var(--unit); padding:6px 0 6px 8px; min-width:0; }
+.routine-item button:not([data-slot="checkbox"]) { display:flex; flex:1; flex-direction:column; align-items:flex-start; text-align:left; background:transparent; border:0; padding:0; gap:2px; min-width:0; }
+.routine-item strong { font-size:14px; font-weight:600; overflow-wrap:anywhere; }
+.routine-item span { font-size:13px; font-weight:400; color:#637085; }
+.routine-item small { font-size:12px; color:#637085; white-space:nowrap; }
+.routine-item [data-slot="checkbox"] { margin-top:3px; flex:0 0 16px; }
+.routine-item.is-done strong { text-decoration:line-through; }
+.rule-card { background:#f3f6fb; border:1px solid #dbe1ec; border-radius:8px; padding:14px; display:grid; gap:10px; font-size:14px; }
+.rule-card p { margin:0; }
+.source-warning { color:#92540a; font-size:13px !important; }
+.hurdle-reminder { display:flex; flex-wrap:wrap; gap:10px; align-items:center; font-size:14px; margin:8px 0; color:#82521c; }
+.hurdle-reminder button { border:0; padding:0; background:none; color:inherit; }
+.restore-backup { display:flex; align-items:center; gap:8px; font-size:14px; }
+.restore-backup input { max-width:240px; font-size:13px; }
+.board .week-row { min-height:100px; }
+.board .unit-cell { padding:10px; gap:8px; min-height:0; }
+.board .non-teaching { min-height:0; }
+.board .non-teaching .week-label { grid-column:1/-1; display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding:10px 14px; }
+.board .non-teaching .week-label small, .board .non-teaching .week-label em { margin:0; }
+.board .non-teaching .unit-cell:has(> .mobile-unit:only-child) { display:none; }
+.board .non-teaching .unit-cell:has(.task-card) { grid-column:auto; }
+.board .non-teaching:has(.task-card) .week-label { grid-column:auto; display:block; }
+.board .non-teaching:has(.task-card) .unit-cell { display:flex; }
+.learning { padding-top:8px; border-top:1px solid #edf0f5; gap:6px 12px; }
+.learning button.learning-open { min-height:24px; }
+.unplaced { padding:10px; margin:12px 0; }
 .save-state {
   font-size: 13px;
   color: #637085;

@@ -7,7 +7,9 @@ import {
   Unit,
   weekFor,
   Week,
+  mergeSemester,
 } from "./semester";
+import { enrichAssessment } from "./assessment-rules";
 
 export function plain(html: string): string {
   return html
@@ -225,7 +227,7 @@ export function parseOutline(
               ? html.indexOf('id="assessmentCriteria"', summaryStart)
               : summaryStart + 10000,
           ),
-        );
+        ).replace(/^class="assessmentSummary">\s*/, "").replace(/<div\s*$/, "");
   const assessments: Task[] = [];
   for (const row of rows(assessmentTable)) {
     const cs = cells(row);
@@ -276,7 +278,7 @@ export function parseOutline(
   const name = plain(
     html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i)?.[1] || code,
   ).replace(/^Unit of study outline\s*/i, "");
-  return {
+  const unit: Unit = {
     code,
     name,
     session: "",
@@ -286,16 +288,18 @@ export function parseOutline(
     assessments,
     topics,
   };
+  unit.assessments = assessments.map(a => enrichAssessment(a, unit));
+  return unit;
 }
 export function scheduleTasks(unit: Unit, classes: ClassEvent[]): Task[] {
   const result: Task[] = [];
   const own = classes.filter((c) => c.unit === unit.code);
   for (const a of unit.assessments) {
-    const text = a.sourceText + " " + unit.summary;
+    const text = a.sourceText + " " + (a.rules?.text || "");
     let activity = "";
     if (/before the lecture, every lecture/i.test(a.sourceText))
       activity = "Lecture";
-    else if (/(?:each|every) tutorial/i.test(a.sourceText))
+    else if (/(?:each|every) tutorial/i.test(text))
       activity = "Tutorial";
     const quizWeeks = unit.topics
       .filter(
@@ -316,11 +320,13 @@ export function scheduleTasks(unit: Unit, classes: ClassEvent[]): Task[] {
           week: w,
           series: a.id,
           kind: "quiz",
-          weight: `${a.weight} total`,
+          weight: a.weight,
           ...(matches.length === 1
             ? {
                 date: matches[0].date,
                 time: matches[0].time,
+                endTime: matches[0].end,
+                timeBasis: "class" as const,
                 timing: "During your tutorial (matched from timetable)",
               }
             : { timing: "During tutorial · time TBC" }),
@@ -328,7 +334,7 @@ export function scheduleTasks(unit: Unit, classes: ClassEvent[]): Task[] {
       }
       continue;
     }
-    if (activity && a.kind === "recurring") {
+    if (activity && a.routine) {
       for (const c of own.filter(
         (c) => c.activity.toLowerCase() === activity.toLowerCase(),
       ))
@@ -338,15 +344,20 @@ export function scheduleTasks(unit: Unit, classes: ClassEvent[]): Task[] {
           week: c.week,
           date: c.date,
           time: c.time,
-          weight: `${a.weight} total`,
+          endTime: c.end,
+          timeBasis: "class",
+          weight: a.weight,
           series: a.id,
-          timing: /before/i.test(a.sourceText)
+          timing: /before/i.test(text)
             ? `Before your ${activity.toLowerCase()}`
             : `During your ${activity.toLowerCase()}`,
         });
       continue;
     }
     let task = { ...a };
+    const conditional = text.match(/students with a lab timetabled in week\s*(\d+)\s*will have their first attempt in week\s*(\d+)/i);
+    if (conditional && own.some(c=>c.week === +conditional[1] && /lab|practical/i.test(c.activity)))
+      task.week = +conditional[2];
     if (task.week && !task.date) {
       const relevant = unit.topics.filter(
         (t) =>
@@ -378,9 +389,15 @@ export function scheduleTasks(unit: Unit, classes: ClassEvent[]): Task[] {
           ...task,
           date: candidates[0].date,
           time: candidates[0].time,
+          endTime: candidates[0].end,
+          timeBasis: "class",
           timing: `During your ${candidates[0].activity.toLowerCase()} (matched from timetable)`,
         };
       }
+    }
+    if (task.routine && /ongoing/i.test(task.sourceText)) {
+      // An aggregate's table date is not a weekly deadline.
+      task.date = undefined; task.time = undefined; task.week = undefined;
     }
     if (
       task.kind === "recurring" &&
@@ -392,6 +409,14 @@ export function scheduleTasks(unit: Unit, classes: ClassEvent[]): Task[] {
     result.push(task);
   }
   return result;
+}
+
+// Upgrade existing accounts from their saved public outline text, without a
+// background network import or deleting any personal edits/completion.
+export function upgradeSemester(s: Semester): Semester {
+  const units = s.units.map(u => ({...u, assessments:u.assessments.map(a=>enrichAssessment(a,u))}));
+  const fresh = {...s, units, tasks:units.flatMap(u=>scheduleTasks(u,s.classes))};
+  return mergeSemester(s, fresh);
 }
 async function readURL(url: string, privateFeed = false) {
   const u = new URL(url);

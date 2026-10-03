@@ -36,7 +36,12 @@ import {
   sydneyDate,
   timingLabel,
   weekFor,
+  needsPlacement,
+  isRoutine,
+  weightLabel,
+  isPast,
 } from "@/lib/semester";
+import { reconcile } from "@/lib/sync";
 import { registerSemesterTools } from "@/lib/browser-tools";
 
 function Choice({
@@ -90,12 +95,18 @@ export default function SemesterBoard() {
     [draft, setDraft] = useState<Task | null>(null),
     [editError, setEditError] = useState(""),
     [showPast, setShowPast] = useState(false),
-    [showWarnings, setShowWarnings] = useState(false);
+    [showWarnings, setShowWarnings] = useState(false),
+    [showRoutines, setShowRoutines] = useState(false),
+    [caughtUpWeek, setCaughtUpWeek] = useState("0"),
+    [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
+    [clock, setClock] = useState(() => new Date());
   const current = useRef<Semester | null>(null),
+    baseline = useRef<Semester | null>(null),
     revision = useRef(0),
     pending = useRef<Semester | null>(null),
     saving = useRef(false);
-  const today = sydneyDate();
+  const today = sydneyDate(clock);
+  useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
     setLoadError("");
     try {
@@ -106,6 +117,7 @@ export default function SemesterBoard() {
         throw new Error(j.error);
       }
       current.current = j.semester;
+      baseline.current = j.semester;
       setSemester(j.semester);
       revision.current = j.revision;
       setLoaded(true);
@@ -146,6 +158,7 @@ export default function SemesterBoard() {
     saving.current = true;
     setSaveError("");
     try {
+      let retries = 0;
       while (pending.current) {
         const snapshot = pending.current;
         setSaveStatus("Saving…");
@@ -158,8 +171,22 @@ export default function SemesterBoard() {
           }),
         });
         const j = (await r.json()) as ApiResult;
+        if (r.status === 409 && retries++ < 2) {
+          const latest = await fetch("/api/semester", {cache:"no-store"});
+          const remote = await latest.json() as ApiResult;
+          if (!latest.ok || !remote.semester) throw new Error("Could not read the latest saved version. Your edits remain in this tab.");
+          const merged = reconcile(baseline.current, pending.current || snapshot, remote.semester);
+          if (merged.conflicts.length) {
+            setConflict({remote:remote.semester,revision:remote.revision,fields:merged.conflicts});
+            throw new Error("Another tab changed the same information. Choose which conflicting edits to keep; unrelated changes are preserved.");
+          }
+          baseline.current = remote.semester; revision.current = remote.revision;
+          pending.current = merged.semester; current.current = merged.semester; setSemester(merged.semester);
+          continue;
+        }
         if (!r.ok) throw new Error(j.error);
         revision.current = j.revision;
+        baseline.current = snapshot;
         if (pending.current === snapshot) pending.current = null;
       }
       setSaveStatus("Saved");
@@ -173,6 +200,12 @@ export default function SemesterBoard() {
     } finally {
       saving.current = false;
     }
+  }
+  function resolveConflict(prefer: "local" | "remote") {
+    if (!conflict || !current.current) return;
+    const merged = reconcile(baseline.current,current.current,conflict.remote,prefer);
+    baseline.current = conflict.remote; revision.current = conflict.revision;
+    setConflict(null); commit(merged.semester);
   }
   function commit(next: Semester) {
     current.current = next;
@@ -277,7 +310,14 @@ export default function SemesterBoard() {
       setEditError("Your planned start must be before the due week.");
       return;
     }
-    const next = { ...draft, title: draft.title.trim(), week, manual: true };
+    const previous = semester.tasks.find(t=>t.id === draft.id);
+    const edited = { ...draft, title: draft.title.trim(), week };
+    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed"];
+    const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
+    const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
+      JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
+    const timingChanged = ["date","time","week"].some(k=>JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]));
+    const next = { ...edited, manual: true, overrides:timingChanged ? [...new Set([...overrides,"timeBasis","timing","endTime"])] : overrides, ...(timingChanged ? {timeBasis:"deadline" as const,timing:"Date entered by you",endTime:undefined} : {}) };
     const exists = semester.tasks.some((t) => t.id === next.id);
     commit({
       ...semester,
@@ -299,6 +339,20 @@ export default function SemesterBoard() {
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+  async function restoreBackup(file?: File) {
+    if (!file || !semester) return;
+    try {
+      const restored = JSON.parse(await file.text()) as Semester;
+      if (file.size > 1500000 || restored.year !== semester.year || restored.session !== semester.session
+        || !Array.isArray(restored.tasks) || !Array.isArray(restored.classes) || !restored.completed
+        || restored.tasks.some(t=>typeof t.id !== "string" || typeof t.title !== "string")) throw new Error("Choose a valid backup for this semester.");
+      // Restore personal progress as a merge, not a destructive replacement.
+      const tasks = new Map(semester.tasks.map(t=>[t.id,t]));
+      for (const t of restored.tasks) tasks.set(t.id, {...(tasks.get(t.id) || t), ...t});
+      commit({...semester,tasks:[...tasks.values()],completed:{...semester.completed,...restored.completed}});
+      setNotice("Backup tasks and progress restored. Current timetable link kept.");
+    } catch(e) {setNotice(e instanceof Error ? e.message : "Backup could not be read.");}
+  }
   const selectedWeek = semester?.weeks.find(
     (w) => w.start <= today && w.end >= today,
   );
@@ -308,27 +362,22 @@ export default function SemesterBoard() {
         COLORS.length
     ];
   const undated =
-    semester?.tasks.filter(
-      (t) =>
-        (!t.week && !t.date && t.kind !== "exam") ||
-        (t.kind === "recurring" && !t.series && t.warning),
-    ) || [];
+    semester?.tasks.filter(needsPlacement) || [];
+  const ongoing = undated.filter(t=>t.routine && /ongoing/i.test(t.sourceText));
+  const unplaced = undated.filter(t=>!ongoing.includes(t));
   const overdue =
     semester?.tasks.filter(
       (t) =>
         !t.done &&
-        (t.date
-          ? t.date < today
-          : t.week
-            ? (semester.weeks.find((w) => w.number === t.week)?.end || "9999") <
-              today
-            : false),
+        isPast(t,semester,clock),
     ) || [];
   const upcoming =
     semester?.tasks
       .filter(
         (t) =>
           !t.done &&
+          !isRoutine(t) && !t.rules?.optional &&
+          !isPast(t,semester,clock) &&
           !undated.includes(t) &&
           (t.date
             ? t.date >= today
@@ -339,13 +388,13 @@ export default function SemesterBoard() {
       )
       .sort((a, b) =>
         (
-          a.date ||
+          (a.date ? a.date + (a.time || "23:59") : "") ||
           semester?.weeks.find((w) =>
             a.week ? w.number === a.week : w.id === "exam" && a.kind === "exam",
           )?.start ||
           "9999"
         ).localeCompare(
-          b.date ||
+          (b.date ? b.date + (b.time || "23:59") : "") ||
             semester?.weeks.find((w) =>
               b.week
                 ? w.number === b.week
@@ -356,10 +405,13 @@ export default function SemesterBoard() {
       ) || [];
   const visibleWeeks =
     semester?.weeks.filter((w) => showPast || w.end >= today) || [];
-  const catchup =
-    semester?.classes.filter(
-      (c) => c.date < today && !semester.completed[c.id],
-    ) || [];
+  const focusWeek = selectedWeek?.number ? selectedWeek : semester?.weeks.find(w=>w.kind === "teaching" && w.start >= today);
+  const routineTasks = semester?.tasks.filter(t=>isRoutine(t) && (t.week === focusWeek?.number && !!focusWeek?.number)) || [];
+  function retryClasses(task: Task) {
+    if (!semester || task.passed || !task.date || !task.rules?.attempts || task.rules.attempts < 2) return [];
+    return semester.classes.filter(c=>c.unit === task.unit && /tutorial/i.test(c.activity) && c.date > task.date!)
+      .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time)).slice(0,task.rules.attempts - 1);
+  }
   function TaskCard({
     task,
     compact = false,
@@ -378,9 +430,7 @@ export default function SemesterBoard() {
               ? task.unit
               : task.kind === "exam"
                 ? "EXAM"
-                : task.series
-                  ? "RECURRING"
-                  : task.kind.toUpperCase()}
+                : task.kind.toUpperCase()}
             {task.hurdle ? " · HURDLE" : ""}
           </small>
           <Checkbox
@@ -392,18 +442,26 @@ export default function SemesterBoard() {
         <button className="task-open" onClick={() => openTask(task)}>
           <strong>{task.title}</strong>
           <span>
-            {task.timing.startsWith("Before") ? `${task.timing} · ` : ""}
             {timingLabel(task)}
           </span>
           {task.weight && (
             <span className="weight">
-              {task.weight}
-              {task.warning ? " · Check details" : ""}
+              {weightLabel(task)}
             </span>
           )}
+          {task.sourceConflict && <span className="source-warning">Source dates conflict</span>}
+          {task.rules?.threshold && <span className="source-warning">{task.passed ? "Hurdle met (self-reported)" : `Need ≥${task.rules.threshold}% · ${task.rules.attempts || 1} attempt${task.rules.attempts === 1 ? "" : "s"}`}</span>}
+          {!!task.coverage?.length && <span className="hint">Covers W{task.coverage.join(", W")} · {semester?.classes.filter(c=>c.unit === task.unit && /lecture/i.test(c.activity) && task.coverage?.includes(c.week || 0) && !semester.completed[c.id]).length} lectures unrecorded</span>}
         </button>
       </div>
     );
+  }
+  function RoutineItem({task}: {task:Task}) {
+    return <div className={`routine-item ${task.done ? "is-done" : ""}`} style={{"--unit":color(task.unit)} as React.CSSProperties}>
+      <Checkbox aria-label={`Mark ${task.unit} ${task.title} week ${task.week} complete`} checked={!!task.done} onCheckedChange={()=>toggleTask(task)}/>
+      <button onClick={()=>openTask(task)}><strong>{task.title}</strong><span>{timingLabel(task)}</span></button>
+      {task.rules?.perOccurrence !== undefined && <small>{task.rules.perOccurrence}%</small>}
+    </div>;
   }
   return (
     <main>
@@ -438,7 +496,7 @@ export default function SemesterBoard() {
       {saveError && (
         <div className="notice error" role="alert">
           <p>{saveError}</p>
-          <button onClick={flush}>Retry save</button>{" "}
+          {conflict ? <><p>{conflict.fields.length} conflicting field(s). Both versions remain available until you choose.</p><button onClick={()=>resolveConflict("local")}>Keep this tab’s conflicting edits</button>{" "}<button onClick={()=>resolveConflict("remote")}>Keep saved conflicting edits</button></> : <button onClick={flush}>Retry save</button>}{" "}
           <button onClick={backup}>Export unsaved progress</button>
         </div>
       )}
@@ -497,6 +555,7 @@ export default function SemesterBoard() {
                   <Download size={15} />
                   Export backup
                 </button>
+                <label className="restore-backup">Restore backup<input type="file" accept=".json,application/json" onChange={e=>void restoreBackup(e.target.files?.[0])}/></label>
               </div>
             )}
           </div>
@@ -567,8 +626,8 @@ export default function SemesterBoard() {
           </section>
           <section className="coming-up">
             <div className="coming-title">
-              <p className="eyebrow">COMING UP NEXT</p>
-              <span>Know before it’s due.</span>
+              <p className="eyebrow">UPCOMING MILESTONES</p>
+              <span>Assignments & key quizzes · next {Math.min(3,upcoming.length)} of {upcoming.length}</span>
             </div>
             <div className="upcoming-cards">
               {upcoming.slice(0, 3).map((t) => (
@@ -582,6 +641,17 @@ export default function SemesterBoard() {
               )}
             </div>
           </section>
+          <section className="routine-strip">
+            <button aria-expanded={showRoutines} onClick={()=>setShowRoutines(!showRoutines)}>
+              {focusWeek?.label || "Weekly"} routines · {routineTasks.filter(t=>!t.done).length} unrecorded <ChevronDown size={14}/>
+            </button>
+            <span>Participation, prework & regular quizzes stay on the board below.</span>
+            {showRoutines && <div className="routine-list">{routineTasks.map(t=><div key={t.id}><small style={{color:color(t.unit)}}>{t.unit}</small><RoutineItem task={t}/></div>)}</div>}
+          </section>
+          {semester.tasks.filter(t=>t.hurdle && t.date && t.date < today && retryClasses(t).some(c=>c.date >= today)).map(t=><div className="hurdle-reminder" key={t.id}>
+            <button onClick={()=>openTask(t)}>{t.unit} · {t.title}: hurdle not yet confirmed</button>
+            <span>Possible reattempt {retryClasses(t).filter(c=>c.date >= today).map(c=>`${shortDate(c.date)} (W${c.week})`).join(" / ")} · check eligibility</span>
+          </div>)}
           <div className="attention-line">
             <button
               onClick={() => {
@@ -591,7 +661,7 @@ export default function SemesterBoard() {
                 );
               }}
             >
-              {overdue.length} past assessments unchecked
+              Review past assessments ({overdue.length})
             </button>
             <button
               onClick={() =>
@@ -600,10 +670,10 @@ export default function SemesterBoard() {
                   ?.scrollIntoView({ behavior: "smooth" })
               }
             >
-              {undated.filter((t) => !t.done).length} need details
+              {unplaced.filter((t) => !t.done).length} need details
             </button>
             <span>·</span>
-            <span>{catchup.length} past learning items unchecked</span>
+            <span>Unchecked means unrecorded—not necessarily unfinished.</span>
             <button onClick={() => setShowWarnings(!showWarnings)}>
               Import details <ChevronDown size={14} />
             </button>
@@ -653,6 +723,7 @@ export default function SemesterBoard() {
                   >
                     {u.code}
                     <small>{u.name}</small>
+                    {ongoing.filter(t=>t.unit === u.code).map(t=><small key={t.id}>Weekly project work · {t.weight} across semester</small>)}
                   </button>
                 ))}
               </div>
@@ -734,7 +805,7 @@ export default function SemesterBoard() {
                             </button>
                           ))}
                           {tasks.map((t) => (
-                            <TaskCard key={t.id} task={t} />
+                            isRoutine(t) ? <RoutineItem key={t.id} task={t}/> : <TaskCard key={t.id} task={t} />
                           ))}
                           {learning.length > 0 && (
                             <div className="learning">
@@ -775,26 +846,26 @@ export default function SemesterBoard() {
               <h3>
                 Needs details{" "}
                 <span className="count">
-                  {undated.filter((t) => !t.done).length}
+                  {unplaced.filter((t) => !t.done).length}
                 </span>
               </h3>
               <p className="muted">
                 These aren’t missing—just not fully scheduled yet.
               </p>
-              {undated.length === 0 ? (
+              {unplaced.length === 0 ? (
                 <p className="hint">
                   All imported tasks have a place. Keep checking course
                   announcements.
                 </p>
               ) : (
-                undated.map((t) => (
+                unplaced.map((t) => (
                   <div
                     key={t.id}
                     className={`unplaced ${t.done ? "is-done" : ""}`}
                     style={{ "--unit": color(t.unit) } as React.CSSProperties}
                   >
                     <small style={{ color: color(t.unit) }}>
-                      {t.unit} · {t.weight}
+                      {t.unit} · {weightLabel(t)}
                     </small>
                     <strong>{t.title}</strong>
                     <p>
@@ -806,6 +877,7 @@ export default function SemesterBoard() {
                   </div>
                 ))
               )}
+              {!!ongoing.length && <details><summary>Ongoing work ({ongoing.length})</summary>{ongoing.map(t=><p key={t.id}><button onClick={()=>openTask(t)}>{t.unit} · {t.title}</button><span className="hint">{t.weight} across the semester. Track individual workshop progress on the board.</span></p>)}</details>}
               <p className="hint">
                 Add dates from Canvas or Ed. No deadline is invented to fill a
                 gap.
@@ -853,7 +925,17 @@ export default function SemesterBoard() {
           </SheetHeader>
           {detail?.type === "task" && draft && semester && (
             <div className="detail-body">
-              {draft.warning && <p className="notice">{draft.warning}</p>}
+              {draft.sourceConflict && <p className="notice error">{draft.sourceConflict}</p>}
+              {draft.warning && (!/individual occurrences|Recurring assessment/i.test(draft.warning) || needsPlacement(draft)) && <p className="notice">{draft.warning}</p>}
+              <section className="rule-card">
+                <strong>{weightLabel(draft)}</strong>
+                {draft.rules?.coverageText && <p><b>Quiz / exam scope</b><br/>{draft.rules.coverageText}</p>}
+                {draft.rules?.coverageText && !draft.coverage?.length && <p className="hint">The outline names topics, not exact week numbers. No week range has been guessed.</p>}
+                {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
+                {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
+                {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
+                {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
+              </section>
               <label>
                 Task name
                 <input
@@ -1019,6 +1101,7 @@ export default function SemesterBoard() {
                 />
                 Completed
               </label>
+              {draft.hurdle && <label className="inline-label"><Checkbox checked={!!draft.passed} onCheckedChange={v=>setDraft({...draft,passed:!!v})}/>I have confirmed that I met the hurdle</label>}
               {editError && (
                 <p className="error" role="alert">
                   {editError}
@@ -1029,8 +1112,7 @@ export default function SemesterBoard() {
               </button>
               {draft.series && (
                 <p className="hint">
-                  This edits only this occurrence. The displayed weight is for
-                  the whole assessment series.
+                  This edits only this occurrence. Series totals are not the weight of each individual task.
                 </p>
               )}
               {draft.source && (
@@ -1055,6 +1137,14 @@ export default function SemesterBoard() {
                       id: `manual-${crypto.randomUUID()}`,
                       title: `${draft.title} — occurrence`,
                       kind: "assessment" as const,
+                      parentId: draft.id,
+                      series: undefined,
+                      weight: draft.rules?.perOccurrence !== undefined ? `${draft.rules.perOccurrence}%` : "",
+                      date: undefined,
+                      time: undefined,
+                      week: undefined,
+                      routine: true,
+                      overrides: [],
                       manual: true,
                       done: false,
                       warning: undefined,
@@ -1096,15 +1186,22 @@ export default function SemesterBoard() {
               <a href={detail.unit.outline} target="_blank" rel="noreferrer">
                 Open official outline
               </a>
-              {detail.unit.assessments.map((t) => (
+              {semester && <section className="rule-card"><strong>Catch up without ticking every lecture</strong><p className="hint">Only marks lectures as watched. Does not mark submissions, attendance or quizzes complete.</p><Choice label="Lectures watched through" value={caughtUpWeek} onChange={setCaughtUpWeek} options={[["0","Choose a week"],...Array.from({length:13},(_,i)=>[String(i+1),`Through Week ${i+1}`] as [string,string])]}/><button disabled={caughtUpWeek === "0"} onClick={()=>{const completed={...semester.completed}; semester.classes.filter(c=>c.unit === detail.unit.code && /lecture/i.test(c.activity) && c.week && c.week <= +caughtUpWeek).forEach(c=>completed[c.id]=true);commit({...semester,completed});setNotice(`${detail.unit.code} lectures through W${caughtUpWeek} marked watched. You can untick individual lectures.`);}}>Mark lectures watched</button></section>}
+              <h3>Assessment structure</h3>
+              {detail.unit.assessments.map((original) => {
+                const t = semester?.tasks.find(x=>x.id === original.id) || original;
+                return (
                 <div className="assessment-summary" key={t.id}>
                   <strong>{t.title}</strong>
                   <span>
                     {t.weight} {t.hurdle ? "· Hurdle" : ""}
                   </span>
                   <p>{t.timing}</p>
+                  {t.rules?.perOccurrence !== undefined && <p>{t.rules.perOccurrence}% per occurrence · {t.weight} cap</p>}
+                  {t.routine && <p>{semester?.tasks.filter(x=>x.series === t.id && x.done).length || 0} / {semester?.tasks.filter(x=>x.series === t.id).length || "?"} scheduled occurrences recorded. {t.rules?.bestOf ? `Best ${t.rules.bestOf} count.` : "Scoring / attendance exceptions: check the rules."}</p>}
+                  {t.rules?.text && <details><summary>Rules & scope</summary><p>{t.rules.text}</p></details>}
                 </div>
-              ))}
+              );})}
               <details>
                 <summary>Assessment rules</summary>
                 <p>

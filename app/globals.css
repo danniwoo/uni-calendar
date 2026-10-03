@@ -193,9 +193,7 @@ textarea {
   flex-wrap: wrap;
   gap: 8px;
 }
-button:not([data-slot="checkbox"]):not([data-slot="sheet-close"]):not(
-    .task-card
-  ) {
+:where(button:not([data-slot="checkbox"]):not([data-slot="sheet-close"]):not(.task-card)) {
   display: inline-flex;
   align-items: center;
   justify-content: center;

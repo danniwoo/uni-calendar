@@ -1,5 +1,6 @@
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { database } from "@/lib/storage";
+import { upgradeSemester } from "@/lib/importer";
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user)
@@ -14,7 +15,7 @@ export async function GET() {
       .first<{ data: string; revision: number }>();
     return Response.json(
       {
-        semester: row ? JSON.parse(row.data) : null,
+        semester: row ? upgradeSemester(JSON.parse(row.data)) : null,
         revision: row?.revision || 0,
       },
       { headers: { "Cache-Control": "no-store" } },
