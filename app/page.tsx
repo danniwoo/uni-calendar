@@ -1,0 +1,15 @@
+"use client";
+import {useState} from "react";
+import {CalendarDays} from "lucide-react";
+import {Checkbox} from "@/components/ui/checkbox";
+
+const units=["COMP3888","ELEC2302","ISYS2120","SOFT2412"];
+const colors=["#325ccd","#995900","#207565","#8253a2"];
+export default function Page(){
+ const [notice,setNotice]=useState("");
+ return <main><header><div className="wordmark"><CalendarDays/> semester <small>USYD</small></div><span className="muted">Less to keep in your head.</span></header>
+ <section className="setup"><div><p className="eyebrow">YOUR SEMESTER, IN ONE PLACE</p><h1>See it coming.</h1><p className="muted">Assignments, quizzes and the weeks to catch up on.</p></div><form onSubmit={e=>{e.preventDefault();setNotice("The importer is being connected. This is an example of the semester layout.")}}><label htmlFor="feed">Your USYD timetable subscription link</label><div className="input-action"><input id="feed" type="url" required placeholder="https://timetable.sydney.edu.au/…"/><button className="primary">Build my semester</button></div><p className="hint">We find your units, then check their outlines. Your link stays private.</p></form></section>
+ {notice&&<div className="notice" role="status">{notice}</div>}
+ <section className="heading"><div><p className="eyebrow">EXAMPLE LAYOUT · NOT IMPORTED DATA</p><h2>Semester 2 <span className="muted">2026</span></h2></div><button onClick={()=>document.getElementById("w5")?.scrollIntoView({behavior:"smooth"})}>Jump to focus week</button></section>
+ <div className="board-layout"><section className="board"><div className="grid-head"><div className="week-label">TEACHING WEEK</div>{units.map((u,i)=><div className="unit-head" key={u} style={{color:colors[i]}}>{u}<small>Assessments & learning</small></div>)}</div>{[4,5,6,7,8].map(w=><div id={`w${w}`} className={`week-row ${w===5?"current":""}`} key={w}><div className="week-label"><strong>Week {w}</strong><small>{["24–30 Aug","31 Aug–6 Sep","7–13 Sep","14–20 Sep","21–27 Sep"][w-4]}</small>{w===5&&<em>Focus week</em>}</div>{units.map((u,i)=><div className="unit-cell" data-unit={u} key={u} style={{"--unit":colors[i]} as React.CSSProperties}>{w===i+5&&<article className="task-card"><small>{i===1?"QUIZ":"ASSESSMENT"}</small><strong>{["Group assignment","In-class quiz","Assignment 1","Project checkpoint"][i]}</strong><span>{i===1?"During tutorial":"Deadline shown here"}</span></article>}<div className="learning">{["Lecture","Tutorial"].map(k=><label key={k}><Checkbox/>{k}</label>)}</div></div>)}</div>)}</section><aside><CalendarDays size={22}/><h3>Needs a date</h3><p className="muted">Nothing gets lost because its deadline isn’t published.</p><div className="unplaced"><small>EXAMPLE TASK</small><strong>Lab report</strong><p>No week or due date found</p></div><p className="hint">Week known, time unknown? It belongs on the board, labelled clearly.</p></aside></div><footer>Example only. Your timetable and published unit outlines will replace this board.</footer></main>
+}
