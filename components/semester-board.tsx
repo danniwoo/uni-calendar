@@ -43,6 +43,7 @@ import {
 } from "@/lib/semester";
 import { reconcile } from "@/lib/sync";
 import { registerSemesterTools } from "@/lib/browser-tools";
+import { UnitDetail } from "@/components/unit-detail";
 
 function Choice({
   value,
@@ -101,7 +102,6 @@ export default function SemesterBoard() {
     [showTray, setShowTray] = useState(false),
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
     [editingTask, setEditingTask] = useState(false),
-    [caughtUpWeek, setCaughtUpWeek] = useState("0"),
     [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
     [clock, setClock] = useState(() => new Date());
   const current = useRef<Semester | null>(null),
@@ -639,6 +639,7 @@ export default function SemesterBoard() {
               </h1>
             </div>
             <div className="toolbar">
+              {focus && <button className="pending-details-button" aria-expanded={showTray} aria-controls="needs-details" onClick={() => setShowTray(!showTray)}>Needs details ({unplaced.filter(t => !t.done).length})</button>}
               <button
                 onClick={() => {
                   document
@@ -1243,36 +1244,14 @@ export default function SemesterBoard() {
               </p>
             </div>
           )}
-          {detail?.type === "unit" && (
-            <div className="detail-body">
-              <a href={detail.unit.outline} target="_blank" rel="noreferrer">
-                Open official outline
-              </a>
-              {semester && <section className="rule-card"><strong>Catch up without ticking every lecture</strong><p className="hint">Only marks lectures as watched. Does not mark submissions, attendance or quizzes complete.</p><Choice label="Lectures watched through" value={caughtUpWeek} onChange={setCaughtUpWeek} options={[["0","Choose a week"],...Array.from({length:13},(_,i)=>[String(i+1),`Through Week ${i+1}`] as [string,string])]}/><button disabled={caughtUpWeek === "0"} onClick={()=>{const completed={...semester.completed}; semester.classes.filter(c=>c.unit === detail.unit.code && /lecture/i.test(c.activity) && c.week && c.week <= +caughtUpWeek).forEach(c=>completed[c.id]=true);commit({...semester,completed});setNotice(`${detail.unit.code} lectures through W${caughtUpWeek} marked watched. You can untick individual lectures.`);}}>Mark lectures watched</button></section>}
-              <h3>Assessment structure</h3>
-              {detail.unit.assessments.map((original) => {
-                const t = semester?.tasks.find(x=>x.id === original.id) || original;
-                return (
-                <div className="assessment-summary" key={t.id}>
-                  <strong>{t.title}</strong>
-                  <span>
-                    {t.weight} {t.hurdle ? "· Hurdle" : ""}
-                  </span>
-                  <p>{t.timing}</p>
-                  {t.rules?.perOccurrence !== undefined && <p>{t.rules.perOccurrence}% per occurrence · {t.weight} cap</p>}
-                  {t.routine && <p>{semester?.tasks.filter(x=>x.series === t.id && x.done).length || 0} / {semester?.tasks.filter(x=>x.series === t.id).length || "?"} scheduled occurrences recorded. {t.rules?.bestOf ? `Best ${t.rules.bestOf} count.` : "Scoring / attendance exceptions: check the rules."}</p>}
-                  {t.rules?.text && <details><summary>Rules & scope</summary><p>{t.rules.text}</p></details>}
-                </div>
-              );})}
-              <details>
-                <summary>Assessment rules</summary>
-                <p>
-                  {detail.unit.summary ||
-                    "No assessment summary could be imported. Check the official outline and Canvas/Ed."}
-                </p>
-              </details>
-            </div>
-          )}
+          {detail?.type === "unit" && semester && <UnitDetail key={detail.unit.code} semester={semester} unit={semester.units.find(u => u.code === detail.unit.code) || detail.unit} onToggle={toggleClass} onCatchUp={through => {
+            const s = current.current;
+            if (!s) return;
+            const completed = {...s.completed};
+            s.classes.filter(c => c.unit === detail.unit.code && /lecture/i.test(c.activity) && c.week && c.week <= through).forEach(c => completed[c.id] = true);
+            commit({...s, completed});
+            setNotice(`${detail.unit.code} lectures through W${through} marked watched. Individual ticks can be undone.`);
+          }} />}
         </SheetContent>
       </Sheet>
     </main>
