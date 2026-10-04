@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { parseICS, parseOutline, scheduleTasks, upgradeSemester } from "../lib/importer";
 import { calendar, mergeSemester, weekFor, needsPlacement, isPast, type Semester } from "../lib/semester";
 import { reconcile } from "../lib/sync";
+import { learningScope, withCoverage } from "../lib/learning-scope";
 const feed = `BEGIN:VCALENDAR
 BEGIN:VEVENT
 DTSTART;TZID=Australia/Sydney:20261008T100000
@@ -78,3 +79,12 @@ const upgraded=upgradeSemester(fresh);
 assert.deepEqual(upgradeSemester(upgraded),upgraded,"Saved-data upgrade must be idempotent");
 assert.equal(isPast({...tasks[0],date:"2026-10-04",time:"10:00"},fresh,new Date("2026-10-04T00:01:00Z")),true);
 console.log("PASS: explicit summary rules, coverage, before-class timing, placement, field overrides, concurrent edits, migration and Sydney DST.");
+const scoped = withCoverage(tasks[1],[1,2,3,3,99]);
+assert.deepEqual(scoped.coverage,[1,2,3]);
+const scopeSemester = {...fresh, classes:[1,3].map(w=>({...parsed.classes[0],id:`lecture-${w}`,activity:"Lecture",week:w})), completed:{"lecture-1":true}};
+assert.deepEqual(learningScope(scoped,scopeSemester).missing,[2]);
+assert.match(learningScope(scoped,scopeSemester).status,/W3 lecture unchecked/);
+assert.match(learningScope(scoped,scopeSemester).status,/W2 class data missing/);
+assert.deepEqual(mergeSemester({...fresh,tasks:[scoped]},structuredClone(fresh)).tasks.find(t=>t.id===scoped.id)?.coverage,[1,2,3]);
+assert.deepEqual(mergeSemester({...fresh,tasks:[withCoverage(scoped,[])]},structuredClone(fresh)).tasks.find(t=>t.id===scoped.id)?.coverage,[]);
+console.log("PASS: scope week validation, incomplete lectures, missing timetable data and refresh-safe manual scope.");

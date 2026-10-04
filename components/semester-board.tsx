@@ -44,6 +44,8 @@ import {
 import { reconcile } from "@/lib/sync";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
+import { AssessmentScope } from "@/components/assessment-scope";
+import { learningScope, withCoverage } from "@/lib/learning-scope";
 
 function Choice({
   value,
@@ -336,6 +338,14 @@ export default function SemesterBoard() {
     });
     setDetail(null);
   }
+  function saveScope(task: Task, weeks: number[]) {
+    const s = current.current;
+    if (!s) return;
+    const existing = s.tasks.find(t => t.id === task.id);
+    const updated = withCoverage(existing || task, weeks);
+    commit({...s, tasks: existing ? s.tasks.map(t=>t.id === task.id ? updated : t) : [...s.tasks,updated]});
+    setDraft(prev=>prev?.id === task.id ? withCoverage(prev,weeks) : prev);
+  }
   function backup() {
     if (!semester) return;
     const blob = new Blob(
@@ -481,7 +491,7 @@ export default function SemesterBoard() {
           )}
           {task.sourceConflict && <span className="source-warning">Source dates conflict</span>}
           {task.rules?.threshold && <span className="source-warning">{task.passed ? "Hurdle met (self-reported)" : `Need ≥${task.rules.threshold}% · ${task.rules.attempts || 1} attempt${task.rules.attempts === 1 ? "" : "s"}`}</span>}
-          {!!task.coverage?.length && <span className="hint">Covers W{task.coverage.join(", W")} · {semester?.classes.filter(c=>c.unit === task.unit && /lecture/i.test(c.activity) && task.coverage?.includes(c.week || 0) && !semester.completed[c.id]).length} lectures unrecorded</span>}
+          {!!task.coverage?.length && semester && <span className="scope-status">Covers {learningScope(task,semester).label} · {learningScope(task,semester).status}</span>}
         </button>
       </div>
     );
@@ -489,7 +499,7 @@ export default function SemesterBoard() {
   function RoutineItem({task}: {task:Task}) {
     return <div className={`routine-item ${task.done ? "is-done" : ""}`} style={{"--unit":color(task.unit)} as React.CSSProperties}>
       <Checkbox aria-label={`Mark ${task.unit} ${task.title} week ${task.week} complete`} checked={!!task.done} onCheckedChange={()=>toggleTask(task)}/>
-      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span>{displayTime(task)}</span></button>
+      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span>{displayTime(task)}</span>{!!task.coverage?.length && semester && <span className="scope-status">{learningScope(task,semester).status}</span>}</button>
       {task.rules?.perOccurrence !== undefined && <small>{task.rules.perOccurrence}%</small>}
     </div>;
   }
@@ -639,7 +649,7 @@ export default function SemesterBoard() {
               </h1>
             </div>
             <div className="toolbar">
-              {focus && <button className="pending-details-button" aria-expanded={showTray} aria-controls="needs-details" onClick={() => setShowTray(!showTray)}>Needs details ({unplaced.filter(t => !t.done).length})</button>}
+              <button className="pending-details-button" aria-haspopup="dialog" aria-expanded={showTray} aria-controls="needs-details" onClick={() => setShowTray(true)}>Needs details ({unplaced.filter(t => !t.done).length})</button>
               <button
                 onClick={() => {
                   document
@@ -664,13 +674,14 @@ export default function SemesterBoard() {
           <section className="coming-up">
             <div className="coming-title">
               <p className="eyebrow">{focus && soon.length ? "NEXT 7 DAYS" : "UPCOMING MILESTONES"}</p>
-              <span>{focus && soon.length ? "Tasks & quizzes" : "Assignments & key quizzes"} · next {Math.min(3,highlighted.length)} of {highlighted.length}</span>
+              <span>{highlighted.length} {focus && soon.length ? "tasks & quizzes" : "upcoming milestones"} · scroll for more</span>
+              <div className="upcoming-nav"><button aria-label="Previous upcoming tasks" onClick={()=>document.getElementById("upcoming-tasks")?.scrollBy({left:-290,behavior:"smooth"})}>Previous</button><button aria-label="More upcoming tasks" onClick={()=>document.getElementById("upcoming-tasks")?.scrollBy({left:290,behavior:"smooth"})}>More</button></div>
             </div>
-            <div className="upcoming-cards">
-              {highlighted.slice(0, 3).map((t) => (
+            <div className="upcoming-cards" id="upcoming-tasks" role="region" aria-label="Upcoming tasks, scroll horizontally" tabIndex={0}>
+              {highlighted.map((t) => (
                 <TaskCard key={t.id} task={t} compact />
               ))}
-              {!upcoming.length && (
+              {!highlighted.length && (
                 <p className="muted">
                   No upcoming dated tasks. Check your undated tasks and course
                   notices.
@@ -678,7 +689,7 @@ export default function SemesterBoard() {
               )}
             </div>
           </section>
-          <section className="routine-strip" hidden={focus}>
+          <section className="routine-strip">
             <button aria-expanded={showRoutines} onClick={()=>setShowRoutines(!showRoutines)}>
               {focusWeek?.label || "Weekly"} routines · {routineTasks.filter(t=>!t.done).length} unrecorded <ChevronDown size={14}/>
             </button>
@@ -701,12 +712,7 @@ export default function SemesterBoard() {
               Review past assessments ({overdue.length})
             </button>
             <button
-              onClick={() => {
-                if(focus) {setShowTray(!showTray);return;}
-                document
-                  .getElementById("needs-details")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
+              aria-haspopup="dialog" aria-expanded={showTray} onClick={() => setShowTray(true)}
             >
               {unplaced.filter((t) => !t.done).length} need details
             </button>
@@ -743,7 +749,7 @@ export default function SemesterBoard() {
               </p>
             </section>
           )}
-          <div className={`board-layout ${focus && !showTray ? "tray-closed" : ""}`}>
+          <div className="board-layout tray-closed">
             <section
               className="board"
               style={
@@ -887,18 +893,12 @@ export default function SemesterBoard() {
                 ),
               )}
             </section>
-            <aside id="needs-details" hidden={focus && !showTray}>
-              {focus && <button onClick={()=>setShowTray(false)}>Close pending details</button>}
-              <CalendarDays size={21} />
-              <h3>
+            <Sheet open={showTray} onOpenChange={setShowTray}><SheetContent className="detail-panel pending-panel" id="needs-details"><SheetHeader><SheetTitle>
                 Needs details{" "}
                 <span className="count">
                   {unplaced.filter((t) => !t.done).length}
                 </span>
-              </h3>
-              <p className="muted">
-                These aren’t missing—just not fully scheduled yet.
-              </p>
+              </SheetTitle><SheetDescription>Dates need confirming in Canvas or Ed. Add what you know; nothing is guessed.</SheetDescription></SheetHeader><div className="pending-items">
               {unplaced.length === 0 ? (
                 <p className="hint">
                   All imported tasks have a place. Keep checking course
@@ -920,16 +920,16 @@ export default function SemesterBoard() {
                         ? "Recurring dates need checking"
                         : "No individual dates published"}
                     </p>
-                    <button onClick={() => openTask(t)}>Check & place</button>
+                    <button onClick={() => {setShowTray(false);openTask(t);setEditingTask(true);}}>Check & place</button>
                   </div>
                 ))
               )}
-              {!!ongoing.length && <details><summary>Ongoing work ({ongoing.length})</summary>{ongoing.map(t=><p key={t.id}><button onClick={()=>openTask(t)}>{t.unit} · {t.title}</button><span className="hint">{t.weight} across the semester. Track individual workshop progress on the board.</span></p>)}</details>}
+              {!!ongoing.length && <details><summary>Ongoing work ({ongoing.length})</summary>{ongoing.map(t=><p key={t.id}><button onClick={()=>{setShowTray(false);openTask(t);}}>{t.unit} · {t.title}</button><span className="hint">{t.weight} across the semester. Track individual workshop progress on the board.</span></p>)}</details>}
               <p className="hint">
                 Add dates from Canvas or Ed. No deadline is invented to fill a
                 gap.
               </p>
-            </aside>
+            </div></SheetContent></Sheet>
           </div>
           <footer>
             <a
@@ -977,16 +977,14 @@ export default function SemesterBoard() {
               <section className="rule-card">
                 {focus && <p><strong>{timingLabel(draft)}</strong></p>}
                 <strong>{weightLabel(draft)}</strong>
-                {draft.rules?.coverageText && <p><b>Quiz / exam scope</b><br/>{draft.rules.coverageText}</p>}
-                {draft.rules?.coverageText && !draft.coverage?.length && <p className="hint">The outline names topics, not exact week numbers. No week range has been guessed.</p>}
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
                 {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>
+              <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>
               {focus && !editingTask && <>
                 <p>{draft.description}</p>
-                {!!draft.coverage?.length && <p>Covers weeks {draft.coverage.join(", ")}</p>}
                 <button className="primary" onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id);if(task){toggleTask(task);setDraft({...draft,done:!task.done});}}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button>
                 {draft.source && <a href={draft.source} target="_blank" rel="noreferrer">Open assessment source</a>}
                 <button onClick={()=>setEditingTask(true)}>{needsPlacement(draft) ? "Add missing details" : "Edit details"}</button>
@@ -1099,48 +1097,6 @@ export default function SemesterBoard() {
                 />
               </label>
               <label>
-                Quiz covers these weeks
-                <input
-                  key={draft.id}
-                  defaultValue={draft.coverage?.join(", ") || ""}
-                  placeholder="Only if known, e.g. 4, 5, 6, 7"
-                  onBlur={(e) =>
-                    setDraft({
-                      ...draft,
-                      coverage: [
-                        ...new Set(
-                          e.target.value
-                            .split(/[, ]+/)
-                            .map(Number)
-                            .filter((n) => n >= 1 && n <= 13),
-                        ),
-                      ],
-                    })
-                  }
-                />
-              </label>
-              {!!draft.coverage?.length && (
-                <div className="coverage">
-                  <strong>Learning to check</strong>
-                  {semester.classes
-                    .filter(
-                      (c) =>
-                        c.unit === draft.unit &&
-                        draft.coverage?.includes(c.week || 0) &&
-                        /lecture/i.test(c.activity),
-                    )
-                    .map((c) => (
-                      <label key={c.id} className="coverage-item">
-                        <Checkbox
-                          checked={!!semester.completed[c.id]}
-                          onCheckedChange={() => toggleClass(c)}
-                        />
-                        Week {c.week}: {c.topic || c.activity}
-                      </label>
-                    ))}
-                </div>
-              )}
-              <label>
                 Notes / instructions
                 <textarea
                   rows={4}
@@ -1244,7 +1200,7 @@ export default function SemesterBoard() {
               </p>
             </div>
           )}
-          {detail?.type === "unit" && semester && <UnitDetail key={detail.unit.code} semester={semester} unit={semester.units.find(u => u.code === detail.unit.code) || detail.unit} onToggle={toggleClass} onCatchUp={through => {
+          {detail?.type === "unit" && semester && <UnitDetail key={detail.unit.code} semester={semester} unit={semester.units.find(u => u.code === detail.unit.code) || detail.unit} onToggle={toggleClass} onScope={saveScope} onOpenTask={openTask} onCatchUp={through => {
             const s = current.current;
             if (!s) return;
             const completed = {...s.completed};

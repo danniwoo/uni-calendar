@@ -2,11 +2,14 @@
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Semester, Unit, ClassEvent, shortDate, timingLabel } from "@/lib/semester";
+import { Semester, Unit, ClassEvent, Task, shortDate, timingLabel } from "@/lib/semester";
+import { AssessmentScope } from "@/components/assessment-scope";
+import { learningScope } from "@/lib/learning-scope";
 
-export function UnitDetail({ semester, unit, onToggle, onCatchUp }: {
+export function UnitDetail({ semester, unit, onToggle, onCatchUp, onScope, onOpenTask }: {
   semester: Semester; unit: Unit; onToggle: (event: ClassEvent) => void;
   onCatchUp: (week: number) => void;
+  onScope: (task: Task, weeks: number[]) => void; onOpenTask: (task: Task) => void;
 }) {
   const [through, setThrough] = useState(0);
   const classes = semester.classes.filter(c => c.unit === unit.code && c.week);
@@ -19,7 +22,6 @@ export function UnitDetail({ semester, unit, onToggle, onCatchUp }: {
       <TabsList aria-label="Unit details">
         <TabsTrigger value="progress">Progress</TabsTrigger>
         <TabsTrigger value="assessments">Assessments</TabsTrigger>
-        <TabsTrigger value="rules">Rules & scope</TabsTrigger>
       </TabsList>
       <TabsContent value="progress">
         <div className="progress-heading"><strong>Weekly learning</strong><span>{classes.filter(c => semester.completed[c.id]).length} / {classes.length} done</span></div>
@@ -42,23 +44,21 @@ export function UnitDetail({ semester, unit, onToggle, onCatchUp }: {
       <TabsContent value="assessments">
         {assessments.map(t => {
           const occurrences = semester.tasks.filter(x => x.series === t.id);
-          return <section className="unit-assessment" key={t.id}>
+          return <details className="unit-assessment" key={t.id}><summary>
             <div className="assessment-title"><strong>{t.title}</strong><span>{t.weight}{t.routine ? " total" : ""}</span></div>
             <p>{occurrences.length ? `${occurrences.length} scheduled occurrences` : t.routine ? "Ongoing · individual dates not confirmed" : timingLabel(t)}</p>
+            {!!t.coverage?.length && <p className="scope-status">{learningScope(t,semester).status}</p>}
+            {t.hurdle && <span className="unit-flag">Hurdle</span>}
+            {t.sourceConflict && <p className="unit-conflict">Source dates conflict</p>}
+            </summary>
             {t.rules?.perOccurrence !== undefined && <p>{t.rules.perOccurrence}% each · {t.weight} maximum</p>}
             {occurrences.length > 0 && <p className="hint">{occurrences.filter(x => x.done).length} recorded complete · not a score</p>}
-            {t.hurdle && <span className="unit-flag">Hurdle — check rules</span>}
             {t.sourceConflict && <p className="unit-conflict">Dates conflict in the outline. Confirm in Canvas / Ed.</p>}
-          </section>;
+            {occurrences.length ? <><p className="hint">Each quiz can cover different weeks. Choose an occurrence to set its scope.</p><div className="series-occurrences">{occurrences.map(o=><button key={o.id} onClick={()=>onOpenTask(o)}>W{o.week || "?"} · {timingLabel(o)}{o.done ? " · recorded" : ""}</button>)}</div></> : <AssessmentScope task={t} semester={semester} onSave={onScope} onToggle={onToggle}/>}
+            {t.rules?.text && <details><summary>Assessment rules</summary><p>{t.rules.text}</p></details>}
+            {!occurrences.length && <button onClick={()=>onOpenTask(t)}>Open task / edit details</button>}
+          </details>;
         })}
-      </TabsContent>
-      <TabsContent value="rules">
-        <p className="hint">From the outline. Check Canvas / Ed for updates and missing quiz coverage.</p>
-        {assessments.map(t => <details className="unit-rule" key={t.id}><summary>{t.title}</summary>
-          <p><strong>Scope: </strong>{t.rules?.coverageText || (t.coverage?.length ? `Weeks ${t.coverage.join(", ")}` : "Not specified in the imported information.")}</p>
-          <p>{t.rules?.text || "No detailed rule imported. Check the official outline or assessment brief."}</p>
-          {t.sourceConflict && <p className="unit-conflict">{t.sourceConflict}</p>}
-        </details>)}
         <details className="unit-rule"><summary>Full assessment summary</summary><p>{unit.summary || "No summary imported. Check the official outline."}</p></details>
       </TabsContent>
     </Tabs>
