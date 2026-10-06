@@ -44,6 +44,7 @@ import {
 import { reconcile } from "@/lib/sync";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
+import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
 
@@ -316,14 +317,16 @@ export default function SemesterBoard() {
       );
       return;
     }
-    const week = draft.date ? weekFor(draft.date, semester.weeks) : draft.week;
+    const originalTask = semester.tasks.find(t=>t.id===draft.id);
+    const preservedDueWeek = draft.date === originalTask?.date && draft.time === originalTask?.time ? draft.dueWeek : undefined;
+    const week = preservedDueWeek || (draft.date ? weekFor(draft.date, semester.weeks) : draft.week);
     if (draft.startWeek && week && draft.startWeek > week) {
       setEditError("Your planned start must be before the due week.");
       return;
     }
     const previous = semester.tasks.find(t=>t.id === draft.id);
-    const edited = { ...draft, title: draft.title.trim(), week };
-    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed"];
+    const edited = { ...draft, title: draft.title.trim(), week, dueWeek:preservedDueWeek };
+    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek"];
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
       JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
@@ -803,8 +806,8 @@ export default function SemesterBoard() {
                     {semester.units.map((u) => {
                       const tasks = semester.tasks.filter(
                         (t) =>
-                          t.unit === u.code &&
-                          (t.date
+                          t.unit === u.code && !t.splitCount &&
+                          (t.dueWeek ? t.dueWeek === w.number : t.date
                             ? t.date >= w.start && t.date <= w.end
                             : t.kind === "exam"
                               ? w.kind === "exam"
@@ -982,6 +985,8 @@ export default function SemesterBoard() {
                 {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>
+              <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Submissions created. Open any part to adjust its date or mark it complete.");}}/>
+              {!draft.splitCount && <>
               <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>
               {focus && !editingTask && <>
                 <p>{draft.description}</p>
@@ -1168,6 +1173,7 @@ export default function SemesterBoard() {
                 </button>
               )}
               </div>
+              </>}
             </div>
           )}
           {detail?.type === "class" && semester && (

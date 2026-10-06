@@ -43,10 +43,10 @@ export function UnitDetail({ semester, unit, onToggle, onCatchUp, onScope, onOpe
       </TabsContent>
       <TabsContent value="assessments">
         {assessments.map(t => {
-          const occurrences = semester.tasks.filter(x => x.series === t.id);
+          const occurrences = semester.tasks.filter(x => x.series === t.id || x.parentId === t.id);
           return <details className="unit-assessment" key={t.id}><summary>
             <div className="assessment-title"><strong>{t.title}</strong><span>{t.weight}{t.routine ? " total" : ""}</span></div>
-            <p>{occurrences.length ? `${occurrences.length} scheduled occurrences` : t.routine ? "Ongoing · individual dates not confirmed" : timingLabel(t)}</p>
+            <p>{occurrences.length ? `${occurrences.length} parts · ${occurrences.filter(x=>!x.week&&!x.date).length} need weeks` : t.routine ? "Ongoing · individual dates not confirmed" : timingLabel(t)}</p>
             {!!t.coverage?.length && <p className="scope-status">{learningScope(t,semester).status}</p>}
             {t.hurdle && <span className="unit-flag">Hurdle</span>}
             {t.sourceConflict && <p className="unit-conflict">Source dates conflict</p>}
@@ -54,7 +54,7 @@ export function UnitDetail({ semester, unit, onToggle, onCatchUp, onScope, onOpe
             {t.rules?.perOccurrence !== undefined && <p>{t.rules.perOccurrence}% each · {t.weight} maximum</p>}
             {occurrences.length > 0 && <p className="hint">{occurrences.filter(x => x.done).length} recorded complete · not a score</p>}
             {t.sourceConflict && <p className="unit-conflict">Dates conflict in the outline. Confirm in Canvas / Ed.</p>}
-            {occurrences.length ? <><p className="hint">Each quiz can cover different weeks. Choose an occurrence to set its scope.</p><div className="series-occurrences">{occurrences.map(o=><button key={o.id} onClick={()=>onOpenTask(o)}>W{o.week || "?"} · {timingLabel(o)}{o.done ? " · recorded" : ""}</button>)}</div></> : <AssessmentScope task={t} semester={semester} onSave={onScope} onToggle={onToggle}/>}
+            {occurrences.length ? <><p className="hint">Each part has its own date, scope and completion. Select one to edit it.</p><div className="series-occurrences">{occurrences.map(o=><button key={o.id} onClick={()=>onOpenTask(o)}>{o.splitPart ? `${o.title} · ${o.weight} · ` : ""}W{o.week || "?"} · {timingLabel(o)}{o.done ? " · recorded" : ""}</button>)}</div></> : <AssessmentScope task={t} semester={semester} onSave={onScope} onToggle={onToggle}/>}
             {t.rules?.text && <details><summary>Assessment rules</summary><p>{t.rules.text}</p></details>}
             {!occurrences.length && <button onClick={()=>onOpenTask(t)}>Open task / edit details</button>}
           </details>;

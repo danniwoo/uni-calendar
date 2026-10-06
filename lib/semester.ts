@@ -46,8 +46,12 @@ export type Task = {
   passed?: boolean;
   overrides?: string[];
   sourceConflict?: string;
+  splitCount?: number;
+  splitPart?: number;
+  dueWeek?: number;
 };
 export type AssessmentRules = {
+  count?: number;
   text: string;
   perOccurrence?: number;
   total?: number;
@@ -204,9 +208,10 @@ export function mergeSemester(
   return fresh;
 }
 
-export const needsPlacement = (t: Task) => !t.week && !t.date && t.kind !== "exam";
+export const needsPlacement = (t: Task) => !t.splitCount && !t.week && !t.date && t.kind !== "exam";
 export const isRoutine = (t: Task) => !!t.routine || (!!t.series && !t.hurdle);
 export function weightLabel(t: Task) {
+  if (t.splitPart) return t.weight;
   if (t.rules?.optional && /bonus/i.test(t.title)) return "Optional bonus";
   if (t.series || t.parentId) return t.rules?.perOccurrence !== undefined
     ? `${t.rules.perOccurrence}% each · ${t.rules.total ?? parseFloat(t.weight)}% cap`

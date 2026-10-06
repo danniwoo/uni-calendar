@@ -4,6 +4,7 @@ import { parseICS, parseOutline, scheduleTasks, upgradeSemester } from "../lib/i
 import { calendar, mergeSemester, weekFor, needsPlacement, isPast, type Semester } from "../lib/semester";
 import { reconcile } from "../lib/sync";
 import { learningScope, withCoverage } from "../lib/learning-scope";
+import { splitAssessment } from "../lib/split-assessment";
 const feed = `BEGIN:VCALENDAR
 BEGIN:VEVENT
 DTSTART;TZID=Australia/Sydney:20261008T100000
@@ -88,3 +89,25 @@ assert.match(learningScope(scoped,scopeSemester).status,/W2 class data missing/)
 assert.deepEqual(mergeSemester({...fresh,tasks:[scoped]},structuredClone(fresh)).tasks.find(t=>t.id===scoped.id)?.coverage,[1,2,3]);
 assert.deepEqual(mergeSemester({...fresh,tasks:[withCoverage(scoped,[])]},structuredClone(fresh)).tasks.find(t=>t.id===scoped.id)?.coverage,[]);
 console.log("PASS: scope week validation, incomplete lectures, missing timetable data and refresh-safe manual scope.");
+const portfolio={...tasks[3],id:"portfolio",title:"Brief Reports",weight:"20%"};
+const portfolioSemester={...fresh,tasks:[portfolio]};
+const split=splitAssessment(portfolioSemester,portfolio,{count:5,weight:4,label:"Report",weeks:[3,5,7,9,undefined],weekday:6,time:"24:00"});
+const reports=split.tasks.filter(t=>t.parentId===portfolio.id);
+assert.equal(reports.length,5);
+assert.equal(reports[3].date,"2026-10-12");
+assert.equal(reports[3].time,"00:00");
+assert.equal(reports[3].dueWeek,9);
+assert.equal(reports[0].weight,"4%");
+assert.equal(needsPlacement(split.tasks.find(t=>t.id===portfolio.id)!),false);
+assert.equal(needsPlacement(reports[4]),true);
+assert.throws(()=>splitAssessment(split,portfolio,{count:5,weight:4,label:"Report",weeks:[3,5,7,9,11]}),/already/);
+assert.throws(()=>splitAssessment(portfolioSemester,portfolio,{count:5,weight:5,label:"Report",weeks:[3,5,7,9,11]}),/add up/);
+reports[0].done=true; reports[1].date="2026-09-09";
+const splitRefresh=mergeSemester(split,structuredClone(portfolioSemester));
+assert.equal(splitRefresh.tasks.find(t=>t.id===portfolio.id)?.splitCount,5);
+assert.equal(splitRefresh.tasks.find(t=>t.id===reports[0].id)?.done,true);
+assert.equal(splitRefresh.tasks.find(t=>t.id===reports[1].id)?.date,"2026-09-09");
+const reportRules=parseOutline('<table id="assessment-table"><tr><th>Portfolio or journal</th><td><b>Brief Reports</b></td><td>20%</td><td>Multiple weeks</td><td></td></tr></table><div class="assessmentSummary">Online Task (5 x Brief Reports; 5 x 4%) - Write-up of experimental work.</div><div id="assessmentCriteria"></div>',"BCMB3004","",fresh.weeks,[]);
+assert.equal(reportRules.assessments[0].rules?.count,5);
+assert.equal(reportRules.assessments[0].rules?.perOccurrence,4);
+console.log("PASS: report splitting, midnight, teaching-week breaks, missing weeks, weights, duplicate protection and refresh preservation.");

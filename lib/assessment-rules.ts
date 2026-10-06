@@ -14,6 +14,8 @@ export function rulesSection(task: Task, unit: Unit): string {
 export function enrichAssessment(task: Task, unit: Unit): Task {
   const section = rulesSection(task, unit);
   const text = `${task.sourceText} ${section}`;
+  const parts = section.match(/;\s*(\d+)\s*[x×]\s*(\d+(?:\.\d+)?)\s*%/i);
+  const verifiedParts = parts && +parts[1] > 1 && Math.abs(+parts[1] * +parts[2] - parseFloat(task.weight)) < 0.001 ? parts : null;
   const per = text.match(/each (?:quiz|task) worth\s*(\d+(?:\.\d+)?)\s*(?:points?|%)/i)
     || text.match(/(\d+(?:\.\d+)?)\s*%\s*per\s+(?:submission|quiz|task)/i);
   const best = text.match(/best\s+(\d+)\s*(?:of|out of|\/)\s*\d+/i);
@@ -37,7 +39,8 @@ export function enrichAssessment(task: Task, unit: Unit): Task {
     sourceConflict = "The outline's closing date has a different year to its due date. Check the source.";
   return { ...task, kind, routine, sourceConflict, rules: {
     text: section || task.description,
-    perOccurrence: per ? +per[1] : undefined,
+    perOccurrence: verifiedParts ? +verifiedParts[2] : per ? +per[1] : undefined,
+    count: verifiedParts ? +verifiedParts[1] : undefined,
     total: parseFloat(task.weight) || undefined,
     bestOf: best ? +best[1] : undefined,
     threshold: task.hurdle && threshold ? +threshold[1] : undefined,
