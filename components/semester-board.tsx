@@ -105,6 +105,8 @@ export default function SemesterBoard() {
     [showTray, setShowTray] = useState(false),
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
     [editingTask, setEditingTask] = useState(false),
+    [splittingTask, setSplittingTask] = useState(false),
+    [newRecurring, setNewRecurring] = useState(false),
     [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
     [clock, setClock] = useState(() => new Date());
   const current = useRef<Semester | null>(null),
@@ -272,6 +274,8 @@ export default function SemesterBoard() {
       });
   }
   function openTask(t: Task) {
+    setSplittingTask(false);
+    setNewRecurring(false);
     setEditingTask(false);
     setDetail({ type: "task", task: t });
     setDraft({ ...t });
@@ -975,19 +979,21 @@ export default function SemesterBoard() {
           </SheetHeader>
           {detail?.type === "task" && draft && semester && (
             <div className="detail-body">
+              {!semester.tasks.some(t=>t.id===draft.id) && <div className="task-mode" aria-label="Task frequency"><button aria-pressed={!newRecurring} onClick={()=>setNewRecurring(false)}>One-off task</button><button aria-pressed={newRecurring} onClick={()=>setNewRecurring(true)}>Repeating task</button></div>}
+              {newRecurring ? <SplitAssessment key={`repeat-${draft.id}`} recurring task={draft} semester={semester} onOpen={openTask} onCancel={()=>setNewRecurring(false)} onSave={next=>{commit(next);setDetail(null);setDraft(null);setNewRecurring(false);setNotice("Repeating tasks created. Each occurrence can be checked off or edited separately.");}}/> : <>
               {draft.sourceConflict && <p className="notice error">{draft.sourceConflict}</p>}
               {draft.warning && (!/individual occurrences|Recurring assessment/i.test(draft.warning) || needsPlacement(draft)) && <p className="notice">{draft.warning}</p>}
-              <section className="rule-card">
+              {semester.tasks.some(t=>t.id===draft.id) && !splittingTask && <section className="rule-card">
                 {focus && <p><strong>{timingLabel(draft)}</strong></p>}
                 <strong>{weightLabel(draft)}</strong>
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
                 {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
-              </section>
-              <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Submissions created. Open any part to adjust its date or mark it complete.");}}/>
-              {!draft.splitCount && <>
-              <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>
+              </section>}
+              {semester.tasks.some(t=>t.id===draft.id) && <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onModeChange={setSplittingTask} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Submissions created. Open any part to adjust its date or mark it complete.");}}/>}
+              {!draft.splitCount && !splittingTask && <>
+              {semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
               {focus && !editingTask && <>
                 <p>{draft.description}</p>
                 <button className="primary" onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id);if(task){toggleTask(task);setDraft({...draft,done:!task.done});}}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button>
@@ -1058,6 +1064,7 @@ export default function SemesterBoard() {
                       setDraft({
                         ...draft,
                         date: e.target.value || undefined,
+                        time: e.target.value ? draft.time || "23:59" : undefined,
                         week: e.target.value
                           ? weekFor(e.target.value, semester.weeks)
                           : draft.week,
@@ -1080,6 +1087,7 @@ export default function SemesterBoard() {
                 A week without an exact date stays on that week, marked “Day &
                 time TBC”.
               </p>
+              <details className="optional-task-fields"><summary>More options · notes & planned start</summary>
               <label>
                 My planned start
                 <Choice
@@ -1119,6 +1127,7 @@ export default function SemesterBoard() {
                 Completed
               </label>
               {draft.hurdle && <label className="inline-label"><Checkbox checked={!!draft.passed} onCheckedChange={v=>setDraft({...draft,passed:!!v})}/>I have confirmed that I met the hurdle</label>}
+              </details>
               {editError && (
                 <p className="error" role="alert">
                   {editError}
@@ -1173,6 +1182,7 @@ export default function SemesterBoard() {
                 </button>
               )}
               </div>
+              </>}
               </>}
             </div>
           )}

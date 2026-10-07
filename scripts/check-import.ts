@@ -111,3 +111,12 @@ const reportRules=parseOutline('<table id="assessment-table"><tr><th>Portfolio o
 assert.equal(reportRules.assessments[0].rules?.count,5);
 assert.equal(reportRules.assessments[0].rules?.perOccurrence,4);
 console.log("PASS: report splitting, midnight, teaching-week breaks, missing weeks, weights, duplicate protection and refresh preservation.");
+const routineParent={...portfolio,id:"manual-routine-test",title:"Weekly reading",weight:"",manual:true};
+const routine=splitAssessment({...fresh,tasks:[]},routineParent,{count:3,weight:0,label:"Weekly reading",weeks:[8,9,10],weekday:6,time:"23:59",routine:true});
+const routineParts=routine.tasks.filter(t=>t.parentId===routineParent.id);
+assert.deepEqual(routineParts.map(t=>t.date),["2026-09-27","2026-10-11","2026-10-18"]);
+assert.ok(routineParts.every(t=>t.routine && t.weight==="" && t.time==="23:59" && !t.done));
+routineParts[0].done=true;
+assert.equal(routineParts[1].done,false);
+assert.equal(mergeSemester(routine,{...fresh,tasks:[]}).tasks.filter(t=>t.parentId===routineParent.id).length,3);
+console.log("PASS: manual weekly routines, suggested 23:59 deadlines, break skipping and independent completion.");

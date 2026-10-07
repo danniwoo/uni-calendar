@@ -1,6 +1,6 @@
 import { addDays, type Semester, type Task } from "./semester";
 
-export type SplitPlan = {count:number; weight:number; label:string; weeks:(number | undefined)[]; weekday?:number; time?:string};
+export type SplitPlan = {count:number; weight:number; label:string; weeks:(number | undefined)[]; weekday?:number; time?:string; routine?:boolean};
 export function splitAssessment(s:Semester, parent:Task, plan:SplitPlan): Semester {
   const original=s.tasks.find(t=>t.id===parent.id) || parent;
   if (original.splitCount || s.tasks.some(t=>t.parentId===parent.id || t.series===parent.id)) throw new Error("This assessment already has separate parts. Edit those parts below.");
@@ -16,7 +16,7 @@ export function splitAssessment(s:Semester, parent:Task, plan:SplitPlan): Semest
     if (number!==undefined && !week) throw new Error("Choose a teaching week from this semester.");
     const midnight=plan.time==="24:00";
     const date=week && plan.weekday!==undefined ? addDays(week.start,plan.weekday+(midnight?1:0)) : undefined;
-    return {id:`${parent.id}-part-${i+1}`,unit:original.unit,title:`${plan.label.trim()} ${i+1}`,weight:`${plan.weight}%`,
+    return {id:`${parent.id}-part-${i+1}`,unit:original.unit,title:plan.routine ? plan.label.trim() : `${plan.label.trim()} ${i+1}`,weight:plan.routine ? "" : `${plan.weight}%`,routine:plan.routine,
       kind:"assessment",parentId:parent.id,splitPart:i+1,week:number,dueWeek:date?number:undefined,date,time:date ? midnight ? "00:00" : plan.time : undefined,
       timing:"Schedule entered by you",timeBasis:"deadline",description:`Part ${i+1} of ${plan.count}: ${original.title}. Schedule entered by you.`,
       source:original.source,sourceText:original.sourceText,group:original.group,hurdle:false,manual:true,overrides:[],done:false};

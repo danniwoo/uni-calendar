@@ -170,7 +170,7 @@ export function timingLabel(t: Task) {
       ? "Exam date TBC"
       : t.week
         ? "Day & time TBC"
-        : "Timing not published";
+        : "Deadline needs details";
 }
 export function mergeSemester(
   old: Semester | undefined,
