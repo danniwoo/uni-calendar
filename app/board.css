@@ -1101,12 +1101,23 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .week-mobile-due-row>span { color:#637085; font-size:11px; padding-left:5px; }
 .week-mobile-due-row>div { min-width:0; padding:0 4px; }
 .week-mobile-due-row button { padding:3px 8px; min-height:28px; border:0; border-radius:4px; background:#edf2ff; color:#2855c8; font-size:12px; }
-.week-mobile-due-row .week-due-expand { padding:3px; background:none; font-size:11px; }
-.week-due-label { display:none; }
 .week-view .week-due-row { background:#fafbfd; }
+.week-view .week-due-inline { background:#fff; }
+.week-due-inline .week-due-cell { padding:0 4px 4px; max-height:124px; scrollbar-width:thin; }
+.week-due-inline .week-due-cell:has(details[open]) { max-height:min(220px,30dvh); }
+.week-due-inline .week-task { padding:4px 5px; margin:2px 0; gap:5px; }
+.week-due-inline .week-task-content>button { display:block; width:100%; }
+.week-due-inline .week-task strong { display:block; font-size:12px; line-height:17px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.week-due-inline .week-task span { display:block; font-size:10px; line-height:15px; }
+.week-due-inline .week-task span b { display:inline; }
+.week-due-more summary { min-height:24px; padding:3px 2px; list-style:none; }
+.week-due-more summary::-webkit-details-marker { display:none; }
+.week-due-more .due-more-open,.week-due-more[open] .due-more-closed { display:none; }
+.week-due-more[open] .due-more-open { display:inline; }
 .week-exam-link { display:flex; flex-direction:column; align-items:flex-start; width:100%; text-align:left; gap:4px; margin-bottom:8px; }
 .week-exam-link small { color:#637085; }
 @media(min-width:701px) {
+  .week-view .week-mobile-due-row { display:none; }
   .week-layout .week-toolbar .month-navigation>div:first-child { display:flex; align-items:baseline; gap:10px; }
   .week-layout .week-toolbar .month-navigation p { margin:0; }
 }
@@ -1118,8 +1129,6 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
   .week-view .week-mobile-due-row { grid-template-columns:32px repeat(7,minmax(0,1fr)); min-height:28px; padding-bottom:0; }
   .week-mobile-due-row>div { padding:0 1px; }
   .week-mobile-due-row button { padding:4px 1px; font-size:9px; }
-  .week-mobile-due-row .week-due-expand { display:none; }
-  .week-due-label { display:inline; font-size:9px; }
 }
 @media(max-width:700px) {
   .semester-header .header-actions>.subject-picker { grid-area:2/2; justify-self:start; max-width:100px; font-size:11px; padding:6px; }

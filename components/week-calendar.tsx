@@ -40,18 +40,17 @@ export function WeekCalendar({semester:s,today,now,onTask,onPreparation,onClass:
   const unknown=data.unknown.filter(t=>mode!=="hide"||!t.done);
   const visibleDue=data.due.filter(keep);
   const weekOnly=data.weekOnly.filter(keep),exams=data.awaitingExams.filter(t=>mode!=="hide"||!t.done);
-  const [examsOpen,setExamsOpen]=useState(false),[dueExpanded,setDueExpanded]=useState(false);
-  function toggleDueCards(){if(!dueExpanded&&scroll.current)scroll.current.scrollTop=0;setDueExpanded(!dueExpanded);}
+  const [examsOpen,setExamsOpen]=useState(false);
   const retainedCount=s.tasks.filter(t=>!s.units.some(u=>u.code===t.unit)).length;
   const completedCount=data.due.filter(t=>t.done).length+data.classes.filter(c=>s.completed[c.id]).length+[...data.linked.values()].flat().filter(t=>t.done).length+data.weekOnly.filter(t=>t.done).length;
   const [completedOpen,setCompletedOpen]=useState(false);
   function onClass(c:ClassEvent){setDay(null);setPending(false);setCompletedOpen(false);showClass(c);}
-  function task(t:Task,embedded=false){
+  function task(t:Task,embedded=false,compact=false){
     const scope=t.coverage?.length?learningScope(t,s):null;
     const when=t.timeBasis==="class"?(/^Before/i.test(t.timing)?"Before ":"In class · ")+(t.time||"time TBC"):t.time?"Due "+t.time:"Time TBC";
     return <div key={t.id} className={"week-task "+(t.done?"week-done":"")+(embedded?" embedded-task":"")} style={{"--entry-color":color(t.unit)} as React.CSSProperties}>
       <input type="checkbox" checked={!!t.done} aria-label={(t.done?"Uncheck ":"Complete ")+t.unit+" "+t.title+" "+(t.date||t.week||"")} onChange={()=>onToggleTask(t)}/>
-      <div className="week-task-content"><button onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onTask(t);}}><strong>{t.title}</strong><span>{!embedded&&<b>{t.unit} · </b>}{embedded?"In class":t.date?when:t.week?"W"+t.week+" · Date TBC":"Date TBC"}{t.hurdle&&" · Hurdle"}</span></button>{scope&&!t.done&&<button className="preparation-link" onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onPreparation(t);}}>{scope.status} →</button>}</div>
+      <div className="week-task-content"><button title={compact?`${t.title} · ${t.unit} · ${when}${t.hurdle?" · Hurdle":""}`:undefined} onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onTask(t);}}><strong>{t.title}</strong><span>{!embedded&&<b>{t.unit} · </b>}{embedded?"In class":t.date?when:t.week?"W"+t.week+" · Date TBC":"Date TBC"}{t.hurdle&&" · Hurdle"}</span></button>{scope&&!t.done&&!compact&&<button className="preparation-link" onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onPreparation(t);}}>{scope.status} →</button>}</div>
     </div>;
   }
   function classLabel(c:ClassEvent){return c.activity.replace(/Practical/gi,"Lab");}
@@ -67,9 +66,9 @@ export function WeekCalendar({semester:s,today,now,onTask,onPreparation,onClass:
     </div>}
     <div className="week-grid">
       <div className="week-sticky"><div className="week-date-row"><div className="week-gutter" title={`${shortDate(start)} – ${shortDate(dates[6])} ${s.year} · Sydney time`}>{monthContext}</div>{dates.map((date,i)=><div key={date} title={date} className={"week-date "+(i>4?"weekend":"")}><span>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</span><b aria-current={date===today?"date":undefined}>{Number(date.slice(-2))}</b><button className="week-mobile-day-hit" aria-label={"Open day "+date} onClick={()=>setDay(date)}/></div>)}</div>
-        {!!visibleDue.length&&<div className="week-mobile-due-row"><span><span className="week-due-label">Due</span><button className="week-due-expand" aria-label="Expand due task cards" aria-expanded={dueExpanded} onClick={toggleDueCards}>Due {dueExpanded?"▴":"▾"}</button></span>{dates.map(date=>{const tasks=visibleDue.filter(t=>t.date===date);return <div key={date}>{tasks.length>0&&<button onClick={()=>setDay(date)} aria-label={`${shortDate(date)}: ${tasks.length} tasks, ${tasks.filter(t=>t.done).length} complete`}>{tasks.every(t=>t.done)?"✓ ":""}{tasks.length} {tasks.length===1?"task":"tasks"}</button>}</div>;})}</div>}
+        {!!visibleDue.length&&<div className="week-mobile-due-row"><span>Due</span>{dates.map(date=>{const tasks=visibleDue.filter(t=>t.date===date);return <div key={date}>{tasks.length>0&&<button onClick={()=>setDay(date)} aria-label={`${shortDate(date)}: ${tasks.length} tasks, ${tasks.filter(t=>t.done).length} complete`}>{tasks.every(t=>t.done)?"✓ ":""}{tasks.length} {tasks.length===1?"task":"tasks"}</button>}</div>;})}</div>}
+        {!!visibleDue.length&&<div className="week-due-row week-due-inline"><div className="week-gutter">Due</div>{dates.map(date=>{const tasks=visibleDue.filter(t=>t.date===date);return <div key={date} className="week-due-cell">{tasks.slice(0,2).map(t=>task(t,false,true))}{tasks.length>2&&<details key={date+":"+unit+":"+mode} className="week-due-more"><summary aria-label={`Show ${tasks.length-2} more tasks for ${shortDate(date)}`}><span className="due-more-closed">+{tasks.length-2} more</span><span className="due-more-open">Show less</span></summary>{tasks.slice(2).map(t=>task(t,false,true))}</details>}</div>;})}</div>}
       </div>
-      {!!visibleDue.length&&dueExpanded&&<div className="week-due-row"><div className="week-gutter">Tasks</div>{dates.map(date=>{const tasks=visibleDue.filter(t=>t.date===date);return <div key={date} className="week-due-cell">{tasks.map(t=>task(t))}</div>;})}</div>}
       <div className="week-time-grid" style={{height:scaled((high-low)*60)}}><div className="week-hours">{Array.from({length:high-low},(_,i)=><span key={i} style={{top:scaled(i*60)}}>{String(low+i).padStart(2,"0")}:00</span>)}</div>
         {dates.map((date,index)=>{const positioned=positionClasses(visibleClasses.filter(c=>c.date===date));return <div key={date} className={"week-time-day "+(index>4?"weekend":"")} style={{backgroundSize:`100% ${scaled(60)}`}}>
           {positioned.map(p=>{const c=p.event,linked=data.linked.get(c.id)||[],done=!!s.completed[c.id];return <div className="week-class" key={c.id} style={{top:scaled(p.start-low*60),height:`calc(${scaled(p.end-p.start)} - 2px)`,left:`calc(${p.lane/p.lanes*100}% + var(--week-inset, 3px))`,width:`calc(${100/p.lanes}% - var(--week-gap, 6px))`,"--entry-color":color(c.unit)} as React.CSSProperties}>
