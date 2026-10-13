@@ -45,6 +45,7 @@ import { reconcile } from "@/lib/sync";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
 import { MonthCalendar } from "@/components/month-calendar";
+import { WeekCalendar } from "@/components/week-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
@@ -103,7 +104,7 @@ export default function SemesterBoard() {
     [showWarnings, setShowWarnings] = useState(false),
     [showRoutines, setShowRoutines] = useState(false),
     [focus, setFocus] = useState(false),
-    [calendarView, setCalendarView] = useState(false),
+    [view, setView] = useState<"semester"|"month"|"week">("semester"),
     [showTray, setShowTray] = useState(false),
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
     [editingTask, setEditingTask] = useState(false),
@@ -117,9 +118,10 @@ export default function SemesterBoard() {
     pending = useRef<Semester | null>(null),
     saving = useRef(false);
   const today = sydneyDate(clock);
+  const calendarView=view!=="semester";
   useEffect(()=>{try {setFocus(localStorage.getItem("semester-layout") === "focus");} catch {}},[]);
-  useEffect(()=>{try {setCalendarView(localStorage.getItem("semester-view") === "month");} catch {}},[]);
-  function chooseView(month:boolean) {setCalendarView(month);try {localStorage.setItem("semester-view",month?"month":"semester");} catch {}}
+  useEffect(()=>{try {const saved=localStorage.getItem("semester-view");if(saved==="month"||saved==="week")setView(saved);} catch {}},[]);
+  function chooseView(next:"semester"|"month"|"week") {setView(next);try {localStorage.setItem("semester-view",next);} catch {}}
   function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem("semester-layout",next ? "focus" : "full");} catch {}}
   useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
@@ -520,7 +522,7 @@ export default function SemesterBoard() {
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
         </div>
-        {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view"><button aria-pressed={!calendarView} onClick={()=>chooseView(false)}>Semester</button><button aria-pressed={calendarView} onClick={()=>chooseView(true)}>Month</button></div>}
+        {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view">{(["semester","month","week"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>}
         <div className="header-actions">
           {semester && <button className="primary header-add-task" onClick={newTask}><Plus size={16}/> Add task</button>}
           <span
@@ -676,7 +678,7 @@ export default function SemesterBoard() {
               </>}
             </div>
           </section>}
-          {calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
+          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} now={clock} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <span>Compare views</span>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>A · Full overview</button>
