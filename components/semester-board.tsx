@@ -51,6 +51,7 @@ import {locationForDate} from "@/lib/week-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
+import { SEMESTER_LAYOUT_KEY, useFocusLayout, inNextSevenDays } from "@/lib/semester-display";
 
 function Choice({
   value,
@@ -106,7 +107,7 @@ export default function SemesterBoard() {
     [showPast, setShowPast] = useState(false),
     [showWarnings, setShowWarnings] = useState(false),
     [showRoutines, setShowRoutines] = useState(false),
-    [focus, setFocus] = useState(false),
+    [focus, setFocus] = useState(true),
     [view, setView] = useState<"semester"|"month"|"week">("semester"),
     [showTray, setShowTray] = useState(false),
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
@@ -124,10 +125,10 @@ export default function SemesterBoard() {
     saving = useRef(false);
   const today = sydneyDate(clock);
   const calendarView=view!=="semester";
-  useEffect(()=>{try {setFocus(localStorage.getItem("semester-layout") === "focus");} catch {}},[]);
+  useEffect(()=>{try {setFocus(useFocusLayout(localStorage.getItem(SEMESTER_LAYOUT_KEY)));} catch {}},[]);
   useEffect(()=>{try {const saved=localStorage.getItem("semester-view");if(saved==="month"||saved==="week")setView(saved);} catch {}},[]);
   function chooseView(next:"semester"|"month"|"week") {setView(next);try {localStorage.setItem("semester-view",next);} catch {}}
-  function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem("semester-layout",next ? "focus" : "full");} catch {}}
+  function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem(SEMESTER_LAYOUT_KEY,next ? "focus" : "full");} catch {}}
   useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
     setLoadError("");
@@ -466,7 +467,7 @@ export default function SemesterBoard() {
   const expanded = (id:string) => expandedWeeks[id] ?? closeWeeks.includes(id);
   const flipWeek = (id:string) => setExpandedWeeks(p=>({...p,[id]:!expanded(id)}));
   const soon = boardTasks.filter(t=>!!semester && !t.done && !needsPlacement(t) && !t.rules?.optional && !/participation/i.test(t.title)
-    && t.date && t.date >= today && Date.parse(t.date+"T12:00:00Z")-Date.parse(today+"T12:00:00Z") <= 7*86400000 && !isPast(t,semester,clock))
+    && inNextSevenDays(t.date, today) && !isPast(t,semester,clock))
     .sort((a,b)=>((a.date||"")+(a.time||"23:59")).localeCompare((b.date||"")+(b.time||"23:59"))) || [];
   const highlighted = focus && soon.length ? soon : upcoming;
   const participationFor = (c:ClassEvent) => /tutorial/i.test(c.activity)
@@ -478,9 +479,10 @@ export default function SemesterBoard() {
     if (/tutorial prework/i.test(t.title)) return "Submit prework";
     return t.title;
   }
-  function displayTime(t:Task) {
+  function displayTime(t:Task, includeDate = false) {
+    if (includeDate && !t.date && t.week) return `Week ${t.week} · Day & time TBC`;
     if (!focus || !t.date || t.timeBasis !== "class") return timingLabel(t);
-    const day=new Date(t.date+"T12:00:00Z").toLocaleDateString("en-AU",{weekday:"short",timeZone:"UTC"});
+    const day=new Date(t.date+"T12:00:00Z").toLocaleDateString("en-AU",{weekday:"short",timeZone:"UTC"}) + (includeDate ? ` ${shortDate(t.date)}` : "");
     return t.timing.startsWith("Before") ? `${day} · before ${t.time || "class"}` : `${day} · in ${/lecture/i.test(t.timing) ? "lecture" : /lab|practical/i.test(t.timing) ? "lab" : "tutorial"}`;
   }
   function retryClasses(task: Task) {
@@ -497,7 +499,7 @@ export default function SemesterBoard() {
   }) {
     return (
       <div
-        className={`task-card ${task.hurdle ? "hurdle-card" : ""} ${task.done ? "is-done" : ""} ${task.series ? "recurring-card" : ""}`}
+        className={`task-card ${task.hurdle ? "hurdle-card" : ""} ${task.done ? "is-done" : ""} ${task.series ? "recurring-card" : ""} ${compact && isRoutine(task) && !task.hurdle ? "upcoming-routine" : ""}`}
         style={{ "--unit": color(task.unit) } as React.CSSProperties}
       >
         <div className="task-top">
@@ -518,16 +520,16 @@ export default function SemesterBoard() {
         <button className="task-open" onClick={() => openTask(task)}>
           <strong>{displayTitle(task)}</strong>
           <span>
-            {displayTime(task)}
+            {displayTime(task, compact)}
           </span>
-          {task.weight && (
+          {task.weight && !(compact && isRoutine(task) && !task.hurdle) && (
             <span className="weight">
               {weightLabel(task)}
             </span>
           )}
           {task.sourceConflict && <span className="source-warning">Source dates conflict</span>}
           {task.rules?.threshold && <span className="source-warning">{task.passed ? "Hurdle met (self-reported)" : `Need ≥${task.rules.threshold}% · ${task.rules.attempts || 1} attempt${task.rules.attempts === 1 ? "" : "s"}`}</span>}
-          {!!task.coverage?.length && semester && <span className="scope-status">Covers {learningScope(task,semester).label} · {learningScope(task,semester).status}</span>}
+          {!!task.coverage?.length && semester && <span className="scope-status">{!compact && <>Covers {learningScope(task,semester).label} · </>}{learningScope(task,semester).status}</span>}
         </button>
       </div>
     );
@@ -707,16 +709,13 @@ export default function SemesterBoard() {
           </section>}
           {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} now={clock} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
-            <span>Compare views</span>
-            <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>A · Full overview</button>
-            <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>B · Focus</button>
-            <small>Same tasks & progress · Multi-part editor: A individual dates / B repeat pattern</small>
+            <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>
+            <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>B · Full overview</button>
           </div>
           <section className="coming-up">
             <div className="coming-title">
               <p className="eyebrow">{focus && soon.length ? "NEXT 7 DAYS" : "UPCOMING MILESTONES"}</p>
-              <span>{highlighted.length} {focus && soon.length ? "tasks & quizzes" : "upcoming milestones"} · scroll for more</span>
-              <div className="upcoming-nav"><button aria-label="Previous upcoming tasks" onClick={()=>document.getElementById("upcoming-tasks")?.scrollBy({left:-290,behavior:"smooth"})}>Previous</button><button aria-label="More upcoming tasks" onClick={()=>document.getElementById("upcoming-tasks")?.scrollBy({left:290,behavior:"smooth"})}>More</button></div>
+              <span>{highlighted.length} {focus && soon.length ? "tasks & quizzes" : "upcoming milestones"}</span>
             </div>
             <div className="upcoming-cards" id="upcoming-tasks" role="region" aria-label="Upcoming tasks, scroll horizontally" tabIndex={0}>
               {highlighted.map((t) => (
@@ -734,7 +733,6 @@ export default function SemesterBoard() {
             <button aria-expanded={showRoutines} onClick={()=>setShowRoutines(!showRoutines)}>
               {focusWeek?.label || "Weekly"} routines · {routineTasks.filter(t=>!t.done).length} unrecorded <ChevronDown size={14}/>
             </button>
-            <span>Participation, prework & regular quizzes stay on the board below.</span>
             {showRoutines && <div className="routine-list">{routineTasks.map(t=><div key={t.id}><small style={{color:color(t.unit)}}>{t.unit}</small><RoutineItem task={t}/></div>)}</div>}
           </section>
           {boardTasks.filter(t=>t.hurdle && t.date && t.date < today && retryClasses(t).some(c=>c.date >= today)).map(t=><div className="hurdle-reminder" key={t.id}>
@@ -752,19 +750,13 @@ export default function SemesterBoard() {
             >
               Review past assessments ({overdue.length})
             </button>
-            <button
-              aria-haspopup="dialog" aria-expanded={showTray} onClick={() => setShowTray(true)}
-            >
-              {unplaced.filter((t) => !t.done).length} need details
-            </button>
-            <span>·</span>
-            <span>Unchecked means unrecorded—not necessarily unfinished.</span>
             <button onClick={() => setShowWarnings(!showWarnings)}>
               Import details <ChevronDown size={14} />
             </button>
           </div>
           {showWarnings && (
             <section className="notice">
+              <p>Unchecked means unrecorded—not necessarily unfinished. Both layouts share tasks and progress. A uses the repeat-pattern submissions editor; B uses individual dates.</p>
               <p>
                 Last checked{" "}
                 {new Date(semester.importedAt).toLocaleString("en-AU", {

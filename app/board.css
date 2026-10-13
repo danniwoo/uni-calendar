@@ -532,8 +532,10 @@ aside {
 .coming-up { grid-template-columns: minmax(0,1fr); gap: 10px; min-width: 0; }
 .coming-title { display:flex; align-items:center; gap:12px; flex-wrap:wrap; padding:0; }
 .coming-title .eyebrow { margin:0; }
-.upcoming-nav { display:flex; gap:6px; margin-left:auto; }
-.upcoming-nav button { padding:5px 10px; font-size:14px; }
+.coming-up { background:#f7f9fc; border-color:#e1e7ef; }
+.coming-up .task-card.upcoming-routine { border-left:1px solid #dce3ed; background:white; }
+.coming-up .task-card.upcoming-routine .task-top small { color:#637085; }
+.coming-up .task-card.upcoming-routine .task-open strong { font-weight:500; }
 .coming-up .upcoming-cards { display:flex; gap:12px; overflow-x:auto; padding:2px 2px 10px; scroll-snap-type:x mandatory; min-width:0; scrollbar-color:#98abd0 #eaf0fc; }
 .coming-up .upcoming-cards .task-card { flex:0 0 260px; min-width:0; scroll-snap-align:start; }
 .coming-up .upcoming-cards .task-card:nth-child(n + 3) { display:flex; }
@@ -741,7 +743,6 @@ aside {
 @media(max-width:700px) {
   .coming-up .upcoming-cards .task-card { flex-basis:85%; }
   .coming-title > span { display:block; font-size:13px; }
-  .upcoming-nav { margin-left:0; }
 }
 /* Weekly calendar: deadlines remain visible above the real class timetable. */
 .week-view { margin-top:12px;background:#fff;border:1px solid #dbe3ee;border-radius:14px;overflow:hidden; }
