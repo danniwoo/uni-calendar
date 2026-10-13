@@ -1048,3 +1048,58 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
   .week-view .week-mobile-class b { font-size:9px; }
   .week-view .week-mobile-class span,.week-view .week-mobile-class small { font-size:8px; }
 }
+.subject-picker { max-width:130px; padding:7px 9px; border:1px solid #d6dfed; border-radius:8px; background:#fff; font:inherit; font-size:13px; }
+.subject-panel { width:min(100vw,680px)!important; max-width:680px!important; }
+.subject-overview { gap:0; }
+.subject-overview>section { padding:18px 0; border-bottom:1px solid #e1e7ef; }
+.subject-overview>section:first-child { padding-top:0; }
+.subject-section-heading { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:10px; }
+.subject-section-heading h3,.subject-section-heading h4 { margin:0; }
+.subject-section-heading span { font-size:12px; color:#64748b; }
+.subject-section-heading button,.subject-back { font-size:13px; padding:5px 8px; }
+.subject-task { display:flex; align-items:flex-start; gap:10px; padding:10px 0; border-bottom:1px solid #edf0f5; }
+.subject-task>[data-slot="checkbox"] { flex-shrink:0; margin-top:5px; }
+.subject-task>div { flex:1; min-width:0; }
+.subject-task .subject-task-title { text-align:left; font-weight:600; padding:0; background:none; border:0; }
+.subject-task p { margin:3px 0; font-size:13px; color:#64748b; }
+.subject-overview summary { cursor:pointer; padding:8px 0; font-size:14px; }
+.subject-preparation { background:#f5f7fc; border:1px solid #dce4f3; padding:14px; border-radius:10px; margin:14px 0 0; scroll-margin:16px; }
+.subject-preparation .assessment-scope { margin:0; padding:0; border:0; }
+.preparation-link,.subject-prep-link { border:0!important; background:transparent!important; color:#426197!important; font-size:12px!important; text-align:left; padding:4px 0!important; line-height:1.4; }
+.preparation-link:hover,.subject-prep-link:hover { text-decoration:underline; }
+.routine-item { flex-wrap:wrap; }
+.routine-item>.preparation-link { flex-basis:100%!important; margin-left:24px; }
+.week-task-content { min-width:0; flex:1; }
+.week-task-content>button { width:100%; }
+.scope-lecture-row { display:flex; gap:10px; align-items:center; padding:7px 0; }
+.scope-lecture-row>[data-slot="checkbox"] { flex-shrink:0; }
+.scope-lecture-row>button { background:none; border:0; padding:4px 0; text-align:left; }
+.scope-lecture-row small { display:block; color:#64748b; font-size:12px; }
+.subject-covered { background:#eef3ff; }
+.subject-overview .learning-table th small { display:block; font-size:10px; color:#64748b; font-weight:400; }
+.subject-learning-event { display:flex; align-items:center; gap:6px; }
+.subject-learning-event button:not([data-slot="checkbox"]) { border:0; background:none; font-size:12px; padding:5px 2px; white-space:nowrap; }
+.subject-learning-event small { display:block; color:#64748b; font-size:10px; }
+.subject-overview .learning-checks { flex-wrap:wrap; }
+.subject-overview .series-occurrences>div { display:flex; flex-direction:column; }
+.subject-overview .unit-assessment>a { display:block; margin-top:10px; }
+.subject-panel [data-slot="sheet-header"] { padding:0 35px 0 0; }
+.subject-panel [data-slot="sheet-title"] { font-size:23px; }
+.subject-panel .detail-body { margin-top:4px; }
+.subject-overview>section>details { margin:0; padding:0; border-top:0; }
+.subject-overview>section>details>summary { margin:0; padding:9px 0; font-weight:500; }
+.subject-learning-event [data-slot="checkbox"] { flex-shrink:0; }
+@media(max-width:700px) {
+  .semester-header .header-actions>.subject-picker { grid-area:2/2; justify-self:start; max-width:100px; font-size:11px; padding:6px; }
+  .semester-header .header-actions>.header-add-task { margin-left:104px; }
+  .calendar-layout .semester-header .header-actions>.subject-picker { grid-area:2/2/3/4; justify-self:end; margin:0; }
+  .calendar-layout .semester-header .header-actions>.header-add-task { margin-left:0; }
+  .subject-panel { padding:18px!important; }
+  .subject-overview>section { padding:12px 0; }
+  .subject-section-heading h3 { font-size:16px; }
+  .subject-task { padding:7px 0; }
+  .subject-task .subject-task-title { font-size:14px; }
+  .subject-overview .learning-table { font-size:12px; }
+  .subject-overview .learning-table th,.subject-overview .learning-table td { padding:4px; }
+  .subject-preparation { padding:10px; }
+}

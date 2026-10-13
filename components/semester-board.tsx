@@ -30,7 +30,6 @@ import {
   mergeSemester,
   Semester,
   Task,
-  Unit,
   ClassEvent,
   shortDate,
   sydneyDate,
@@ -81,7 +80,6 @@ function Choice({
 }
 type Detail =
   | { type: "task"; task: Task }
-  | { type: "unit"; unit: Unit }
   | { type: "class"; event: ClassEvent };
 type ApiResult = {
   semester: Semester | null;
@@ -102,6 +100,7 @@ export default function SemesterBoard() {
     [busy, setBusy] = useState(false),
     [settings, setSettings] = useState(false),
     [detail, setDetail] = useState<Detail | null>(null),
+    [subject, setSubject] = useState<{code:string;taskId?:string}|null>(null),
     [draft, setDraft] = useState<Task | null>(null),
     [editError, setEditError] = useState(""),
     [showPast, setShowPast] = useState(false),
@@ -301,6 +300,10 @@ export default function SemesterBoard() {
     setDetail({ type: "task", task: t });
     setDraft({ ...t });
     setEditError("");
+  }
+  function openPreparation(t: Task) {
+    setDetail(null);
+    setSubject({code:t.unit,taskId:t.id});
   }
   function newTask() {
     if (!semester) return;
@@ -529,16 +532,17 @@ export default function SemesterBoard() {
           )}
           {task.sourceConflict && <span className="source-warning">Source dates conflict</span>}
           {task.rules?.threshold && <span className="source-warning">{task.passed ? "Hurdle met (self-reported)" : `Need ≥${task.rules.threshold}% · ${task.rules.attempts || 1} attempt${task.rules.attempts === 1 ? "" : "s"}`}</span>}
-          {!!task.coverage?.length && semester && <span className="scope-status">{!compact && <>Covers {learningScope(task,semester).label} · </>}{learningScope(task,semester).status}</span>}
         </button>
+        {!!task.coverage?.length && semester && <button className="preparation-link" onClick={()=>openPreparation(task)}>{learningScope(task,semester).status} →</button>}
       </div>
     );
   }
   function RoutineItem({task}: {task:Task}) {
     return <div className={`routine-item ${task.done ? "is-done" : ""}`} style={{"--unit":color(task.unit)} as React.CSSProperties}>
       <Checkbox aria-label={`Mark ${task.unit} ${task.title} week ${task.week} complete`} checked={!!task.done} onCheckedChange={()=>toggleTask(task)}/>
-      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span className="routine-timing">{displayTime(task)}</span>{!!task.coverage?.length && semester && <span className="scope-status">{learningScope(task,semester).status}</span>}</button>
+      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span className="routine-timing">{displayTime(task)}</span></button>
       {task.rules?.perOccurrence !== undefined && <small>{task.rules.perOccurrence}%</small>}
+      {!!task.coverage?.length && semester && <button className="preparation-link" onClick={()=>openPreparation(task)}>{learningScope(task,semester).status} →</button>}
     </div>;
   }
   return (
@@ -550,6 +554,7 @@ export default function SemesterBoard() {
         {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view">{(["semester","month","week"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>}
         {semester && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
         <div className="header-actions">
+          {semester && <select className="subject-picker" aria-label="Open subject overview" value="" onChange={e=>{if(e.target.value){setDetail(null);setSubject({code:e.target.value});}}}><option value="" disabled>Subjects</option>{semester.units.map(u=><option key={u.code} value={u.code}>{u.code}</option>)}</select>}
           {semester && <button className="primary header-add-task" aria-label="Add task" title="Add task" onClick={newTask}><Plus size={20} aria-hidden="true"/></button>}
           <span
             className={`save-state ${saveError ? "danger" : ""} ${saveStatus === "Saved" ? "is-saved" : ""}`}
@@ -682,7 +687,7 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} now={clock} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
+          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>B · Full overview</button>
@@ -770,7 +775,7 @@ export default function SemesterBoard() {
                   <button
                     className="unit-head"
                     key={u.code}
-                    onClick={() => setDetail({ type: "unit", unit: u })}
+                    onClick={() => setSubject({code:u.code})}
                     style={{ color: color(u.code) }}
                   >
                     {u.code}
@@ -846,7 +851,7 @@ export default function SemesterBoard() {
                         >
                           <button
                             className="mobile-unit"
-                            onClick={() => setDetail({ type: "unit", unit: u })}
+                            onClick={() => setSubject({code:u.code})}
                           >
                             {u.code}
                           </button>
@@ -979,18 +984,15 @@ export default function SemesterBoard() {
         }}
       >
         <SheetContent className="detail-panel">
+          {subject && <button className="subject-back" onClick={()=>{setDetail(null);setDraft(null);}}>← Back to {subject.code}</button>}
           <SheetHeader>
             <SheetTitle>
-              {detail?.type === "unit"
-                ? detail.unit.code
-                : detail?.type === "class"
+              {detail?.type === "class"
                   ? `${detail.event.activity} · Week ${detail.event.week || "—"}`
                   : draft?.title || "Add a task"}
             </SheetTitle>
             <SheetDescription>
-              {detail?.type === "unit"
-                ? detail.unit.name
-                : detail?.type === "class"
+              {detail?.type === "class"
                   ? detail.event.unit
                   : draft?.unit}
             </SheetDescription>
@@ -1235,14 +1237,11 @@ export default function SemesterBoard() {
               </p>
             </div>
           )}
-          {detail?.type === "unit" && semester && <UnitDetail key={detail.unit.code} semester={semester} unit={semester.units.find(u => u.code === detail.unit.code) || detail.unit} onToggle={toggleClass} onScope={saveScope} onOpenTask={openTask} onCatchUp={through => {
-            const s = current.current;
-            if (!s) return;
-            const completed = {...s.completed};
-            s.classes.filter(c => c.unit === detail.unit.code && /lecture/i.test(c.activity) && c.week && c.week <= through).forEach(c => completed[c.id] = true);
-            commit({...s, completed});
-            setNotice(`${detail.unit.code} lectures through W${through} marked watched. Individual ticks can be undone.`);
-          }} />}
+        </SheetContent>
+      </Sheet>
+      <Sheet open={!!subject && !detail} onOpenChange={o=>{if(!o)setSubject(null);}}>
+        <SheetContent className="detail-panel subject-panel"><SheetHeader><SheetTitle>{subject?.code} · Learning overview</SheetTitle><SheetDescription>{semester?.units.find(u=>u.code===subject?.code)?.name}</SheetDescription></SheetHeader>
+          {semester && subject && semester.units.find(u=>u.code===subject.code) && <UnitDetail key={subject.code+":"+(subject.taskId||"")} semester={semester} unit={semester.units.find(u=>u.code===subject.code)!} today={today} focusTaskId={subject.taskId} onToggle={toggleClass} onToggleTask={toggleTask} onScope={saveScope} onCatchUp={through=>{const s=current.current;if(!s)return;const completed={...s.completed};s.classes.filter(c=>c.unit===subject.code&&/lecture/i.test(c.activity)&&c.week&&c.week<=through).forEach(c=>completed[c.id]=true);commit({...s,completed});setNotice(`${subject.code} lectures through W${through} marked watched. Individual ticks can be undone.`);}} onOpenTask={(task,taskId)=>{setSubject({...subject,taskId});openTask(task);}} onOpenClass={(event,taskId)=>{setSubject({...subject,taskId});setDetail({type:"class",event});}}/>}
         </SheetContent>
       </Sheet>
     </main>

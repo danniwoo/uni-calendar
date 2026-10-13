@@ -6,8 +6,9 @@ import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/comp
 import {CalendarOptions} from "@/components/calendar-options";
 import {AwaitingExams} from "@/components/awaiting-exams";
 import {awaitingExamDate} from "@/lib/month-calendar";
+import {learningScope} from "@/lib/learning-scope";
 
-type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
+type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
 function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEntry;color:string;onOpen:(e:MonthEntry)=>void;onToggle:(e:MonthEntry)=>void;full?:boolean}) {
   const when=e.task?.timing.startsWith("Before")?"Before "+(e.time || "class"):e.task?.timeBasis==="class"?(e.time || "")+" in class":e.time || "Time TBC";
   const badge=entryBadge(e),routine=e.task?.routine&&!e.task.hurdle;
@@ -21,7 +22,7 @@ function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEnt
     </button>
   </div>;
 }
-export function MonthCalendar({semester,today,onTask,onClass,onToggleTask,onToggleClass}:Props) {
+export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onToggleTask,onToggleClass}:Props) {
   const firstMonth=semester.weeks[0].start.slice(0,7),lastMonth=semester.weeks[semester.weeks.length-1].end.slice(0,7);
   const initial=today.slice(0,7)<firstMonth?firstMonth:today.slice(0,7)>lastMonth?lastMonth:today.slice(0,7);
   const codes=semester.units.map(u=>u.code).sort().join(","),preferenceKey=["month-view",semester.year,semester.session,codes].join(":");
@@ -50,7 +51,7 @@ export function MonthCalendar({semester,today,onTask,onClass,onToggleTask,onTogg
   function color(code:string){return COLORS[Math.max(0,semester.units.findIndex(u=>u.code===code))%COLORS.length];}
   function open(e:MonthEntry){setDay(null);if(e.task)onTask(e.task);else if(e.event)onClass(e.event);}
   function toggle(e:MonthEntry){if(e.task)onToggleTask(e.task);else if(e.event)onToggleClass(e.event);}
-  function item(e:MonthEntry,full=false){return <CalendarItem key={e.id} entry={e} color={color(e.unit)} onOpen={open} onToggle={toggle} full={full}/>;}
+  function item(e:MonthEntry,full=false){return <div key={e.id}><CalendarItem entry={e} color={color(e.unit)} onOpen={open} onToggle={toggle} full={full}/>{full&&e.task?.coverage?.length&&!e.done?<button className="preparation-link" onClick={()=>{setDay(null);onPreparation(e.task!);}}>{learningScope(e.task,semester).status} → View preparation</button>:null}</div>;}
   const dayItems=entries.filter(e=>e.date===day);
   return <section className="month-view" aria-label="Month calendar">
     <div className="month-toolbar">

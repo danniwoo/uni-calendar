@@ -8,8 +8,8 @@ import {restoreMonthPreferences,type MonthPreferences} from "@/lib/month-calenda
 import {learningScope} from "@/lib/learning-scope";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
 
-type Props={semester:Semester;today:string;now:Date;onTask:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
-export function WeekCalendar({semester:s,today,now,onTask,onClass:showClass,onToggleTask,onToggleClass}:Props){
+type Props={semester:Semester;today:string;now:Date;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
+export function WeekCalendar({semester:s,today,now,onTask,onPreparation,onClass:showClass,onToggleTask,onToggleClass}:Props){
   const first=mondayOf(s.weeks[0].start),last=mondayOf(s.weeks[s.weeks.length-1].end);
   const initial=mondayOf(today)<first?first:mondayOf(today)>last?last:mondayOf(today);
   const codes=s.units.map(u=>u.code).sort().join(","),key=["month-view",s.year,s.session,codes].join(":"),weekKey=key+":week";
@@ -47,7 +47,7 @@ export function WeekCalendar({semester:s,today,now,onTask,onClass:showClass,onTo
     const when=t.timeBasis==="class"?(/^Before/i.test(t.timing)?"Before ":"In class · ")+(t.time||"time TBC"):t.time?"Due "+t.time:"Time TBC";
     return <div key={t.id} className={"week-task "+(t.done?"week-done":"")+(embedded?" embedded-task":"")} style={{"--entry-color":color(t.unit)} as React.CSSProperties}>
       <input type="checkbox" checked={!!t.done} aria-label={(t.done?"Uncheck ":"Complete ")+t.unit+" "+t.title+" "+(t.date||t.week||"")} onChange={()=>onToggleTask(t)}/>
-      <button onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onTask(t);}}><strong>{t.title}</strong><span>{!embedded&&<b>{t.unit} · </b>}{embedded?"In class":t.date?when:t.week?"W"+t.week+" · Date TBC":"Date TBC"}{t.hurdle&&" · Hurdle"}</span>{scope&&!t.done&&<small className="week-prep">{scope.status}</small>}</button>
+      <div className="week-task-content"><button onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onTask(t);}}><strong>{t.title}</strong><span>{!embedded&&<b>{t.unit} · </b>}{embedded?"In class":t.date?when:t.week?"W"+t.week+" · Date TBC":"Date TBC"}{t.hurdle&&" · Hurdle"}</span></button>{scope&&!t.done&&<button className="preparation-link" onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onPreparation(t);}}>{scope.status} →</button>}</div>
     </div>;
   }
   function classLabel(c:ClassEvent){return c.activity.replace(/Practical/gi,"Lab");}

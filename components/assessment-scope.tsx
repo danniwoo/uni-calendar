@@ -4,8 +4,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { learningScope } from "@/lib/learning-scope";
 import type { Task, Semester, ClassEvent } from "@/lib/semester";
 
-export function AssessmentScope({task,semester,onSave,onToggle}: {
-  task:Task; semester:Semester; onSave:(task:Task,weeks:number[])=>void; onToggle:(event:ClassEvent)=>void;
+export function AssessmentScope({task,semester,onSave,onToggle,onOpenClass}: {
+  task:Task; semester:Semester; onSave:(task:Task,weeks:number[])=>void; onToggle:(event:ClassEvent)=>void; onOpenClass?:(event:ClassEvent)=>void;
 }) {
   const [editing,setEditing] = useState(false);
   const [weeks,setWeeks] = useState<number[]>([]);
@@ -21,7 +21,7 @@ export function AssessmentScope({task,semester,onSave,onToggle}: {
       {scope.weeks.length ? <>
         <p className="scope-status">Covers {scope.label} · {scope.status}</p>
         <p className="hint">{task.overrides?.includes("coverage") ? "Weeks set by you" : "Weeks from imported information"} · checked means worked through, not exam-ready.</p>
-        <div className="scope-lectures">{scope.lectures.map(c=><label key={c.id} className={semester.completed[c.id] ? "scope-done" : ""}><Checkbox aria-label={`Preparation ${task.unit} week ${c.week} lecture ${c.date}`} checked={!!semester.completed[c.id]} onCheckedChange={()=>onToggle(c)}/><span><strong>W{c.week} Lecture</strong>{c.topic && <small>{c.topic}</small>}</span></label>)}</div>
+        <div className="scope-lectures">{scope.lectures.map(c=><div key={c.id} className={"scope-lecture-row "+(semester.completed[c.id] ? "scope-done" : "")}><Checkbox aria-label={`Preparation ${task.unit} week ${c.week} lecture ${c.date} ${c.time}`} checked={!!semester.completed[c.id]} onCheckedChange={()=>onToggle(c)}/>{onOpenClass?<button onClick={()=>onOpenClass(c)}><strong>W{c.week} Lecture · {c.time}</strong><small>{c.date}{c.topic ? ` · ${c.topic}` : ""}{semester.completed[c.id]?" · recorded":" · unrecorded"}</small></button>:<span><strong>W{c.week} Lecture · {c.time}</strong><small>{c.date}{c.topic ? ` · ${c.topic}` : ""}</small></span>}</div>)}</div>
       </> : <p className="hint">No confirmed week range yet. We won’t infer it from “the first part of the unit”.</p>}
       {task.rules?.coverageText && <details><summary>Scope wording from outline</summary><p>{task.rules.coverageText}</p></details>}
     </>}
