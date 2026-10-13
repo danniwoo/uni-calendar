@@ -515,7 +515,7 @@ export default function SemesterBoard() {
     </div>;
   }
   return (
-    <main className={focus ? "focus-layout" : "full-layout"}>
+    <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}`}>
       <header>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>

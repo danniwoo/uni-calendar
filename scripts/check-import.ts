@@ -5,7 +5,7 @@ import { calendar, mergeSemester, weekFor, needsPlacement, isPast, type Semester
 import { reconcile } from "../lib/sync";
 import { learningScope, withCoverage } from "../lib/learning-scope";
 import { splitAssessment, fillEmptySchedules } from "../lib/split-assessment";
-import { monthDays, monthEntries, shiftMonth } from "../lib/month-calendar";
+import { monthDays, monthEntries, shiftMonth, dayPreview, shortEntryTitle, entryBadge, restoreMonthPreferences } from "../lib/month-calendar";
 const feed = `BEGIN:VCALENDAR
 BEGIN:VEVENT
 DTSTART;TZID=Australia/Sydney:20261008T100000
@@ -154,3 +154,22 @@ monthFixture.tasks[0].done=false;
 assert.equal(monthEntries(monthFixture)[0].done,false);
 assert.equal(monthItems[0].time,"23:59");
 console.log("PASS: Monday-first month grids, leap/year boundaries, deadlines before classes, shared completion and aggregate/unknown/other-unit exclusions.");
+const activeDeadline={...monthItems[0],id:"deadline",done:false,task:{...monthItems[0].task!,routine:false,hurdle:true,kind:"quiz" as const}};
+const activeRoutine={...activeDeadline,id:"routine",task:{...activeDeadline.task,routine:true,hurdle:false}};
+const activeClass={...monthItems[1],done:false};
+const completedDeadline={...activeDeadline,id:"complete",done:true};
+const previewInput=[completedDeadline,activeClass,activeRoutine,activeDeadline];
+const preview=dayPreview(previewInput,2);
+assert.deepEqual(preview.visible.map(e=>e.id),["deadline","routine"]);
+assert.deepEqual(preview.overflow.map(e=>e.id),["class:month-class"]);
+assert.deepEqual(preview.completed.map(e=>e.id),["complete"]);
+assert.equal(previewInput[0].id,"complete"); // Projection does not reorder source data.
+assert.equal(dayPreview([completedDeadline]).visible.length,0);
+assert.equal(entryBadge(completedDeadline),"Hurdle");
+assert.equal(entryBadge({...completedDeadline,task:{...completedDeadline.task,hurdle:false}}),"Quiz");
+assert.equal(shortEntryTitle({...activeDeadline,title:"SQL Online Quiz"}),"SQL Quiz");
+assert.equal(shortEntryTitle({...activeClass,title:"Tutorial"}),"Tut");
+assert.deepEqual(restoreMonthPreferences({month:"2026-09",unit:"TEST1001",classes:false,completed:false},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-09",unit:"TEST1001",classes:false,completed:false});
+assert.deepEqual(restoreMonthPreferences({month:"2026-99",unit:"OLD1001",classes:"false"},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-10",unit:"all",classes:true,completed:true});
+assert.equal(restoreMonthPreferences({month:"2025-09"},"2026-10","2026-08","2026-11",[]).month,"2026-10");
+console.log("PASS: unfinished deadline/routine/class priority, completed grouping, immutable projection, persistent hurdle/quiz labels, compact titles and validated view preferences.");
