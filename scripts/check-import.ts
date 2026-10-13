@@ -4,7 +4,7 @@ import { parseICS, parseOutline, scheduleTasks, upgradeSemester } from "../lib/i
 import { calendar, mergeSemester, weekFor, needsPlacement, isPast, type Semester } from "../lib/semester";
 import { reconcile } from "../lib/sync";
 import { learningScope, withCoverage } from "../lib/learning-scope";
-import { splitAssessment } from "../lib/split-assessment";
+import { splitAssessment, fillEmptySchedules } from "../lib/split-assessment";
 const feed = `BEGIN:VCALENDAR
 BEGIN:VEVENT
 DTSTART;TZID=Australia/Sydney:20261008T100000
@@ -120,3 +120,20 @@ routineParts[0].done=true;
 assert.equal(routineParts[1].done,false);
 assert.equal(mergeSemester(routine,{...fresh,tasks:[]}).tasks.filter(t=>t.parentId===routineParent.id).length,3);
 console.log("PASS: manual weekly routines, suggested 23:59 deadlines, break skipping and independent completion.");
+const flexiblePlan={count:5,weight:4,label:"Report",weeks:[1,4,5,undefined,undefined],schedules:[{date:"2026-08-09",time:"23:59"},{date:"2026-08-28",time:"17:00"},{week:5},{},{}]};
+const flexibleSplit=splitAssessment(portfolioSemester,portfolio,flexiblePlan);
+const flexParts=flexibleSplit.tasks.filter(t=>t.parentId===portfolio.id);
+assert.equal(flexParts[0].week,1);
+assert.equal(flexParts[1].week,4);
+assert.equal(flexParts[1].time,"17:00");
+assert.equal(flexParts[2].date,undefined);
+assert.equal(needsPlacement(flexParts[2]),false);
+assert.equal(needsPlacement(flexParts[3]),true);
+assert.throws(()=>splitAssessment(portfolioSemester,portfolio,{...flexiblePlan,schedules:[{date:"2026-02-30"},{},{},{},{}]}),/valid date/);
+assert.throws(()=>splitAssessment(portfolioSemester,portfolio,{...flexiblePlan,schedules:[{week:1,time:"17:00"},{},{},{},{}]}),/exact date/);
+assert.deepEqual(fillEmptySchedules([{week:4},{date:"2026-08-28",time:"17:00"},{}],[{week:1},{week:3},{week:5}]),[{week:4},{date:"2026-08-28",time:"17:00"},{week:5}]);
+assert.deepEqual(fillEmptySchedules([{week:4},{}],[{week:1},{week:3}],true),[{week:1},{week:3}]);
+const flexibleRefresh=mergeSemester(flexibleSplit,structuredClone(portfolioSemester));
+assert.equal(flexibleRefresh.tasks.find(t=>t.id===flexParts[1].id)?.time,"17:00");
+assert.equal(flexibleRefresh.tasks.find(t=>t.id===flexParts[2].id)?.week,5);
+console.log("PASS: individual deadlines, partial schedules, date validation, non-destructive batch fill and refresh preservation.");

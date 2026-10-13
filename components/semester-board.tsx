@@ -676,7 +676,7 @@ export default function SemesterBoard() {
             <span>Compare views</span>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>A · Full overview</button>
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>B · Focus</button>
-            <small>Same tasks & progress</small>
+            <small>Same tasks & progress · Multi-part editor: A individual dates / B repeat pattern</small>
           </div>
           <section className="coming-up">
             <div className="coming-title">
@@ -991,7 +991,7 @@ export default function SemesterBoard() {
                 {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>}
-              {semester.tasks.some(t=>t.id===draft.id) && <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onModeChange={setSplittingTask} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Submissions created. Open any part to adjust its date or mark it complete.");}}/>}
+              {semester.tasks.some(t=>t.id===draft.id) && <SplitAssessment key={`split-${draft.id}`} flexible={!focus} task={draft} semester={semester} onModeChange={setSplittingTask} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Submissions created. Open any part to adjust its date or mark it complete.");}}/>}
               {!draft.splitCount && !splittingTask && <>
               {semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
               {focus && !editingTask && <>
