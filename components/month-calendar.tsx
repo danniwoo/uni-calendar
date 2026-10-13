@@ -4,6 +4,8 @@ import {COLORS,shortDate,type Semester,type Task,type ClassEvent} from "@/lib/se
 import {monthDays,monthEntries,shiftMonth,dayPreview,shortEntryTitle,entryBadge,restoreMonthPreferences,type MonthEntry,type MonthPreferences} from "@/lib/month-calendar";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
 import {CalendarOptions} from "@/components/calendar-options";
+import {AwaitingExams} from "@/components/awaiting-exams";
+import {awaitingExamDate} from "@/lib/month-calendar";
 
 type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
 function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEntry;color:string;onOpen:(e:MonthEntry)=>void;onToggle:(e:MonthEntry)=>void;full?:boolean}) {
@@ -39,8 +41,9 @@ export function MonthCalendar({semester,today,onTask,onClass,onToggleTask,onTogg
   const entries=allEntries.filter(e=>(classes || e.task) && (showCompleted || !e.done));
   const activeCodes=new Set(semester.units.map(u=>u.code));
   const undated=semester.tasks.filter(t=>activeCodes.has(t.unit) && !t.splitCount && !t.date && (showCompleted || !t.done) && (unit==="all" || t.unit===unit));
-  const weekOnly=undated.filter(t=>t.week && semester.weeks.some(w=>w.number===t.week && w.start<=dates[dates.length-1] && w.end>=dates[0]));
-  const unknown=undated.filter(t=>!t.week),pendingCount=weekOnly.length+unknown.length;
+  const weekOnly=undated.filter(t=>!awaitingExamDate(t)&&t.week && semester.weeks.some(w=>w.number===t.week && w.start<=dates[dates.length-1] && w.end>=dates[0]));
+  const unknown=undated.filter(t=>!t.week&&!awaitingExamDate(t)),pendingCount=weekOnly.length+unknown.length;
+  const awaitingExams=undated.filter(awaitingExamDate);
   const retainedCount=semester.tasks.filter(t=>!activeCodes.has(t.unit)).length;
   const title=new Intl.DateTimeFormat("en-AU",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(month+"-01T12:00:00Z"));
   const dayTitle=day?new Intl.DateTimeFormat("en-AU",{weekday:"long",day:"numeric",month:"long",timeZone:"UTC"}).format(new Date(day+"T12:00:00Z")):"Day";
@@ -55,6 +58,7 @@ export function MonthCalendar({semester,today,onTask,onClass,onToggleTask,onTogg
       <div className="month-filters"><select aria-label="Filter calendar by unit" value={unit} onChange={e=>change({unit:e.target.value})}><option value="all">All units</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select><button className={"month-pending-trigger "+(pendingCount?"has-pending":"")} aria-expanded={pendingOpen} aria-controls="month-pending" onClick={()=>setPendingOpen(!pendingOpen)}>Needs dates ({pendingCount}) {pendingOpen?"−":"+"}</button><CalendarOptions classes={classes} completedMode={completedMode} onChange={change} retainedCount={retainedCount}/></div>
     </div>
     {pendingOpen && <div className="month-unscheduled" id="month-pending">{[{title:"Week known · shown weeks",tasks:weekOnly},{title:"Date unknown · semester",tasks:unknown}].map(group=><section key={group.title}><h3>{group.title} <span>{group.tasks.length}</span></h3>{group.tasks.length?group.tasks.map(t=><div className={"month-pending-row "+(t.done?"entry-done":"")} key={t.id}><input type="checkbox" aria-label={[t.done?"Uncheck":"Complete",t.unit,t.title].join(" ")} checked={!!t.done} onChange={()=>onToggleTask(t)}/><button onClick={()=>onTask(t)}>{t.week && <b>W{t.week} · </b>}{t.unit} · {t.title}</button></div>):<p>Nothing to schedule here.</p>}</section>)}</div>}
+    <AwaitingExams tasks={awaitingExams} onTask={onTask}/>
     <div className="month-scroll" tabIndex={0} role="region" aria-label="Monthly calendar. Click a date for all items; checkboxes record completion."><div className="month-grid">
       <div className="month-day-headings">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><strong key={d}>{d}</strong>)}</div>
       {weeks.map(row=>{

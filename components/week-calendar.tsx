@@ -3,6 +3,7 @@ import {useEffect,useRef,useState} from "react";
 import {addDays,COLORS,shortDate,type Semester,type Task,type ClassEvent} from "@/lib/semester";
 import {mondayOf,classRange,weekData,positionClasses,sydneyMinute,shortLocation} from "@/lib/week-calendar";
 import {CalendarOptions} from "@/components/calendar-options";
+import {AwaitingExams} from "@/components/awaiting-exams";
 import {restoreMonthPreferences,type MonthPreferences} from "@/lib/month-calendar";
 import {learningScope} from "@/lib/learning-scope";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
@@ -54,6 +55,7 @@ export function WeekCalendar({semester:s,today,now,onTask,onClass:showClass,onTo
     {!visibleDue.length&&<div className="week-empty-due">{data.due.length?"No unfinished dated tasks in this view.":data.linked.size?"In-class tasks are shown with your classes.":"No dated tasks scheduled this week."}{unknown.length>0&&<button onClick={()=>setPending(true)}>{unknown.length} dates still to confirm ↗</button>}</div>}
     {!!data.weekOnly.filter(keep).length&&<div className="week-unscheduled"><strong>This week · date TBC</strong><div>{data.weekOnly.filter(keep).map(t=>task(t))}</div></div>}
     {mode==="collapse"&&completedCount>0&&<button className="week-completed-trigger" onClick={()=>setCompletedOpen(true)}>✓ {completedCount} completed this week · View</button>}
+    <AwaitingExams tasks={data.awaitingExams.filter(t=>mode!=="hide"||!t.done)} onTask={onTask}/>
     <div className="week-scroll" ref={scroll} tabIndex={0} role="region" aria-label="Weekly time grid. Scroll sideways for other days on small screens."><div className="week-grid">
       <div className="week-sticky"><div className="week-date-row"><div className="week-gutter">Sydney</div>{dates.map((date,i)=><div key={date} className={"week-date "+(i>4?"weekend":"")}><span>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</span><b aria-current={date===today?"date":undefined}>{Number(date.slice(-2))}</b></div>)}</div>
         {!!visibleDue.length&&<div className="week-due-row"><div className="week-gutter">Due /<br/>Tasks</div>{dates.map(date=>{const tasks=visibleDue.filter(t=>t.date===date);return <div key={date} className="week-due-cell">{tasks.slice(0,2).map(t=>task(t))}{tasks.length>2&&<details><summary>+{tasks.length-2} more</summary>{tasks.slice(2).map(t=>task(t))}</details>}</div>;})}</div>}

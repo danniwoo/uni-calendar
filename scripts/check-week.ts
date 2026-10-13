@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {mondayOf,minutes,matchedClass,positionClasses,weekData,sydneyMinute,shortLocation} from "../lib/week-calendar";
 import type {Semester,ClassEvent,Task} from "../lib/semester";
+import {awaitingExamDate,monthEntries} from "../lib/month-calendar";
 const c:ClassEvent={id:"class",unit:"TEST1001",activity:"Tutorial",date:"2026-10-13",time:"12:00",end:"14:00",location:"Test room",week:10};
 const t:Task={id:"quiz",unit:c.unit,title:"Quiz",weight:"3%",date:c.date,time:c.time,week:10,timeBasis:"class",timing:"During your tutorial",kind:"quiz",description:"",source:"",sourceText:"",hurdle:false,group:false};
 assert.equal(mondayOf("2026-10-18"),"2026-10-12");
@@ -26,6 +27,20 @@ const layout=positionClasses([c,{...c,id:"second",time:"13:00",end:"15:00"},{...
 assert.deepEqual(layout.map(p=>[p.lane,p.lanes]),[[0,2],[1,2],[0,2],[0,1]]);
 const s={units:[{code:c.unit}],classes:[c],tasks:[t,{...t,id:"due",timeBasis:"deadline",time:"23:59"},{...t,id:"week",date:undefined,time:undefined},{...t,id:"unknown",date:undefined,week:undefined}],weeks:[{number:10,start:"2026-10-12",end:"2026-10-18"}],completed:{[c.id]:true}} as Semester;
 const data=weekData(s,"2026-10-12");
+const exam:Task={...t,id:"final",kind:"exam",title:"Final exam",date:undefined,week:undefined};
+const withExams={...s,tasks:[...s.tasks,exam,{...exam,id:"week-exam",week:10},{...exam,id:"inactive",unit:"OTHER"}]};
+assert.equal(awaitingExamDate(exam),true);
+assert.equal(awaitingExamDate({...exam,date:c.date}),false);
+assert.equal(awaitingExamDate({...exam,kind:"quiz"}),false);
+const examView=weekData(withExams,"2026-10-12");
+assert.deepEqual(examView.awaitingExams.map(t=>t.id),["final","week-exam"]);
+assert.deepEqual(examView.unknown.map(t=>t.id),["unknown"]);
+assert.deepEqual(examView.weekOnly.map(t=>t.id),["week"]);
+assert.equal(weekData(withExams,"2026-10-12","OTHER").awaitingExams.length,0);
+const datedExam={...s,tasks:[{...exam,date:c.date,time:"09:00",timeBasis:"deadline" as const}]};
+assert.equal(weekData(datedExam,"2026-10-12").awaitingExams.length,0);
+assert.equal(weekData(datedExam,"2026-10-12").due[0].id,"final");
+assert.equal(monthEntries(datedExam).find(e=>e.task)?.id,"task:final");
 assert.equal(data.linked.get(c.id)?.[0].id,t.id);assert.deepEqual(data.due.map(t=>t.id),["due"]);
 assert.equal(data.weekOnly[0].id,"week");assert.equal(data.unknown[0].id,"unknown");
 assert.equal(weekData(s,"2026-10-12","all",false).due.length,2,"classes hidden must not hide linked assessments");

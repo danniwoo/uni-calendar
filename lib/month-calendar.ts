@@ -1,5 +1,6 @@
 import {addDays,type Semester,type Task,type ClassEvent} from "./semester";
 export type MonthEntry = {id:string;date:string;unit:string;title:string;time?:string;done:boolean;task?:Task;event?:ClassEvent};
+export function awaitingExamDate(t:Task){return t.kind==="exam"&&!t.date;}
 export function monthDays(month:string):string[] {
   const start=`${month}-01`,first=new Date(`${start}T12:00:00Z`);
   const offset=(first.getUTCDay()+6)%7;

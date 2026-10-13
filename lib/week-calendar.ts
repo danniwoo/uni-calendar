@@ -1,4 +1,5 @@
 import {addDays,type ClassEvent,type Task,type Semester} from "./semester";
+import {awaitingExamDate} from "./month-calendar";
 
 export function mondayOf(date:string){return addDays(date,-((new Date(date+"T12:00:00Z").getUTCDay()+6)%7));}
 export function locationForDate(location:string,date?:string){
@@ -57,9 +58,10 @@ export function weekData(s:Semester,start:string,unit="all",showClasses=true){
   const dated=tasks.filter(t=>t.date&&t.date>=start&&t.date<=end);
   const linked=new Map<string,Task[]>();
   const due=dated.filter(t=>{const c=matchedClass(t,classes);if(!c)return true;linked.set(c.id,[...(linked.get(c.id)||[]),t]);return false;});
-  const weekOnly=tasks.filter(t=>!t.date&&t.week&&s.weeks.some(w=>w.number===t.week&&w.start<=end&&w.end>=start));
-  const unknown=tasks.filter(t=>!t.date&&!t.week);
-  return {classes,due,linked,weekOnly,unknown};
+  const weekOnly=tasks.filter(t=>!t.date&&!awaitingExamDate(t)&&t.week&&s.weeks.some(w=>w.number===t.week&&w.start<=end&&w.end>=start));
+  const unknown=tasks.filter(t=>!t.date&&!t.week&&!awaitingExamDate(t));
+  const awaitingExams=tasks.filter(awaitingExamDate);
+  return {classes,due,linked,weekOnly,unknown,awaitingExams};
 }
 export type PositionedClass={event:ClassEvent;start:number;end:number;lane:number;lanes:number};
 export function positionClasses(classes:ClassEvent[]):PositionedClass[]{

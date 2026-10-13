@@ -543,15 +543,16 @@ export default function SemesterBoard() {
   }
   return (
     <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
-      <header className={semester ? "board-header" : ""}>
+      <header className={semester ? `board-header${!calendarView ? " semester-header" : ""}` : ""}>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
         </div>
         {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view">{(["semester","month","week"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>}
+        {semester && !calendarView && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
         <div className="header-actions">
           {semester && <button className="primary header-add-task" onClick={newTask}><Plus size={16}/> Add task</button>}
           <span
-            className={`save-state ${saveError ? "danger" : ""}`}
+            className={`save-state ${saveError ? "danger" : ""} ${saveStatus === "Saved" ? "is-saved" : ""}`}
             role="status"
           >
             {saveStatus === "Saved" && <Check size={14} />} {saveStatus}
@@ -681,43 +682,17 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          {!calendarView && <section className="heading semester-title">
-            <div>
-              <p className="eyebrow">
-                {shortDate(today)} ·{" "}
-                {selectedWeek?.label || "Outside teaching weeks"} · SYDNEY TIME
-              </p>
-              <h1>
-                Semester {semester.session === "S2C" ? 2 : 1}{" "}
-                <span className="muted">{semester.year}</span>
-              </h1>
-            </div>
-            <div className="toolbar">
-              {!calendarView && <>
-              <button className="pending-details-button" aria-haspopup="dialog" aria-expanded={showTray} aria-controls="needs-details" onClick={() => setShowTray(true)}>Needs details ({unplaced.filter(t => !t.done).length})</button>
-              <button
-                onClick={() => {
-                  document
-                    .getElementById(selectedWeek?.id || "exam")
-                    ?.scrollIntoView({ behavior: "smooth", block: "center" });
-                }}
-              >
-                This week
-              </button>
-              </>}
-            </div>
-          </section>}
           {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} now={clock} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
-          <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
+          <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>B · Full overview</button>
-          </div>
+          </div><div className="toolbar"><button className="pending-details-button" aria-haspopup="dialog" aria-expanded={showTray} aria-controls="needs-details" onClick={()=>setShowTray(true)}>Needs details ({unplaced.filter(t=>!t.done).length})</button><button onClick={()=>document.getElementById(selectedWeek?.id || "exam")?.scrollIntoView({behavior:"smooth",block:"start"})}>This week</button></div></div>
           <section className="coming-up">
             <div className="coming-title">
               <p className="eyebrow">{focus && soon.length ? "NEXT 7 DAYS" : "UPCOMING MILESTONES"}</p>
               <span>{highlighted.length} {focus && soon.length ? "tasks & quizzes" : "upcoming milestones"}</span>
             </div>
-            <div className="upcoming-cards" id="upcoming-tasks" role="region" aria-label="Upcoming tasks, scroll horizontally" tabIndex={0}>
+            <div className="upcoming-cards" id="upcoming-tasks" role="region" aria-label="Upcoming tasks" tabIndex={0}>
               {highlighted.map((t) => (
                 <TaskCard key={t.id} task={t} compact />
               ))}
