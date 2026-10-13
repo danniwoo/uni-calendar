@@ -927,3 +927,53 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
   .semester-header .header-view-switch button { padding:5px 7px; }
   .semester-header .header-actions > .header-add-task { padding:6px 7px; }
 }
+/* Phone semester board: a compact unit heading with learning controls,
+   followed by deadline rows. Desktop and the Week time grid are unchanged. */
+@media(max-width:700px) {
+  main:not(.calendar-layout) .board .unit-cell {
+    display:grid; grid-template-columns:max-content minmax(0,1fr);
+    align-items:center; padding:6px 10px; gap:3px 10px;
+  }
+  main:not(.calendar-layout) .board .unit-cell > * { grid-column:1 / -1; min-width:0; }
+  main:not(.calendar-layout) .board .unit-cell > .mobile-unit {
+    grid-column:1; grid-row:1; align-self:center; min-height:32px;
+    font-size:13px; line-height:1.3; letter-spacing:0;
+  }
+  main:not(.calendar-layout) .board .unit-cell > .learning {
+    grid-column:2; grid-row:1; justify-content:flex-end;
+    border:0; padding:0; margin:0; gap:0 10px;
+  }
+  main:not(.calendar-layout) .board .unit-cell > .week-summary { grid-column:2; grid-row:1; justify-self:end; min-height:32px; font-size:11px; }
+  main:not(.calendar-layout) .board .learning-item { min-height:32px; gap:8px; }
+  main:not(.calendar-layout) .board .learning button.learning-open { font-size:12px; min-height:32px; line-height:1.35; }
+  main:not(.calendar-layout) .board .learning small { display:block; font-size:10px; line-height:1.3; }
+  main:not(.calendar-layout) .board .week-label { padding:7px 10px; gap:4px 8px; }
+  main:not(.calendar-layout) .board .week-label strong { font-size:15px; }
+  main:not(.calendar-layout) .board .week-label em { padding:2px 5px; }
+  main:not(.calendar-layout) .board .week-expand { order:4; min-height:28px; }
+  main:not(.calendar-layout) .board .past-toggle { padding:9px 10px; font-size:12px; }
+  main:not(.calendar-layout) .routine-item { align-items:center; padding:4px 0; gap:8px; border-left:0; }
+  main:not(.calendar-layout) .routine-item button:not([data-slot="checkbox"]) {
+    display:grid; grid-template-columns:minmax(0,1fr) minmax(0,45%);
+    align-items:center; gap:2px 8px; min-height:32px;
+  }
+  main:not(.calendar-layout) .routine-item strong { font-size:13px; line-height:1.35; }
+  main:not(.calendar-layout) .routine-item .routine-timing { text-align:right; font-size:11px; line-height:1.35; }
+  main:not(.calendar-layout) .routine-item small { font-size:10px; }
+  main:not(.calendar-layout) .routine-item .scope-status { grid-column:1 / -1; font-size:11px!important; line-height:1.35; }
+  main:not(.calendar-layout) .routine-item [data-slot="checkbox"] { margin-top:0; }
+  main:not(.calendar-layout) .board [data-slot="checkbox"] { position:relative; }
+  main:not(.calendar-layout) .board [data-slot="checkbox"]::before { content:""; position:absolute; inset:-6px; }
+  main:not(.calendar-layout) .board .task-card { position:relative; padding:7px 36px 7px 9px; gap:2px; }
+  main:not(.calendar-layout) .board .task-top { display:flex; }
+  main:not(.calendar-layout) .board .task-top small { font-size:9px; line-height:1.2; }
+  main:not(.calendar-layout) .board .task-top [data-slot="checkbox"] { position:absolute; right:10px; top:12px; }
+  main:not(.calendar-layout) .board .task-card button.task-open {
+    display:grid!important; grid-template-columns:minmax(0,1fr) minmax(0,40%); gap:2px 8px; align-items:center!important;
+  }
+  main:not(.calendar-layout) .board .task-open strong { font-size:13px; line-height:1.35; }
+  main:not(.calendar-layout) .board .task-open .task-timing { text-align:right; font-size:11px; line-height:1.35; }
+  main:not(.calendar-layout) .board .task-open .weight { font-size:10px; }
+  main:not(.calendar-layout) .board .task-open .scope-status,
+  main:not(.calendar-layout) .board .task-open .source-warning { grid-column:1 / -1; font-size:11px!important; }
+}

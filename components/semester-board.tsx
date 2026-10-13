@@ -519,7 +519,7 @@ export default function SemesterBoard() {
         </div>
         <button className="task-open" onClick={() => openTask(task)}>
           <strong>{compact && <span className="compact-task-unit">{task.unit}{task.hurdle ? " · HURDLE" : ""} · </span>}{displayTitle(task)}</strong>
-          <span>
+          <span className="task-timing">
             {displayTime(task, compact)}
           </span>
           {task.weight && !(compact && isRoutine(task) && !task.hurdle) && (
@@ -537,7 +537,7 @@ export default function SemesterBoard() {
   function RoutineItem({task}: {task:Task}) {
     return <div className={`routine-item ${task.done ? "is-done" : ""}`} style={{"--unit":color(task.unit)} as React.CSSProperties}>
       <Checkbox aria-label={`Mark ${task.unit} ${task.title} week ${task.week} complete`} checked={!!task.done} onCheckedChange={()=>toggleTask(task)}/>
-      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span>{displayTime(task)}</span>{!!task.coverage?.length && semester && <span className="scope-status">{learningScope(task,semester).status}</span>}</button>
+      <button onClick={()=>openTask(task)}><strong>{displayTitle(task)}</strong><span className="routine-timing">{displayTime(task)}</span>{!!task.coverage?.length && semester && <span className="scope-status">{learningScope(task,semester).status}</span>}</button>
       {task.rules?.perOccurrence !== undefined && <small>{task.rules.perOccurrence}%</small>}
     </div>;
   }
