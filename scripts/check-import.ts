@@ -5,6 +5,7 @@ import { calendar, mergeSemester, weekFor, needsPlacement, isPast, type Semester
 import { reconcile } from "../lib/sync";
 import { learningScope, withCoverage } from "../lib/learning-scope";
 import { splitAssessment, fillEmptySchedules } from "../lib/split-assessment";
+import { monthDays, monthEntries, shiftMonth } from "../lib/month-calendar";
 const feed = `BEGIN:VCALENDAR
 BEGIN:VEVENT
 DTSTART;TZID=Australia/Sydney:20261008T100000
@@ -137,3 +138,19 @@ const flexibleRefresh=mergeSemester(flexibleSplit,structuredClone(portfolioSemes
 assert.equal(flexibleRefresh.tasks.find(t=>t.id===flexParts[1].id)?.time,"17:00");
 assert.equal(flexibleRefresh.tasks.find(t=>t.id===flexParts[2].id)?.week,5);
 console.log("PASS: individual deadlines, partial schedules, date validation, non-destructive batch fill and refresh preservation.");
+assert.equal(monthDays("2026-09")[0],"2026-08-31");
+assert.equal(monthDays("2026-09").at(-1),"2026-10-04");
+assert.equal(monthDays("2026-11").length,42);
+assert.ok(monthDays("2028-02").includes("2028-02-29"));
+assert.equal(shiftMonth("2026-12",1),"2027-01");
+const monthFixture={...fresh,units:[{...fresh.units[0],code:"TEST1001"}],classes:[{...parsed.classes[0],id:"month-class",unit:"TEST1001",date:"2026-10-08",time:"09:00"}],completed:{"month-class":true},tasks:[{...portfolio,id:"month-task",unit:"TEST1001",date:"2026-10-08",time:"23:59",done:true},{...portfolio,id:"month-parent",unit:"TEST1001",date:"2026-10-08",splitCount:5},{...portfolio,id:"month-unknown",unit:"TEST1001",date:undefined},{...portfolio,id:"other-board",unit:"OTHER1001",date:"2026-10-08"}]};
+const monthItems=monthEntries(monthFixture);
+assert.equal(monthItems.length,2);
+assert.equal(monthItems[0].id,"task:month-task");
+assert.equal(monthItems[0].done,true);
+assert.equal(monthItems[1].id,"class:month-class");
+assert.equal(monthItems[1].done,true);
+monthFixture.tasks[0].done=false;
+assert.equal(monthEntries(monthFixture)[0].done,false);
+assert.equal(monthItems[0].time,"23:59");
+console.log("PASS: Monday-first month grids, leap/year boundaries, deadlines before classes, shared completion and aggregate/unknown/other-unit exclusions.");

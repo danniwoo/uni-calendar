@@ -595,6 +595,52 @@ aside {
 .part-fields { display:grid; gap:12px; padding:4px 0 16px; }
 .flexible-editor .schedule-actions { position:static; margin-top:0; }
 .flexible-editor { padding-bottom:24px; }
+.calendar-view-switch { display:flex; align-items:center; gap:5px; margin:0 0 20px; }
+.calendar-view-switch button { padding:9px 20px; border-radius:7px; }
+.calendar-view-switch button[aria-pressed="true"] { background:#2852c8; border-color:#2852c8; color:white; }
+.calendar-view-switch span { font-size:13px; color:#64748b; margin-left:10px; }
+.month-view { background:white; border:1px solid #dbe3ef; border-radius:12px; overflow:hidden; }
+.month-toolbar { padding:20px 20px 8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px; }
+.month-navigation,.month-filters { display:flex; align-items:center; flex-wrap:wrap; gap:10px; }
+.month-navigation h2 { font-size:24px; margin:0 12px 0 0; font-weight:650; }
+.month-navigation button { padding:6px 12px; }
+.month-filters label { display:flex; align-items:center; gap:6px; font-size:13px; color:#475569; }
+.month-filters select { padding:5px; border:1px solid #cbd5e1; border-radius:5px; }
+.month-help { padding:0 20px 12px; margin:0; font-size:12px; color:#64748b; }
+.month-scroll { overflow-x:auto; }
+.month-grid { min-width:780px; }
+.month-day-headings,.month-week-days { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); }
+.month-day-headings strong { padding:10px; background:#f7f9fc; font-size:12px; text-transform:uppercase; color:#64748b; }
+.month-week-label { padding:4px 10px; background:#f7f9fc; border-top:1px solid #dbe3ef; font-size:10px; color:#64748b; letter-spacing:.03em; }
+.month-day { min-height:154px; padding:6px; border-right:1px solid #e4e9f1; min-width:0; }
+.month-day:last-child { border-right:0; }
+.month-day.other-month { background:#f7f9fc; }
+.month-day.month-today { background:#f1f5ff; box-shadow:inset 0 0 0 1px #8aa7ee; }
+.month-day-number { display:flex; align-items:center; gap:6px; margin-bottom:6px; padding:3px 6px !important; border:0 !important; background:transparent !important; box-shadow:none !important; font-size:12px !important; }
+.month-day-number[aria-current="date"] { color:#2852c8; font-weight:700; }
+.month-day-number small { font-size:9px; }
+.month-day-items { display:grid; gap:5px; }
+.month-entry { display:flex; align-items:flex-start; gap:5px; border-left:3px solid var(--entry-color); padding:5px; border-radius:4px; background:color-mix(in srgb,var(--entry-color) 9%,white); min-width:0; }
+.month-entry input,.month-pending-row input { accent-color:var(--entry-color,#2852c8); width:14px; height:14px; margin:2px 0 0; flex-shrink:0; cursor:pointer; }
+.month-view .month-entry button,.month-agenda .month-entry button { border:0; padding:0; min-width:0; text-align:left; background:transparent; box-shadow:none; flex:1; }
+.month-entry-name { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:11px; font-weight:550; color:#1e293b; }
+.month-entry small { display:block; font-size:10px; color:#526176; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; margin-top:2px; }
+.month-entry.class-entry { background:transparent; border-left-color:color-mix(in srgb,var(--entry-color) 50%,white); }
+.month-entry.class-entry .month-entry-name { font-weight:400; }
+.entry-done { opacity:.6; }
+.entry-done .month-entry-name,.month-pending-row.entry-done button { text-decoration:line-through; }
+.month-more { padding:5px 3px !important; border:0 !important; color:#2852c8; font-size:11px !important; background:transparent !important; box-shadow:none !important; text-align:left; }
+.month-unscheduled { display:grid; grid-template-columns:1fr 1fr; border-top:1px solid #dbe3ef; gap:20px; padding:16px 20px; }
+.month-unscheduled summary { font-size:13px; cursor:pointer; }
+.month-unscheduled summary span { background:#edf1f7; padding:2px 6px; border-radius:4px; margin-left:4px; }
+.month-pending-row { display:flex; align-items:flex-start; gap:8px; margin-top:12px; }
+.month-pending-row button { padding:0; border:0; text-align:left; background:transparent; font-size:13px; }
+.month-view > .hint { padding:0 20px 12px; }
+.month-agenda { display:grid; gap:10px; padding:20px; }
+.full-entry .month-entry-name { white-space:normal; font-size:14px; }
+.full-entry small { font-size:12px; }
+.full-entry input { width:17px; height:17px; }
+@media(max-width:700px) { .month-unscheduled { grid-template-columns:1fr; } .calendar-view-switch span { display:none; } .month-toolbar { padding:14px; } .month-help { padding:0 14px 12px; } }
 .series-occurrences button { font-size:14px; padding:6px 8px; }
 @media(max-width:700px) {
   .coming-up .upcoming-cards .task-card { flex-basis:85%; }

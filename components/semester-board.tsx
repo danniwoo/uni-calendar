@@ -44,6 +44,7 @@ import {
 import { reconcile } from "@/lib/sync";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
+import { MonthCalendar } from "@/components/month-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
@@ -102,6 +103,7 @@ export default function SemesterBoard() {
     [showWarnings, setShowWarnings] = useState(false),
     [showRoutines, setShowRoutines] = useState(false),
     [focus, setFocus] = useState(false),
+    [calendarView, setCalendarView] = useState(false),
     [showTray, setShowTray] = useState(false),
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
     [editingTask, setEditingTask] = useState(false),
@@ -116,6 +118,8 @@ export default function SemesterBoard() {
     saving = useRef(false);
   const today = sydneyDate(clock);
   useEffect(()=>{try {setFocus(localStorage.getItem("semester-layout") === "focus");} catch {}},[]);
+  useEffect(()=>{try {setCalendarView(localStorage.getItem("semester-view") === "month");} catch {}},[]);
+  function chooseView(month:boolean) {setCalendarView(month);try {localStorage.setItem("semester-view",month?"month":"semester");} catch {}}
   function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem("semester-layout",next ? "focus" : "full");} catch {}}
   useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
@@ -656,6 +660,7 @@ export default function SemesterBoard() {
               </h1>
             </div>
             <div className="toolbar">
+              {!calendarView && <>
               <button className="pending-details-button" aria-haspopup="dialog" aria-expanded={showTray} aria-controls="needs-details" onClick={() => setShowTray(true)}>Needs details ({unplaced.filter(t => !t.done).length})</button>
               <button
                 onClick={() => {
@@ -666,12 +671,15 @@ export default function SemesterBoard() {
               >
                 This week
               </button>
+              </>}
               <button className="primary" onClick={newTask}>
                 <Plus size={16} />
                 Add task
               </button>
             </div>
           </section>
+          <div className="calendar-view-switch" role="group" aria-label="Calendar view"><button aria-pressed={!calendarView} onClick={()=>chooseView(false)}>Semester</button><button aria-pressed={calendarView} onClick={()=>chooseView(true)}>Month</button><span>Same tasks · same checkmarks</span></div>
+          {calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <span>Compare views</span>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>A · Full overview</button>
@@ -938,6 +946,7 @@ export default function SemesterBoard() {
               </p>
             </div></SheetContent></Sheet>
           </div>
+          </>}
           <footer>
             <a
               href="https://www.sydney.edu.au/students/key-dates.html"
