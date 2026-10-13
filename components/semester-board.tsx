@@ -518,7 +518,7 @@ export default function SemesterBoard() {
           />
         </div>
         <button className="task-open" onClick={() => openTask(task)}>
-          <strong>{displayTitle(task)}</strong>
+          <strong>{compact && <span className="compact-task-unit">{task.unit}{task.hurdle ? " · HURDLE" : ""} · </span>}{displayTitle(task)}</strong>
           <span>
             {displayTime(task, compact)}
           </span>
@@ -543,14 +543,14 @@ export default function SemesterBoard() {
   }
   return (
     <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
-      <header className={semester ? `board-header${!calendarView ? " semester-header" : ""}` : ""}>
+      <header className={semester ? "board-header semester-header" : ""}>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
         </div>
         {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view">{(["semester","month","week"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>}
-        {semester && !calendarView && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
+        {semester && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
         <div className="header-actions">
-          {semester && <button className="primary header-add-task" onClick={newTask}><Plus size={16}/> Add task</button>}
+          {semester && <button className="primary header-add-task" aria-label="Add task" title="Add task" onClick={newTask}><Plus size={20} aria-hidden="true"/></button>}
           <span
             className={`save-state ${saveError ? "danger" : ""} ${saveStatus === "Saved" ? "is-saved" : ""}`}
             role="status"
