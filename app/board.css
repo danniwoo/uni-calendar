@@ -827,7 +827,7 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .week-empty-due button { padding:0;border:0;background:none;color:#876019;box-shadow:none;font-size:12px; }
 .week-class-main strong,.week-class-main strong span { font-size:13px; }
 .week-class-main button>span { font-size:12px; }
-.week-location { font-size:11px; }
+.week-location { font-size:11px;white-space:normal;overflow-wrap:anywhere; }
 .week-task strong { font-size:13px; }
 .week-task span { font-size:11px; }
 .week-hours>span { font-size:11px; }

@@ -46,6 +46,7 @@ import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
 import { MonthCalendar } from "@/components/month-calendar";
 import { WeekCalendar } from "@/components/week-calendar";
+import {locationForDate} from "@/lib/week-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
@@ -1206,6 +1207,7 @@ export default function SemesterBoard() {
                 {shortDate(detail.event.date)} · {detail.event.time}–
                 {detail.event.end}
               </p>
+              {locationForDate(detail.event.location,detail.event.date).variable&&<p><strong>{locationForDate(detail.event.location,detail.event.date).label}</strong></p>}
               <p>{detail.event.location || "Location not listed"}</p>
               <h3>This week’s topic</h3>
               <p>

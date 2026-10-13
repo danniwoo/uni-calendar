@@ -1,13 +1,39 @@
 import {addDays,type ClassEvent,type Task,type Semester} from "./semester";
 
 export function mondayOf(date:string){return addDays(date,-((new Date(date+"T12:00:00Z").getUTCDay()+6)%7));}
-export function shortLocation(location:string){
-  if(!location)return "";
-  // Timetable alternatives can be date-dependent; never pick one at random.
-  if(/\([^)]*\d+\s*\/\s*\d+/.test(location)||location.split(/,\s*(?=[A-Z]\d+\.)/).length>1)return "Room varies · see details";
-  const code=location.match(/^([A-Z]\d+)\.\d+\.([A-Z\d]+)\./i);
-  return code?`${code[1]} · ${code[2]}`:location;
+export function locationForDate(location:string,date?:string){
+  const parts=location.split(/,\s*(?=[A-Z]\d+\.\d+\.)/i).map(p=>p.trim());
+  const short=(part:string)=>{const code=part.match(/^([A-Z]\d+)\.\d+\.([A-Z\d]+)\./i);return code?`${code[1]} · ${code[2]}`:part;};
+  const variable=parts.length>1||/\([^)]*\d+\s*\/\s*\d+/.test(location);
+  const fallback={label:parts.map(short).join(" / ")+(variable?" · varies":""),matched:false,variable};
+  if(!variable||!date||!/^\d{4}-\d{2}-\d{2}$/.test(date))return fallback;
+  const year=+date.slice(0,4);
+  function stamp(day:string,month:string){
+    const d=+day,m=+month;
+    if(m<1||m>12||d<1||d>new Date(Date.UTC(year,m,0)).getUTCDate())return null;
+    return `${year}-${String(m).padStart(2,"0")}-${String(d).padStart(2,"0")}`;
+  }
+  if(stamp(date.slice(8,10),date.slice(5,7))!==date)return fallback;
+  // A trailing date list applies to this room. Other parentheses, e.g. (PC2),
+  // are room metadata. Unknown clauses must not silently become a match.
+  const matches:boolean[]=[];
+  for(const part of parts){
+    const dates=part.match(/\(([^()]*)\)\s*$/)?.[1];
+    if(!dates)return fallback;
+    let matchesDate=false;
+    for(const token of dates.split(",")){
+      const m=token.trim().match(/^(\d{1,2})\s*\/\s*(\d{1,2})(?:\s*[-–—]\s*(\d{1,2})\s*\/\s*(\d{1,2}))?$/);
+      if(!m)return fallback;
+      const first=stamp(m[1],m[2]),last=m[3]?stamp(m[3],m[4]):first;
+      if(!first||!last||first>last)return fallback;
+      if(date>=first&&date<=last)matchesDate=true;
+    }
+    matches.push(matchesDate);
+  }
+  if(matches.filter(Boolean).length!==1)return fallback;
+  return {label:short(parts[matches.indexOf(true)])+" · date matched",matched:true,variable:true};
 }
+export function shortLocation(location:string,date?:string){return locationForDate(location,date).label;}
 export function minutes(time?:string){
   const m=time?.match(/^(\d{2}):(\d{2})$/);
   return m&&+m[1]<24&&+m[2]<60?+m[1]*60 + +m[2]:null;
