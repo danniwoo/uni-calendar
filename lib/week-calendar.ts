@@ -5,7 +5,7 @@ export function locationForDate(location:string,date?:string){
   const parts=location.split(/,\s*(?=[A-Z]\d+\.\d+\.)/i).map(p=>p.trim());
   const short=(part:string)=>{const code=part.match(/^([A-Z]\d+)\.\d+\.([A-Z\d]+)\./i);return code?`${code[1]} · ${code[2]}`:part;};
   const variable=parts.length>1||/\([^)]*\d+\s*\/\s*\d+/.test(location);
-  const fallback={label:parts.map(short).join(" / ")+(variable?" · varies":""),matched:false,variable};
+  const fallback={label:parts.map(short).join(" / ")+(variable?" · room unconfirmed":""),matched:false,variable};
   if(!variable||!date||!/^\d{4}-\d{2}-\d{2}$/.test(date))return fallback;
   const year=+date.slice(0,4);
   function stamp(day:string,month:string){
@@ -31,7 +31,7 @@ export function locationForDate(location:string,date?:string){
     matches.push(matchesDate);
   }
   if(matches.filter(Boolean).length!==1)return fallback;
-  return {label:short(parts[matches.indexOf(true)])+" · date matched",matched:true,variable:true};
+  return {label:short(parts[matches.indexOf(true)]),matched:true,variable:true};
 }
 export function shortLocation(location:string,date?:string){return locationForDate(location,date).label;}
 export function minutes(time?:string){

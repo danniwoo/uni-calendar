@@ -35,7 +35,7 @@ export function shortEntryTitle(e:MonthEntry,mobile=false){
   const title=e.title.replace(new RegExp(`^${e.unit}\\s*[-:·]?\\s*`,"i"),"").replace(/\bLecture\b/gi,"Lec").replace(/\bTutorial\b/gi,"Tut").replace(/\bPractical\b/gi,"Lab").replace(/\bAssignment\b/gi,"A").replace(/\bOnline\s+(?=Quiz\b)/gi,"");
   return mobile?title.replace(/\bWorkshop\b/gi,"W/shop").replace(/\bScientific\b/gi,"Sci.").replace(/\bComputational\b/gi,"Comp."):title;
 }
-export function entryBadge(e:MonthEntry){return e.task?.hurdle?"Hurdle":e.task?.kind==="quiz"?"Quiz":"";}
+export function entryBadge(e:MonthEntry){return e.task?.hurdle?"Hurdle":e.task?.kind==="quiz"&&!/\bquiz(?:zes)?\b/i.test(e.title)?"Quiz":"";}
 export type MonthPreferences={month:string;unit:string;classes:boolean;completedMode:CompletedMode};
 export function restoreMonthPreferences(value:unknown,initial:string,first:string,last:string,units:string[]):MonthPreferences{
   const p=(value && typeof value==="object"?value:{}) as Partial<MonthPreferences>&{completed?:boolean};

@@ -166,6 +166,8 @@ assert.deepEqual(preview.completed.map(e=>e.id),["complete"]);
 assert.equal(previewInput[0].id,"complete"); // Projection does not reorder source data.
 assert.equal(dayPreview([completedDeadline],3,"collapse").visible.length,0);
 assert.equal(entryBadge(completedDeadline),"Hurdle");
+for(const title of ["SQL Quiz","weekly quizzes","Lecture Knowledge Quiz"])
+  assert.equal(entryBadge({...completedDeadline,title,task:{...completedDeadline.task,hurdle:false}}),"","Quiz titles do not need a duplicate badge");
 assert.equal(entryBadge({...completedDeadline,task:{...completedDeadline.task,hurdle:false}}),"Quiz");
 assert.equal(shortEntryTitle({...activeDeadline,title:"SQL Online Quiz"}),"SQL Quiz");
 assert.equal(shortEntryTitle({...activeClass,title:"Tutorial"}),"Tut");
