@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Semester, Unit, ClassEvent, Task, shortDate, timingLabel } from "@/lib/semester";
+import { Semester, Unit, ClassEvent, Task, shortDate, timingLabel, weightLabel } from "@/lib/semester";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { learningScope } from "@/lib/learning-scope";
 import { subjectTasks, subjectAssessments } from "@/lib/subject-view";
@@ -32,7 +32,7 @@ export function UnitDetail({ semester, unit, today, focusTaskId, onToggle, onTog
   const card = (t:Task) => <div key={t.id} className="subject-task">
     <Checkbox aria-label={`Record ${unit.code} ${t.title} complete`} checked={!!t.done} onCheckedChange={()=>onToggleTask(t)}/>
     <div><button className="subject-task-title" onClick={()=>onOpenTask(t)}>{t.title}</button>
-      <p>{timingLabel(t)}{t.weight && ` · ${t.weight}`}{t.hurdle && " · Hurdle"}</p>
+      <p>{timingLabel(t)}{t.weight && ` · ${weightLabel(t)}`}{t.hurdle && " · Hurdle"}</p>
       {t.sourceConflict && <p className="unit-conflict">Source dates conflict · check details</p>}
       <button className="subject-prep-link" aria-expanded={preparing===t.id} onClick={()=>setPreparing(preparing===t.id?"":t.id)}>{t.coverage?.length ? `${learningScope(t,semester).status} → View preparation` : "Add preparation scope"}</button>
     </div>

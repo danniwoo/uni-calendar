@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { subjectTasks, subjectAssessments } from "../lib/subject-view";
 import { learningScope, withCoverage } from "../lib/learning-scope";
-import { calendar, type Semester, type Task } from "../lib/semester";
+import { calendar, weightLabel, type Semester, type Task } from "../lib/semester";
 const task:Task={id:"quiz",unit:"TEST1001",title:"Quiz",kind:"quiz",weight:"4%",date:"2026-10-16",timing:"Due",description:"",source:"",sourceText:"",hurdle:false,group:false,coverage:[1,2,3]};
 const parent={...task,id:"reports",title:"Reports",splitCount:5,weight:"20%"};
 const s:Semester={year:2026,session:"S2C",weeks:calendar(2026,"S2C"),units:[{code:task.unit,name:"Test",session:"S2C",outline:"",status:"",summary:"",topics:[],assessments:[task,parent]}],feedUrl:"",importedAt:"",warnings:[],completed:{l1:true},classes:[{id:"l1",unit:task.unit,week:1,activity:"Lecture",date:"2026-08-03",time:"09:00",end:"10:00",location:""},{id:"l2",unit:task.unit,week:2,activity:"Lecture",date:"2026-08-10",time:"09:00",end:"10:00",location:""}],tasks:[task,parent,{...task,id:"part",parentId:parent.id},{...task,id:"done",done:true},{...task,id:"past",date:"2026-10-13"},{...task,id:"week",date:undefined,week:10},{...task,id:"unknown",date:undefined},{...task,id:"exam",kind:"exam",date:undefined},{...task,id:"inactive",unit:"OTHER"}]};
 const before=JSON.stringify(s);
+assert.equal(weightLabel({...task,series:"weekly",weight:"21%",rules:{text:"3% each, 21% cap",perOccurrence:3,total:21}}),"3% each · 21% cap");
 const groups=subjectTasks(s,task.unit,"2026-10-14");
 assert.deepEqual(groups.upcoming.map(t=>t.id),["week","part","quiz"]);
 assert.deepEqual(groups.past.map(t=>t.id),["past"]);
