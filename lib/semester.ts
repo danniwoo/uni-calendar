@@ -72,6 +72,8 @@ export type Unit = {
   topics: { week: number; activity: string; topic: string }[];
 };
 export type Semester = {
+  // A new generation marks an explicit snapshot replacement, including same-feed restores.
+  boardGeneration?: string;
   year: number;
   session: string;
   weeks: Week[];
@@ -176,8 +178,9 @@ export function mergeSemester(
   old: Semester | undefined,
   fresh: Semester,
 ): Semester {
-  if (!old || old.year !== fresh.year || old.session !== fresh.session)
+  if (!old || old.year !== fresh.year || old.session !== fresh.session || old.feedUrl !== fresh.feedUrl)
     return fresh;
+  fresh.boardGeneration = old.boardGeneration;
   const map = new Map(old.tasks.map((t) => [t.id, t]));
   fresh.tasks = fresh.tasks.map((t) => {
     const prev = map.get(t.id);

@@ -5,3 +5,8 @@ export const semesters = sqliteTable("semesters", {
   revision: integer("revision").notNull().default(1),
   updatedAt: text("updated_at").notNull(),
 });
+export const semesterRecovery = sqliteTable("semester_recovery", {
+  owner: text("owner").primaryKey(),
+  data: text("data").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});

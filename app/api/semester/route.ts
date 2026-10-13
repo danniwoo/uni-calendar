@@ -13,10 +13,12 @@ export async function GET() {
       .prepare("SELECT data, revision FROM semesters WHERE owner = ?")
       .bind(user.userId)
       .first<{ data: string; revision: number }>();
+    const recovery = await database().prepare("SELECT data FROM semester_recovery WHERE owner = ?").bind(user.userId).first<{data:string}>();
     return Response.json(
       {
         semester: row ? upgradeSemester(JSON.parse(row.data)) : null,
         revision: row?.revision || 0,
+        recovery: recovery ? JSON.parse(recovery.data) : null,
       },
       { headers: { "Cache-Control": "no-store" } },
     );
@@ -49,7 +51,7 @@ export async function PUT(request: Request) {
         { error: "This semester is too large to save." },
         { status: 400 },
       );
-    const { semester, revision } = JSON.parse(body);
+    const { semester, revision, syncVersion } = JSON.parse(body);
     if (
       !semester ||
       !Array.isArray(semester.tasks) ||
@@ -66,17 +68,33 @@ export async function PUT(request: Request) {
         { error: "Invalid semester backup or data." },
         { status: 400 },
       );
-    const result = await database()
+    // Tabs running a pre-fix bundle must reload before editing a replaced board.
+    // They do not understand replacement generations and could otherwise merge it back.
+    const saved = await database().prepare("SELECT data, revision FROM semesters WHERE owner = ?").bind(user.userId).first<{data:string;revision:number}>();
+    const previous = saved ? JSON.parse(saved.data) : null;
+    if (syncVersion !== 2 && previous?.boardGeneration)
+        return Response.json({error:"This board was restored or switched. Export unsaved edits, then reload this tab before continuing."},{status:409});
+    if ((saved?.revision || 0) !== revision)
+      return Response.json({error:"The saved board changed. Reload or resolve the conflict before saving."},{status:409});
+    const switched = previous && (previous.boardGeneration !== semester.boardGeneration || previous.feedUrl !== semester.feedUrl
+      || previous.year !== semester.year || previous.session !== semester.session);
+    const updatedAt = new Date().toISOString();
+    const save = database()
       .prepare(
         "INSERT INTO semesters (owner, data, revision, updated_at) VALUES (?, ?, 1, ?) ON CONFLICT(owner) DO UPDATE SET data = excluded.data, revision = semesters.revision + 1, updated_at = excluded.updated_at WHERE semesters.revision = ?",
       )
       .bind(
         user.userId,
         JSON.stringify(semester),
-        new Date().toISOString(),
+        updatedAt,
         revision,
-      )
-      .run();
+      );
+    // Both statements run in one D1 transaction. The same revision guard prevents
+    // a stale tab from replacing the recovery copy if another save wins first.
+    const result = switched ? (await database().batch([
+      database().prepare("INSERT INTO semester_recovery (owner, data, updated_at) SELECT owner, data, ? FROM semesters WHERE owner = ? AND revision = ? ON CONFLICT(owner) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at")
+        .bind(updatedAt,user.userId,revision), save,
+    ]))[1] : await save.run();
     if (!result.meta.changes)
       return Response.json(
         {

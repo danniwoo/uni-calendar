@@ -24,8 +24,9 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
     conflicts.push(path);
     return prefer === "local" ? l : r;
   }
-  if (base && (local.year !== remote.year || local.session !== remote.session || local.feedUrl !== remote.feedUrl))
-    return { semester: prefer === "local" ? local : remote, conflicts: ["Timetable / semester changed"] };
+  if (local.year !== remote.year || local.session !== remote.session || local.feedUrl !== remote.feedUrl
+    || local.boardGeneration !== remote.boardGeneration)
+    return { semester: prefer === "local" ? local : remote, conflicts: ["Whole board changed — restore / timetable switch"] };
   const semester = merge(base,local,remote,"") as Semester;
   return { semester, conflicts };
 }

@@ -42,6 +42,7 @@ import {
   isPast,
 } from "@/lib/semester";
 import { reconcile } from "@/lib/sync";
+import { activeTasks, backupText, readBackup, replaceBoard, sameUnits } from "@/lib/backup";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
 import { MonthCalendar } from "@/components/month-calendar";
@@ -83,6 +84,7 @@ type Detail =
   | { type: "class"; event: ClassEvent };
 type ApiResult = {
   semester: Semester | null;
+  recovery?: Semester | null;
   revision: number;
   error?: string;
   signIn?: boolean;
@@ -112,6 +114,8 @@ export default function SemesterBoard() {
     [splittingTask, setSplittingTask] = useState(false),
     [newRecurring, setNewRecurring] = useState(false),
     [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
+    [transfer, setTransfer] = useState<{board:Semester; kind:"backup"|"import"} | null>(null),
+    [recovery, setRecovery] = useState<Semester | null>(null),
     [clock, setClock] = useState(() => new Date());
   const current = useRef<Semester | null>(null),
     baseline = useRef<Semester | null>(null),
@@ -137,6 +141,7 @@ export default function SemesterBoard() {
       current.current = j.semester;
       baseline.current = j.semester;
       setSemester(j.semester);
+      setRecovery(j.recovery || null);
       revision.current = j.revision;
       setLoaded(true);
       setSaveStatus(j.semester ? "Saved" : "");
@@ -185,6 +190,7 @@ export default function SemesterBoard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            syncVersion: 2,
             semester: snapshot,
             revision: revision.current,
           }),
@@ -197,7 +203,9 @@ export default function SemesterBoard() {
           const merged = reconcile(baseline.current, pending.current || snapshot, remote.semester);
           if (merged.conflicts.length) {
             setConflict({remote:remote.semester,revision:remote.revision,fields:merged.conflicts});
-            throw new Error("Another tab changed the same information. Choose which conflicting edits to keep; unrelated changes are preserved.");
+            throw new Error(merged.conflicts[0]?.startsWith("Whole board")
+              ? "Another tab restored or switched boards. These boards will not be merged. Export this tab before choosing which complete board to keep."
+              : "Another tab changed the same information. Choose which conflicting edits to keep; unrelated changes are preserved.");
           }
           baseline.current = remote.semester; revision.current = remote.revision;
           pending.current = merged.semester; current.current = merged.semester; setSemester(merged.semester);
@@ -245,7 +253,12 @@ export default function SemesterBoard() {
       const j = (await r.json()) as ApiResult;
       if (!r.ok || !j.semester)
         throw new Error(j.error || "No semester was returned.");
-      const next = mergeSemester(current.current || undefined, j.semester);
+      const old = current.current;
+      if (old && (old.feedUrl !== j.semester.feedUrl || old.year !== j.semester.year || old.session !== j.semester.session)) {
+        setTransfer({board:j.semester,kind:"import"});
+        return;
+      }
+      const next = old ? mergeSemester(old,j.semester) : replaceBoard(j.semester,crypto.randomUUID());
       commit(next);
       setSettings(false);
       setUrl("");
@@ -360,31 +373,39 @@ export default function SemesterBoard() {
     commit({...s, tasks: existing ? s.tasks.map(t=>t.id === task.id ? updated : t) : [...s.tasks,updated]});
     setDraft(prev=>prev?.id === task.id ? withCoverage(prev,weeks) : prev);
   }
-  function backup() {
-    if (!semester) return;
+  function downloadBackup(snapshot:Semester, prefix="semester") {
     const blob = new Blob(
-      [JSON.stringify({ ...semester, feedUrl: "" }, null, 2)],
+      [backupText(snapshot)],
       { type: "application/json" },
     );
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `semester-${semester.year}-${semester.session}.backup.json`;
+    a.download = `${prefix}-${snapshot.year}-${snapshot.session}-${new Date().toISOString().replace(/[:.]/g,"-")}.backup.json`;
     a.click();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+  function backup() { if (current.current) downloadBackup(current.current); }
   async function restoreBackup(file?: File) {
-    if (!file || !semester) return;
+    if (!file || busy || !loaded) return;
     try {
-      const restored = JSON.parse(await file.text()) as Semester;
-      if (file.size > 1500000 || restored.year !== semester.year || restored.session !== semester.session
-        || !Array.isArray(restored.tasks) || !Array.isArray(restored.classes) || !restored.completed
-        || restored.tasks.some(t=>typeof t.id !== "string" || typeof t.title !== "string")) throw new Error("Choose a valid backup for this semester.");
-      // Restore personal progress as a merge, not a destructive replacement.
-      const tasks = new Map(semester.tasks.map(t=>[t.id,t]));
-      for (const t of restored.tasks) tasks.set(t.id, {...(tasks.get(t.id) || t), ...t});
-      commit({...semester,tasks:[...tasks.values()],completed:{...semester.completed,...restored.completed}});
-      setNotice("Backup tasks and progress restored. Current timetable link kept.");
+      if(file.size > 1500000) throw new Error("Backup is too large (maximum 1.5 MB).");
+      setTransfer({board:readBackup(await file.text()),kind:"backup"});
     } catch(e) {setNotice(e instanceof Error ? e.message : "Backup could not be read.");}
+  }
+  function applyTransfer(reconnect=false) {
+    if (!transfer || saving.current || pending.current || conflict) return;
+    const old = current.current;
+    if (reconnect && (!old || transfer.kind !== "import" || !sameUnits(old,transfer.board))) return;
+    if (old) setRecovery(structuredClone(old));
+    const next = reconnect && old
+      ? mergeSemester({...old,feedUrl:transfer.board.feedUrl},transfer.board)
+      : replaceBoard(transfer.board,crypto.randomUUID());
+    commit(next);
+    setDetail(null);setDraft(null);setSettings(false);setShowTray(false);setUrl("");
+    setNotice(reconnect ? "Timetable connected to this board. Your edits and progress were kept."
+      : transfer.kind === "backup" ? `Complete backup restored. Classes, units, tasks and checkmarks now come from the same backup.${next.feedUrl ? "" : " Reconnect its timetable link in Manage to refresh classes."}`
+      : "Switched to the new timetable. Previous tasks and progress were not mixed in.");
+    setTransfer(null);
   }
   const selectedWeek = semester?.weeks.find(
     (w) => w.start <= today && w.end >= today,
@@ -394,21 +415,22 @@ export default function SemesterBoard() {
       Math.max(0, semester?.units.findIndex((u) => u.code === unit) ?? 0) %
         COLORS.length
     ];
-  const undated =
-    semester?.tasks.filter(needsPlacement) || [];
+  const boardTasks = semester ? activeTasks(semester) : [];
+  const retainedCount = (semester?.tasks.length || 0) - boardTasks.length;
+  const undated = boardTasks.filter(needsPlacement);
   const ongoing = undated.filter(t=>t.routine && /ongoing/i.test(t.sourceText));
   const unplaced = undated.filter(t=>!ongoing.includes(t));
   const overdue =
-    semester?.tasks.filter(
+    boardTasks.filter(
       (t) =>
         !t.done &&
-        isPast(t,semester,clock),
+        !!semester && isPast(t,semester,clock),
     ) || [];
   const upcoming =
-    semester?.tasks
+    boardTasks
       .filter(
         (t) =>
-          !t.done &&
+          !!semester && !t.done &&
           !isRoutine(t) && !t.rules?.optional &&
           !isPast(t,semester,clock) &&
           !undated.includes(t) &&
@@ -439,11 +461,11 @@ export default function SemesterBoard() {
   const visibleWeeks =
     semester?.weeks.filter((w) => showPast || w.end >= today) || [];
   const focusWeek = selectedWeek?.number ? selectedWeek : semester?.weeks.find(w=>w.kind === "teaching" && w.start >= today);
-  const routineTasks = semester?.tasks.filter(t=>isRoutine(t) && (t.week === focusWeek?.number && !!focusWeek?.number)) || [];
+  const routineTasks = boardTasks.filter(t=>isRoutine(t) && (t.week === focusWeek?.number && !!focusWeek?.number));
   const closeWeeks = semester?.weeks.filter(w=>w.kind === "teaching" && w.end >= today).slice(0,2).map(w=>w.id) || [];
   const expanded = (id:string) => expandedWeeks[id] ?? closeWeeks.includes(id);
   const flipWeek = (id:string) => setExpandedWeeks(p=>({...p,[id]:!expanded(id)}));
-  const soon = semester?.tasks.filter(t=>!t.done && !needsPlacement(t) && !t.rules?.optional && !/participation/i.test(t.title)
+  const soon = boardTasks.filter(t=>!!semester && !t.done && !needsPlacement(t) && !t.rules?.optional && !/participation/i.test(t.title)
     && t.date && t.date >= today && Date.parse(t.date+"T12:00:00Z")-Date.parse(today+"T12:00:00Z") <= 7*86400000 && !isPast(t,semester,clock))
     .sort((a,b)=>((a.date||"")+(a.time||"23:59")).localeCompare((b.date||"")+(b.time||"23:59"))) || [];
   const highlighted = focus && soon.length ? soon : upcoming;
@@ -552,7 +574,7 @@ export default function SemesterBoard() {
       {saveError && (
         <div className="notice error" role="alert">
           <p>{saveError}</p>
-          {conflict ? <><p>{conflict.fields.length} conflicting field(s). Both versions remain available until you choose.</p><button onClick={()=>resolveConflict("local")}>Keep this tab’s conflicting edits</button>{" "}<button onClick={()=>resolveConflict("remote")}>Keep saved conflicting edits</button></> : <button onClick={flush}>Retry save</button>}{" "}
+          {conflict ? <><p>{conflict.fields[0]?.startsWith("Whole board") ? "Choose one complete board. Tasks and checkmarks will not be combined." : `${conflict.fields.length} conflicting field(s). Both versions remain available until you choose.`}</p><button onClick={()=>resolveConflict("local")}>{conflict.fields[0]?.startsWith("Whole board") ? "Keep this tab’s whole board" : "Keep this tab’s conflicting edits"}</button>{" "}<button onClick={()=>resolveConflict("remote")}>{conflict.fields[0]?.startsWith("Whole board") ? "Use the saved whole board" : "Keep saved conflicting edits"}</button></> : <button onClick={flush}>Retry save</button>}{" "}
           <button onClick={backup}>Export unsaved progress</button>
         </div>
       )}
@@ -611,9 +633,13 @@ export default function SemesterBoard() {
                   <Download size={15} />
                   Export backup
                 </button>
-                <label className="restore-backup">Restore backup<input type="file" accept=".json,application/json" onChange={e=>void restoreBackup(e.target.files?.[0])}/></label>
+                <label className="restore-backup">Restore backup<input type="file" disabled={busy} accept=".json,application/json" onChange={e=>{void restoreBackup(e.target.files?.[0]);e.target.value="";}}/></label>
               </div>
             )}
+            {!semester && loaded && <label className="restore-backup">Restore backup instead<input type="file" disabled={busy} accept=".json,application/json" onChange={e=>{void restoreBackup(e.target.files?.[0]);e.target.value="";}}/></label>}
+            {semester && !semester.feedUrl && <p className="notice">This board has no connected timetable link. Its saved classes remain visible. Paste this board’s link above, then choose “Connect to this board” to enable refresh.</p>}
+            {!!retainedCount && <p className="notice">{retainedCount} retained tasks belong to units outside this timetable. They are excluded from all calendar summaries, but kept in your export. To repair an earlier mixed restore, restore the original clean backup; this will replace the complete board.</p>}
+            {recovery && <div className="rule-card"><strong>Before the last switch · {recovery.session} {recovery.year}</strong><p>{recovery.units.map(u=>u.code).join(" · ")}</p><button onClick={()=>downloadBackup(recovery,"before-switch")}>Download previous board</button>{" "}<button onClick={()=>setTransfer({board:recovery,kind:"backup"})}>Review previous board</button><p className="hint">After saving, this recovery copy stays in your account across reloads. Only the previous board is kept; the next switch replaces this recovery copy. Export it to keep it longer. Subscription links are not included in exports.</p></div>}
           </div>
         </section>
       )}
@@ -679,7 +705,7 @@ export default function SemesterBoard() {
               </>}
             </div>
           </section>}
-          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} now={clock} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
+          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} now={clock} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <span>Compare views</span>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>A · Full overview</button>
@@ -711,7 +737,7 @@ export default function SemesterBoard() {
             <span>Participation, prework & regular quizzes stay on the board below.</span>
             {showRoutines && <div className="routine-list">{routineTasks.map(t=><div key={t.id}><small style={{color:color(t.unit)}}>{t.unit}</small><RoutineItem task={t}/></div>)}</div>}
           </section>
-          {semester.tasks.filter(t=>t.hurdle && t.date && t.date < today && retryClasses(t).some(c=>c.date >= today)).map(t=><div className="hurdle-reminder" key={t.id}>
+          {boardTasks.filter(t=>t.hurdle && t.date && t.date < today && retryClasses(t).some(c=>c.date >= today)).map(t=><div className="hurdle-reminder" key={t.id}>
             <button onClick={()=>openTask(t)}>{t.unit} · {t.title}: hurdle not yet confirmed</button>
             <span>Possible reattempt {retryClasses(t).filter(c=>c.date >= today).map(c=>`${shortDate(c.date)} (W${c.week})`).join(" / ")} · check eligibility</span>
           </div>)}
@@ -960,6 +986,22 @@ export default function SemesterBoard() {
           </footer>}
         </>
       )}
+      <Sheet open={!!transfer} onOpenChange={o=>{if(!o)setTransfer(null);}}>
+        <SheetContent className="detail-panel"><SheetHeader><SheetTitle>{transfer?.kind === "backup" ? "Restore a complete board" : "A different timetable"}</SheetTitle><SheetDescription>Review before changing your saved board. Nothing changes until you confirm.</SheetDescription></SheetHeader>
+          {transfer && <div className="detail-body">
+            {semester && <section className="rule-card"><p className="eyebrow">CURRENT BOARD</p><strong>{semester.session === "S1C" ? "Semester 1" : "Semester 2"} {semester.year}</strong><p>{semester.units.map(u=>u.code).join(" · ")}</p></section>}
+            <section className="rule-card"><p className="eyebrow">{transfer.kind === "backup" ? "BACKUP TO RESTORE" : "NEW TIMETABLE"}</p><strong>{transfer.board.session === "S1C" ? "Semester 1" : "Semester 2"} {transfer.board.year}</strong><p>{transfer.board.units.map(u=>u.code).join(" · ")}</p><p className="hint">{transfer.board.classes.length} classes · {transfer.board.tasks.filter(t=>!t.splitCount).length} tasks · {transfer.board.tasks.filter(t=>t.done&&!t.splitCount).length} tasks completed</p></section>
+            <p>{transfer.kind === "backup" ? "Restore this snapshot’s units, classes, tasks and checkmarks together. It replaces the current board; it does not add tasks to it." : "Switch to this timetable as a separate board. Tasks and checkmarks from your current board will not carry over."}</p>
+            {transfer.kind === "backup" && !transfer.board.feedUrl && <p className="hint">Backups omit private timetable links. Saved classes work immediately; reconnect the correct link later in Manage.</p>}
+            {transfer.kind === "backup" && transfer.board.tasks.some(t=>!transfer.board.units.some(u=>u.code===t.unit)) && <p className="notice">This backup already contains tasks outside its unit list. They will stay in the export, not the calendar. Use a clean original backup if this came from an earlier mixed restore.</p>}
+            {semester && <p className="hint">Your current board will be saved as the previous board in Manage. Only one recovery copy is kept. You can also <button onClick={backup}>Export current board</button> before proceeding.</p>}
+            <button className="primary" disabled={busy || saveStatus==="Saving…" || !!saveError} onClick={()=>applyTransfer()}>{transfer.kind === "backup" ? "Restore this board" : "Switch to this board"}</button>
+            {semester && transfer.kind === "import" && sameUnits(semester,transfer.board) && <section className="rule-card"><strong>Is this an updated link for the same board?</strong><p className="hint">The semester and unit codes match. Only choose this if it is your same timetable—not another student’s. Keeps your progress and manual edits while updating classes.</p><button disabled={busy || saveStatus==="Saving…" || !!saveError} onClick={()=>applyTransfer(true)}>Connect to this board</button></section>}
+            {!!saveError && <p className="notice error">Resolve the save warning before replacing the board.</p>}
+            <button onClick={()=>setTransfer(null)}>Cancel — keep current board</button>
+          </div>}
+        </SheetContent>
+      </Sheet>
       <Sheet
         open={!!detail}
         onOpenChange={(o) => {
