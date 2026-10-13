@@ -66,7 +66,7 @@ export function MonthCalendar({semester,today,onTask,onClass,onToggleTask,onTogg
         return <div className="month-week" key={row[0]}>
           <div className={"month-week-label "+(teaching?.kind==="break"?"is-break":"")} title={teaching?.label || "Outside semester"}><span>{teaching?.number?"W"+teaching.number:teaching?.kind==="break"?"Break":teaching?.kind==="study"?"Study":teaching?.kind==="exam"?"Exam":"—"}</span></div>
           <div className="month-week-days">{row.map(date=>{
-            const items=entries.filter(e=>e.date===date),preview=dayPreview(items,3,completedMode),mobile=dayPreview(items,2,completedMode),hiddenTasks=preview.overflow.filter(e=>e.task&&!e.done).length;
+            const items=entries.filter(e=>e.date===date),preview=dayPreview(items,3,completedMode),mobile=dayPreview(items,3,completedMode),hiddenTasks=preview.overflow.filter(e=>e.task&&!e.done).length;
             return <div key={date} className={"month-day "+(date.slice(0,7)!==month?"other-month":"")}>
               <div className="month-date-heading"><button className="month-day-number" aria-label={"Open "+date+(date===today?", today":"")} aria-current={date===today?"date":undefined} onClick={()=>setDay(date)}>{Number(date.slice(-2))}</button></div>
               <div className="month-day-items">{preview.visible.map(e=>item(e))}{preview.overflow.length>0 && <button className="month-more" onClick={()=>setDay(date)}>+{preview.overflow.length} more{hiddenTasks?" · "+hiddenTasks+" task"+(hiddenTasks===1?"":"s"):""}</button>}{preview.completed.length>0 && <details className="month-completed-group"><summary>✓ {preview.completed.length} completed</summary><div>{preview.completed.map(e=>item(e))}</div></details>}</div>

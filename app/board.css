@@ -977,3 +977,74 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
   main:not(.calendar-layout) .board .task-open .scope-status,
   main:not(.calendar-layout) .board .task-open .source-warning { grid-column:1 / -1; font-size:11px!important; }
 }
+.week-mobile-class,.week-mobile-day-hit,.week-mobile-due-row,.week-mobile-weekonly { display:none; }
+.week-day-panel h3 { font-size:12px; color:#637085; margin:18px 0 8px; }
+.week-day-panel p { font-size:13px; color:#637085; }
+.week-day-panel .week-completed-class input { width:20px; height:20px; }
+.week-day-panel .week-completed-class button { min-height:44px; }
+@media(max-width:700px) {
+  /* A phone calendar is a seven-day overview, not a clipped desktop board. */
+  main.calendar-layout { padding:0 6px 8px; }
+  .calendar-layout .board-header.semester-header { grid-template-columns:minmax(0,1fr) 36px 58px; gap:4px 6px; padding:6px 4px; }
+  .calendar-layout .board-header .wordmark { display:none; }
+  .calendar-layout .semester-header .semester-nav-context { grid-area:1/1; display:block; padding:0; margin:0; }
+  .calendar-layout .semester-nav-context h1 { font-size:14px; }
+  .calendar-layout .semester-nav-context span { font-size:10px; margin-top:2px; white-space:normal; }
+  .calendar-layout .board-header .header-view-switch { grid-area:2/1/3/4; margin:0; padding:2px; }
+  .calendar-layout .header-view-switch button { min-height:30px; padding:4px 12px!important; }
+  .calendar-layout .board-header .header-actions>.header-add-task { grid-area:1/2; width:34px; height:34px; min-height:34px; padding:0; }
+  .calendar-layout .board-header .header-actions>button:not(.header-add-task) { grid-area:1/3; padding:4px 6px; min-height:34px; font-size:11px; }
+  .calendar-layout .board-header .header-actions>.save-state.is-saved { display:none; }
+  .calendar-layout .board-header .header-actions>.save-state:not(.is-saved) { grid-area:3/1/4/4; margin:0; justify-self:start; }
+  .calendar-layout .month-view,.calendar-layout .week-view { margin-top:4px; border-radius:8px; }
+  .calendar-layout .month-toolbar { padding:7px 8px; gap:5px; }
+  .calendar-layout .month-navigation h2,.calendar-layout .week-toolbar .month-navigation h2 { font-size:19px; }
+  .calendar-layout .week-toolbar .month-navigation p { margin:1px 0 0; font-size:10px; }
+  .calendar-layout .month-nav-actions button { min-height:30px; padding:3px 7px; font-size:12px; }
+  .calendar-layout .month-filters { justify-content:flex-start; gap:6px; }
+  .calendar-layout .month-filters>select,.calendar-layout .month-filters>button { min-height:28px; padding:4px 7px; font-size:10px; }
+  .calendar-layout .awaiting-exams { padding:5px 9px; font-size:10px; }
+  .month-view { --week-gutter:22px; }
+  .month-view .month-week-label { font-size:8px; padding-top:9px; }
+  .month-view .month-day { min-height:88px; padding:2px 1px; }
+  .month-view .month-day-number { width:24px; height:24px; font-size:12px; }
+  .month-view .month-mobile-summary { gap:1px; min-height:0; }
+  .month-view .month-mobile-item { padding:1px 2px; font-size:10px; line-height:1.4; }
+  .month-view .month-mobile-item>span { display:block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .month-view .month-mobile-more { padding:1px 2px; font-size:9px; }
+  .month-view .month-day-headings strong { padding:5px 1px; }
+  .week-view { --week-scale:.7; --week-inset:1px; --week-gap:2px; }
+  .week-view .week-grid { width:100%; min-width:0; }
+  .week-view .week-date-row,.week-view .week-time-grid,.week-mobile-due-row { grid-template-columns:32px repeat(7,minmax(0,1fr)); }
+  .week-view .week-scroll { overflow-x:hidden; }
+  .week-view .week-date { position:relative; flex-direction:column; gap:0; padding:3px 0; font-size:10px; }
+  .week-view .week-date b { width:25px; height:25px; font-size:14px; }
+  .week-view .week-gutter { padding:12px 2px; font-size:8px; }
+  .week-view .week-hours>span { right:3px; font-size:9px; }
+  .week-view .week-date .week-mobile-day-hit { display:block; position:absolute; inset:0; width:100%; border:0; background:transparent; padding:0; border-radius:0; }
+  .week-view .week-due-row { display:none; }
+  .week-mobile-due-row { display:grid; align-items:center; min-height:28px; border-top:1px solid #eef1f5; }
+  .week-mobile-due-row>span { font-size:9px; color:#637085; padding-left:3px; }
+  .week-mobile-due-row>div { min-width:0; }
+  .week-mobile-due-row button { padding:4px 1px; width:100%; min-height:28px; border:0; border-radius:3px; font-size:9px; color:#2855c8; background:#edf2ff; white-space:nowrap; }
+  .week-view .week-class { padding:2px; overflow:hidden; border-left-width:2px; border-radius:3px; }
+  .week-view .week-class-main,.week-view .week-class .embedded-task,.week-view .week-class .week-linked-completed { display:none; }
+  .week-view button.week-mobile-class { display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; gap:1px; width:100%; height:100%; padding:0; border:0; border-radius:0; background:transparent; text-align:left; color:#25374e; line-height:1.2; overflow:hidden; }
+  .week-mobile-class b { font-size:10px; font-weight:650; color:var(--entry-color); }
+  .week-mobile-class span,.week-mobile-class small { font-size:9px; }
+  .week-mobile-class small { background:#fff5d9; padding:1px; }
+  .week-view .week-now span { display:none; }
+  .week-view>.week-unscheduled:has(.week-task) { display:none; }
+  .week-view .week-mobile-weekonly { display:block; border:0; padding:5px 9px; font-size:11px; color:#805c1e; background:#fffbef; text-align:left; }
+  .week-view .week-empty-due { font-size:10px; padding:3px 9px; }
+  main:not(.calendar-layout) .board .week-row { padding:0 5px 4px; }
+  main:not(.calendar-layout) .board .unit-cell { padding:3px 6px; gap:0 8px; }
+  main:not(.calendar-layout) .board .unit-cell>.mobile-unit { min-height:27px; }
+  main:not(.calendar-layout) .board .learning-item,main:not(.calendar-layout) .board .learning button.learning-open { min-height:27px; }
+  main:not(.calendar-layout) .board .routine-item { padding:1px 0; }
+  main:not(.calendar-layout) .board .routine-item button:not([data-slot="checkbox"]) { min-height:28px; }
+}
+@media(max-width:360px) {
+  .week-view .week-mobile-class b { font-size:9px; }
+  .week-view .week-mobile-class span,.week-view .week-mobile-class small { font-size:8px; }
+}
