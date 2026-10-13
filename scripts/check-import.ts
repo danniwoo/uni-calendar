@@ -159,17 +159,29 @@ const activeRoutine={...activeDeadline,id:"routine",task:{...activeDeadline.task
 const activeClass={...monthItems[1],done:false};
 const completedDeadline={...activeDeadline,id:"complete",done:true};
 const previewInput=[completedDeadline,activeClass,activeRoutine,activeDeadline];
-const preview=dayPreview(previewInput,2);
+const preview=dayPreview(previewInput,2,"collapse");
 assert.deepEqual(preview.visible.map(e=>e.id),["deadline","routine"]);
 assert.deepEqual(preview.overflow.map(e=>e.id),["class:month-class"]);
 assert.deepEqual(preview.completed.map(e=>e.id),["complete"]);
 assert.equal(previewInput[0].id,"complete"); // Projection does not reorder source data.
-assert.equal(dayPreview([completedDeadline]).visible.length,0);
+assert.equal(dayPreview([completedDeadline],3,"collapse").visible.length,0);
 assert.equal(entryBadge(completedDeadline),"Hurdle");
 assert.equal(entryBadge({...completedDeadline,task:{...completedDeadline.task,hurdle:false}}),"Quiz");
 assert.equal(shortEntryTitle({...activeDeadline,title:"SQL Online Quiz"}),"SQL Quiz");
 assert.equal(shortEntryTitle({...activeClass,title:"Tutorial"}),"Tut");
-assert.deepEqual(restoreMonthPreferences({month:"2026-09",unit:"TEST1001",classes:false,completed:false},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-09",unit:"TEST1001",classes:false,completed:false});
-assert.deepEqual(restoreMonthPreferences({month:"2026-99",unit:"OLD1001",classes:"false"},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-10",unit:"all",classes:true,completed:true});
+assert.deepEqual(restoreMonthPreferences({month:"2026-09",unit:"TEST1001",classes:false,completed:false},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-09",unit:"TEST1001",classes:false,completedMode:"hide"});
+assert.deepEqual(restoreMonthPreferences({month:"2026-99",unit:"OLD1001",classes:"false"},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-10",unit:"all",classes:true,completedMode:"show"});
 assert.equal(restoreMonthPreferences({month:"2025-09"},"2026-10","2026-08","2026-11",[]).month,"2026-10");
 console.log("PASS: unfinished deadline/routine/class priority, completed grouping, immutable projection, persistent hurdle/quiz labels, compact titles and validated view preferences.");
+
+const stableEntries=[activeClass,activeDeadline,activeRoutine];
+const beforeTick=dayPreview(stableEntries).visible.map(e=>e.id);
+assert.deepEqual(dayPreview(stableEntries.map(e=>({...e,done:true}))).visible.map(e=>e.id),beforeTick);
+assert.equal(dayPreview([completedDeadline]).visible[0].done,true);
+assert.equal(dayPreview([completedDeadline],3,"hide").visible.length,0);
+assert.equal(dayPreview(previewInput,2,"show").visible.some(e=>e.done),false);
+assert.equal(dayPreview(previewInput,2,"show").overflow.some(e=>e.id==="complete"),true);
+for(const mode of ["show","collapse","hide"] as const)assert.equal(restoreMonthPreferences({completedMode:mode},"2026-10","2026-08","2026-11",[]).completedMode,mode);
+assert.equal(restoreMonthPreferences({completed:true},"2026-10","2026-08","2026-11",[]).completedMode,"show");
+assert.equal(restoreMonthPreferences({completedMode:"invalid"},"2026-10","2026-08","2026-11",[]).completedMode,"show");
+console.log("PASS: stable completed-item positions, all three display modes, crowded-day priority and legacy preference migration.");

@@ -599,6 +599,15 @@ aside {
 .calendar-view-switch button { padding:7px 18px; border-radius:7px; }
 .calendar-view-switch button[aria-pressed="true"] { background:#2852c8; border-color:#2852c8; color:white; }
 .calendar-view-switch span { font-size:12px; color:#64748b; margin-left:10px; }
+.board-header { min-height:68px; height:auto; padding:12px 0; gap:20px; }
+.board-header .wordmark { flex-shrink:0; }
+.board-header .header-view-switch { margin:0 auto 0 6px; padding:3px; gap:2px; border:1px solid #dce2eb; border-radius:9px; background:#eef1f6; }
+.board-header .header-view-switch button { border:0; background:transparent; padding:6px 15px; box-shadow:none; }
+.board-header .header-view-switch button[aria-pressed="true"] { background:white; color:#22334b; box-shadow:0 1px 3px #22334b18; }
+.board-header .header-actions { gap:10px; }
+.board-header .header-actions button { min-height:36px; padding:7px 12px; font-size:13px; }
+.board-header .save-state { font-size:11px; }
+.calendar-layout > .month-view { margin-top:12px; }
 .calendar-layout .semester-title { margin:12px 0 12px; }
 .calendar-layout .semester-title h1 { font-size:25px; }
 .calendar-layout .semester-title .eyebrow { font-size:11px; margin-bottom:4px; }
@@ -657,6 +666,7 @@ aside {
 .month-entry.entry-done .month-entry-name b { color:#748091; }
 .month-entry.entry-done small { color:#748091; }
 .month-entry.entry-done .month-entry-badge { color:#526176; }
+.month-entry.entry-done .month-entry-meta b { color:#748091; }
 .month-view .month-entry button:focus-visible,.month-check:focus-within,.month-completed-group summary:focus-visible { outline:2px solid #2852c8; outline-offset:1px; border-radius:3px; }
 .month-view .month-more { padding:4px 3px; border:0; color:#2852c8; font-size:11px; background:transparent; box-shadow:none; text-align:left; }
 .month-completed-group { font-size:10px; color:#64748b; }
@@ -680,6 +690,15 @@ aside {
 .month-retained-note { padding:10px 18px; border-top:1px solid #e4e9f1; font-size:11px; margin:0; }
 .month-mobile-summary { display:none; }
 @media(max-width:700px) {
+  .board-header { display:grid; grid-template-columns:1fr auto; gap:8px 10px; padding:10px 0; }
+  .board-header .wordmark { grid-area:1/1; font-size:21px; }
+  .board-header .wordmark small { display:none; }
+  .board-header .header-view-switch { grid-area:2/1; justify-self:start; margin:0; }
+  .board-header .header-view-switch button { padding:5px 10px; font-size:12px; }
+  .board-header .header-actions { display:contents; }
+  .board-header .header-actions > .save-state { grid-area:1/2; justify-self:end; margin-right:75px; font-size:10px; }
+  .board-header .header-actions > button:not(.header-add-task) { grid-area:1/2; justify-self:end; font-size:12px; padding:5px 9px; }
+  .board-header .header-actions > .header-add-task { grid-area:2/2; justify-self:end; font-size:12px; padding:6px 10px; }
   .calendar-view-switch span { display:none; }
   .calendar-layout .semester-title { flex-direction:row; align-items:center; gap:8px; }
   .calendar-layout .semester-title h1 { font-size:20px; }
@@ -710,6 +729,8 @@ aside {
   .month-mobile-item > span { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
   .month-mobile-item.mobile-deadline { background:color-mix(in srgb,var(--entry-color) 12%,white); color:#22334b; font-weight:600; }
   .month-mobile-item small { font-size:8px; color:#526176; }
+  .month-mobile-item.mobile-entry-done { background:#f6f7f9; color:#748091; border-left-color:#c4cdd9; }
+  .mobile-entry-done > span { text-decoration:line-through; }
   .month-mobile-more,.month-mobile-completed { font-size:9px; padding:2px; }
   .month-mobile-more { color:#2852c8; }
   .month-unscheduled { grid-template-columns:1fr; }

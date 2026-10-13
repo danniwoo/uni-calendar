@@ -516,11 +516,13 @@ export default function SemesterBoard() {
   }
   return (
     <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}`}>
-      <header>
+      <header className={semester ? "board-header" : ""}>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
         </div>
+        {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view"><button aria-pressed={!calendarView} onClick={()=>chooseView(false)}>Semester</button><button aria-pressed={calendarView} onClick={()=>chooseView(true)}>Month</button></div>}
         <div className="header-actions">
+          {semester && <button className="primary header-add-task" onClick={newTask}><Plus size={16}/> Add task</button>}
           <span
             className={`save-state ${saveError ? "danger" : ""}`}
             role="status"
@@ -648,7 +650,7 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          <section className="heading semester-title">
+          {!calendarView && <section className="heading semester-title">
             <div>
               <p className="eyebrow">
                 {shortDate(today)} ·{" "}
@@ -672,13 +674,8 @@ export default function SemesterBoard() {
                 This week
               </button>
               </>}
-              <button className="primary" onClick={newTask}>
-                <Plus size={16} />
-                Add task
-              </button>
             </div>
-          </section>
-          <div className="calendar-view-switch" role="group" aria-label="Calendar view"><button aria-pressed={!calendarView} onClick={()=>chooseView(false)}>Semester</button><button aria-pressed={calendarView} onClick={()=>chooseView(true)}>Month</button><span>Same tasks · same checkmarks</span></div>
+          </section>}
           {calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}`} semester={semester} today={today} onTask={openTask} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <span>Compare views</span>
