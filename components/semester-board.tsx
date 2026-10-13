@@ -517,7 +517,7 @@ export default function SemesterBoard() {
     </div>;
   }
   return (
-    <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}`}>
+    <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
       <header className={semester ? "board-header" : ""}>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
@@ -946,7 +946,7 @@ export default function SemesterBoard() {
             </div></SheetContent></Sheet>
           </div>
           </>}
-          <footer>
+          {(!calendarView||settings)&&<footer>
             <a
               href="https://www.sydney.edu.au/students/key-dates.html"
               target="_blank"
@@ -956,7 +956,7 @@ export default function SemesterBoard() {
             </a>{" "}
             · Times are Australia/Sydney. Breaks pause teaching-week numbering.{" "}
             <button onClick={backup}>Export backup</button>
-          </footer>
+          </footer>}
         </>
       )}
       <Sheet

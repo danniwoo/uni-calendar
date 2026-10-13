@@ -1,11 +1,14 @@
 import assert from "node:assert/strict";
-import {mondayOf,minutes,matchedClass,positionClasses,weekData,sydneyMinute} from "../lib/week-calendar";
+import {mondayOf,minutes,matchedClass,positionClasses,weekData,sydneyMinute,shortLocation} from "../lib/week-calendar";
 import type {Semester,ClassEvent,Task} from "../lib/semester";
 const c:ClassEvent={id:"class",unit:"TEST1001",activity:"Tutorial",date:"2026-10-13",time:"12:00",end:"14:00",location:"Test room",week:10};
 const t:Task={id:"quiz",unit:c.unit,title:"Quiz",weight:"3%",date:c.date,time:c.time,week:10,timeBasis:"class",timing:"During your tutorial",kind:"quiz",description:"",source:"",sourceText:"",hurdle:false,group:false};
 assert.equal(mondayOf("2026-10-18"),"2026-10-12");
 assert.equal(mondayOf("2027-01-01"),"2026-12-28");
 assert.equal(minutes("23:59"),1439);assert.equal(minutes("24:00"),null);assert.equal(minutes("12:61"),null);
+assert.equal(shortLocation("F07.01.173.Carslaw Building.Lecture Theatre 173"),"F07 · 173");
+assert.equal(shortLocation("A31.04.4003.Room (5/8-9/9), F22.04.403.Lab (16/9)"),"Room varies · see details");
+assert.equal(shortLocation("Online"),"Online");
 assert.equal(matchedClass(t,[c])?.id,c.id);
 assert.equal(matchedClass({...t,timing:"Before your tutorial"},[c]),undefined);
 assert.equal(matchedClass(t,[c,{...c,id:"ambiguous"}]),undefined);

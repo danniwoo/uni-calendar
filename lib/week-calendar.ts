@@ -1,6 +1,13 @@
 import {addDays,type ClassEvent,type Task,type Semester} from "./semester";
 
 export function mondayOf(date:string){return addDays(date,-((new Date(date+"T12:00:00Z").getUTCDay()+6)%7));}
+export function shortLocation(location:string){
+  if(!location)return "";
+  // Timetable alternatives can be date-dependent; never pick one at random.
+  if(/\([^)]*\d+\s*\/\s*\d+/.test(location)||location.split(/,\s*(?=[A-Z]\d+\.)/).length>1)return "Room varies · see details";
+  const code=location.match(/^([A-Z]\d+)\.\d+\.([A-Z\d]+)\./i);
+  return code?`${code[1]} · ${code[2]}`:location;
+}
 export function minutes(time?:string){
   const m=time?.match(/^(\d{2}):(\d{2})$/);
   return m&&+m[1]<24&&+m[2]<60?+m[1]*60 + +m[2]:null;
