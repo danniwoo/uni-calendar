@@ -2,6 +2,7 @@
 import {useState} from "react";
 import type {Semester,Task} from "@/lib/semester";
 import {preparePersonal,personalWhen} from "@/lib/personal-items";
+import {dateInputPatch} from "@/lib/assessment-schedule";
 
 export function PersonalEditor({item,semester,onSave,onDelete,onAssessment,onView}:{item:Task;semester:Semester;onSave:(t:Task)=>void;onDelete:(t:Task)=>void;onAssessment:()=>void;onView:(t:Task)=>void}) {
   const [draft,setDraft]=useState(item),[error,setError]=useState(""),[saved,setSaved]=useState(false),[deleted,setDeleted]=useState(false),[confirmDelete,setConfirmDelete]=useState(false);
@@ -14,7 +15,8 @@ export function PersonalEditor({item,semester,onSave,onDelete,onAssessment,onVie
     <p className="hint">{event?"A meeting, study session or other event. Not an assessment or completion record.":"Something to do. Add a deadline if you need one, or leave it unscheduled."} Only in Month & Week.</p>
     <label>Name<input autoFocus required maxLength={200} value={draft.title} placeholder={event?"e.g. Project meeting":"e.g. Review W3 lecture"} onChange={e=>update({title:e.target.value})}/></label>
     <label><span>Unit <small>optional</small></span><select value={draft.unit} onChange={e=>update({unit:e.target.value})}><option value="">No unit</option>{semester.units.map(u=><option key={u.code} value={u.code}>{u.code}</option>)}</select></label>
-    <label>{event?"Date":"Due date · optional"}<input type="date" required={event} min={semester.weeks[0].start} max={semester.weeks.at(-1)?.end} value={draft.date||""} onInput={e=>update({date:e.currentTarget.value||undefined,...(!e.currentTarget.value?{time:undefined,endTime:undefined}:{})})}/></label>
+    <label>{event?"Date":"Due date · optional"}<input type="date" required={event} min={semester.weeks[0].start} max={semester.weeks.at(-1)?.end} value={draft.date||""} onInput={e=>update(event?{date:e.currentTarget.value||undefined,...(!e.currentTarget.value?{time:undefined,endTime:undefined}:{})}:dateInputPatch(draft,"date",e.currentTarget.value))}/></label>
+    {!event&&draft.date&&<small>23:59 is suggested for a new deadline. Change or clear it if needed.</small>}
     {event&&<label className="inline-label"><input type="checkbox" checked={!!draft.allDay} onChange={e=>update({allDay:e.target.checked,time:undefined,endTime:undefined})}/>All day</label>}
     {event&&!draft.allDay?<div className="field-pair"><label>Start · Sydney<input type="time" required value={draft.time||""} onInput={e=>update({time:e.currentTarget.value})}/></label><label>End · Sydney<input type="time" required value={draft.endTime||""} onInput={e=>update({endTime:e.currentTarget.value})}/></label></div>:!event&&draft.date?<label>Due time · optional · Sydney<input type="time" value={draft.time||""} onInput={e=>update({time:e.currentTarget.value||undefined})}/></label>:null}
     <details><summary>More options · {event?"location, link & notes":"notes"}</summary>

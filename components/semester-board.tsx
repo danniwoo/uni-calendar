@@ -53,7 +53,7 @@ import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { AssessmentConfirm } from "@/components/assessment-confirm";
 import { AssessmentAvailability, AvailabilitySummary } from "@/components/assessment-availability";
-import { availabilityError } from "@/lib/assessment-schedule";
+import { availabilityError, dateInputPatch } from "@/lib/assessment-schedule";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
 import { SEMESTER_LAYOUT_KEY, useFocusLayout, inNextSevenDays } from "@/lib/semester-display";
 
@@ -1135,8 +1135,7 @@ export default function SemesterBoard() {
                     onInput={(e) =>
                       setDraft({
                         ...draft,
-                        date: e.currentTarget.value || undefined,
-                        time: e.currentTarget.value ? draft.time : undefined,
+                        ...dateInputPatch(draft, "date", e.currentTarget.value),
                         week: e.currentTarget.value
                           ? weekFor(e.currentTarget.value, semester.weeks)
                           : draft.week,
@@ -1156,8 +1155,8 @@ export default function SemesterBoard() {
                 </label>
               </div>
               <p className="hint">
-                A week without an exact date stays on that week, marked “Day &
-                time TBC”.
+                New deadlines suggest 23:59. Change or clear the time before saving.
+                A week without an exact date stays marked “Day & time TBC”.
               </p>
               <AssessmentAvailability task={draft} onChange={t=>{setDraft(t);setEditError("");}}/>
               <details className="optional-task-fields"><summary>More options · notes & planned start</summary>

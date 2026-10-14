@@ -14,7 +14,28 @@ export function availabilityError(t:Task):string {
   return "";
 }
 
-export type AssessmentStep = {id?:string; title:string; weight?:string; mode:"unknown"|"week"|"date"|"tutorial"; week?:number; date?:string; time?:string; classId?:string};
+export type AssessmentStep = {id?:string; title:string; weight?:string; mode:"unknown"|"week"|"date"|"tutorial"; week?:number; date?:string; time?:string; classId?:string; scheduleEdited?:boolean; autoFilled?:boolean};
+
+// Draft-only suggestions. Saved rows and individually edited schedules are never overwritten.
+export function suggestFollowingSteps(s:Semester,rows:AssessmentStep[]):AssessmentStep[] {
+  const first=rows[0];if(!first)return rows;
+  const weeks=s.weeks.filter(w=>w.kind==="teaching");
+  const start=first.week??(first.date?weekFor(first.date,s.weeks):undefined);
+  const index=weeks.findIndex(w=>w.number===start);
+  const offset=first.date&&index>=0?Math.round((Date.parse(first.date)-Date.parse(weeks[index].start))/86400000):undefined;
+  return rows.map((row,i)=>{
+    if(!i||row.id||row.scheduleEdited||(!row.autoFilled&&row.mode!=="unknown"))return row;
+    const week=index>=0?weeks[index+i]:undefined;
+    if(!week||first.mode==="unknown")return {...row,mode:"unknown",week:undefined,date:undefined,time:undefined,classId:undefined,autoFilled:true};
+    if(first.mode==="date"&&offset===undefined)return row;
+    return {...row,mode:first.mode,week:week.number,date:first.mode==="date"?addDays(week.start,offset!):undefined,time:first.mode==="date"?first.time:undefined,classId:undefined,autoFilled:true};
+  });
+}
+
+export function dateInputPatch(t:Task,field:"date"|"availableFrom"|"availableUntil",value:string):Partial<Task> {
+  const time=field==="date"?"time":field==="availableFrom"?"availableFromTime":"availableUntilTime";
+  return {[field]:value||undefined,[time]:value?(t[time]||(field==="availableFrom"?"00:00":"23:59")):undefined};
+}
 export function tutorialChoices(s:Semester,unit:string,week?:number) {
   return s.classes.filter(c=>c.unit===unit && c.week===week && /tut/i.test(c.activity));
 }
@@ -46,13 +67,24 @@ export function sprintSteps(s:Semester,count:number,first:number):AssessmentStep
     return [{title:`Sprint ${i+1} · Demo`,mode:"tutorial" as const,week:w.number},{title:`Sprint ${i+1} · Report & code`,mode:"date" as const,week:w.number,date:addDays(w.start,6),time:"23:59"}];
   }).flat();
 }
+export function repeatedAssessmentSteps(s:Semester,count:number,first:number,options:{demo:boolean;submission:boolean;label:string;day:number;time:string}):AssessmentStep[] {
+  if(!Number.isInteger(count)||count<1||count>15)throw new Error("Choose 1–15 rounds.");
+  if(!options.demo&&!options.submission)throw new Error("Choose a demo, a submission, or both.");
+  if(!Number.isInteger(options.day)||options.day<0||options.day>6||options.time&&!validTime(options.time))throw new Error("Check the submission day and time.");
+  const weeks=s.weeks.filter(w=>w.kind==="teaching"),start=weeks.findIndex(w=>w.number===first);
+  if(start<0||start+count>weeks.length)throw new Error("Choose weeks within this semester.");
+  return weeks.slice(start,start+count).flatMap((w,i):AssessmentStep[]=>[
+    ...(options.demo?[{title:`${options.label.trim()||"Part"} ${i+1} · Demo`,mode:"tutorial" as const,week:w.number,scheduleEdited:true}]:[]),
+    ...(options.submission?[{title:`${options.label.trim()||"Part"} ${i+1} · Submission`,mode:"date" as const,week:w.number,date:addDays(w.start,options.day),time:options.time||undefined,scheduleEdited:true}]:[])
+  ]);
+}
 // Steps are actionable requirements, not inferred marks. The parent's weight
 // remains the assessment total; blank step weights do not mean zero marks.
 export function createAssessmentSteps(s:Semester,parent:Task,rows:AssessmentStep[]):Semester {
   const original=s.tasks.find(t=>t.id===parent.id);
   if(!original) throw new Error("Save the assessment before adding steps.");
   if(original.splitCount || s.tasks.some(t=>t.parentId===parent.id || t.series===parent.id)) throw new Error("This assessment already has parts. Edit its existing parts instead.");
-  if(rows.length<2 || rows.length>30) throw new Error("Add 2–30 steps.");
+  if(rows.length<1 || rows.length>30) throw new Error("Add 1–30 steps.");
   const weights=rows.map(r=>r.weight?.trim()||"");
   if(weights.some(w=>w!==""&&(!/^\d+(?:\.\d+)?$/.test(w)||Number(w)>100))) throw new Error("Enter a percentage from 0 to 100, or leave the step weight unknown.");
   const total=parseFloat(original.weight),sum=weights.reduce((n,w)=>n+Number(w),0);

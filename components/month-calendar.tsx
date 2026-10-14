@@ -10,6 +10,7 @@ import {learningScope} from "@/lib/learning-scope";
 import {isPersonal,calendarOwns,personalWhen} from "@/lib/personal-items";
 import {UnscheduledTasks} from "@/components/unscheduled-tasks";
 import {CalendarDays,ListTodo} from "lucide-react";
+import {AvailabilitySummary} from "@/components/assessment-availability";
 
 type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
 function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEntry;color:string;onOpen:(e:MonthEntry)=>void;onToggle:(e:MonthEntry)=>void;full?:boolean}) {
@@ -56,7 +57,7 @@ export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onTog
   function color(code:string){return code?COLORS[Math.max(0,semester.units.findIndex(u=>u.code===code))%COLORS.length]:"#64748b";}
   function open(e:MonthEntry){setDay(null);if(e.task)onTask(e.task);else if(e.event)onClass(e.event);}
   function toggle(e:MonthEntry){if(e.task)onToggleTask(e.task);else if(e.event)onToggleClass(e.event);}
-  function item(e:MonthEntry,full=false){return <div key={e.id}><CalendarItem entry={e} color={color(e.unit)} onOpen={open} onToggle={toggle} full={full}/>{full&&e.task?.coverage?.length&&!e.done?<button className="preparation-link" onClick={()=>{setDay(null);onPreparation(e.task!);}}>{learningScope(e.task,semester).status} → View preparation</button>:null}</div>;}
+  function item(e:MonthEntry,full=false){return <div key={e.id}><CalendarItem entry={e} color={color(e.unit)} onOpen={open} onToggle={toggle} full={full}/>{full&&e.task&&<AvailabilitySummary task={e.task}/ >}{full&&e.task?.coverage?.length&&!e.done?<button className="preparation-link" onClick={()=>{setDay(null);onPreparation(e.task!);}}>{learningScope(e.task,semester).status} → View preparation</button>:null}</div>;}
   const dayItems=entries.filter(e=>e.date===day);
   return <section className="month-view" aria-label="Month calendar">
     <div className="month-toolbar">

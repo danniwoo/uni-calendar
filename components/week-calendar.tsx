@@ -1,4 +1,5 @@
 "use client";
+import {AvailabilitySummary} from "@/components/assessment-availability";
 import {useEffect,useRef,useState} from "react";
 import {addDays,COLORS,shortDate,type Semester,type Task,type ClassEvent} from "@/lib/semester";
 import {mondayOf,classRange,weekData,positionClasses,sydneyMinute,shortLocation} from "@/lib/week-calendar";
@@ -56,7 +57,7 @@ export function WeekCalendar({semester:s,focusItem,today,now,onTask,onPreparatio
     const when=isPersonal(t)?personalWhen(t):t.timeBasis==="class"?(/^Before/i.test(t.timing)?"Before ":"In class · ")+(t.time||"time TBC"):t.time?"Due "+t.time:"Time TBC";
     return <div key={t.id} className={"week-task "+(t.done?"week-done":"")+(embedded?" embedded-task":"")+(isPersonal(t)?" personal-"+t.kind:"")} style={{"--entry-color":color(t.unit)} as React.CSSProperties}>
       {t.kind!=="event"&&<input type="checkbox" checked={!!t.done} aria-label={(t.done?"Uncheck ":"Complete ")+t.unit+" "+t.title+" "+(t.date||t.week||"")} onChange={()=>onToggleTask(t)}/>}
-      <div className="week-task-content"><button title={compact?`${t.title} · ${t.unit} · ${when}${t.hurdle?" · Hurdle":""}`:undefined} onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onTask(t);}}><strong>{t.kind==="event"&&<CalendarDays className="item-type-icon" aria-hidden="true"/>}{t.title}</strong><span>{isPersonal(t)&&<em className="item-kind">{t.kind==="event"?"Event":"Task"}</em>} {!embedded&&t.unit&&<b>{t.unit} · </b>}{embedded?"In class":t.date?when:t.week?"W"+t.week+" · Date TBC":isPersonal(t)?"Unscheduled":"Date TBC"}{t.hurdle&&" · Hurdle"}</span></button>{scope&&!t.done&&!compact&&<button className="preparation-link" onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onPreparation(t);}}>{scope.status} →</button>}</div>
+      <div className="week-task-content"><button title={compact?`${t.title} · ${t.unit} · ${when}${t.hurdle?" · Hurdle":""}`:undefined} onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onTask(t);}}><strong>{t.kind==="event"&&<CalendarDays className="item-type-icon" aria-hidden="true"/>}{t.title}</strong><span>{isPersonal(t)&&<em className="item-kind">{t.kind==="event"?"Event":"Task"}</em>} {!embedded&&t.unit&&<b>{t.unit} · </b>}{embedded?"In class":t.date?when:t.week?"W"+t.week+" · Date TBC":isPersonal(t)?"Unscheduled":"Date TBC"}{t.hurdle&&" · Hurdle"}</span></button>{!compact&&!embedded&&<AvailabilitySummary task={t}/ >}{scope&&!t.done&&!compact&&<button className="preparation-link" onClick={()=>{setDay(null);setPending(false);setCompletedOpen(false);onPreparation(t);}}>{scope.status} →</button>}</div>
     </div>;
   }
   function classLabel(c:ClassEvent){return c.activity.replace(/Practical/gi,"Lab");}
