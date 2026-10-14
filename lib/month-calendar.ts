@@ -1,4 +1,5 @@
 import {addDays,type Semester,type Task,type ClassEvent} from "./semester";
+import {calendarOwns} from "./personal-items";
 export type MonthEntry = {id:string;date:string;unit:string;title:string;time?:string;done:boolean;task?:Task;event?:ClassEvent};
 export function awaitingExamDate(t:Task){return t.kind==="exam"&&!t.date;}
 export function monthDays(month:string):string[] {
@@ -13,7 +14,7 @@ export function shiftMonth(month:string,delta:number):string {
 }
 export function monthEntries(s:Semester):MonthEntry[] {
   const active=new Set(s.units.map(u=>u.code));
-  const tasks:MonthEntry[]=s.tasks.filter(t=>active.has(t.unit) && t.date && !t.splitCount).map(t=>({id:`task:${t.id}`,date:t.date!,unit:t.unit,title:t.title,time:t.time,done:!!t.done,task:t}));
+  const tasks:MonthEntry[]=s.tasks.filter(t=>calendarOwns(s,t) && t.date && !t.splitCount).map(t=>({id:`task:${t.id}`,date:t.date!,unit:t.unit,title:t.title,time:t.time,done:t.kind!=="event"&&!!t.done,task:t}));
   const classes:MonthEntry[]=s.classes.filter(c=>active.has(c.unit)).map(c=>({id:`class:${c.id}`,date:c.date,unit:c.unit,title:c.activity,time:c.time,done:!!s.completed[c.id],event:c}));
   return [...tasks,...classes].sort(compareMonthEntries);
 }

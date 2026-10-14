@@ -9,9 +9,9 @@ const rules = (v: unknown) => v === undefined || (object(v) && typeof v.text ===
   && (v.optional === undefined || typeof v.optional === "boolean"));
 const task = (v: unknown): v is Task => object(v)
   && strings(v,["id","unit","title","weight","timing","description","source","sourceText"])
-  && ["assessment","quiz","recurring","exam"].includes(String(v.kind))
-  && ["hurdle","group","done","manual","routine","passed"].every(k=>v[k] === undefined || typeof v[k] === "boolean")
-  && ["date","time","endTime","parentId","series","warning","sourceConflict"].every(k=>v[k] === undefined || typeof v[k] === "string")
+  && ["assessment","quiz","recurring","exam","task","event"].includes(String(v.kind))
+  && ["hurdle","group","done","manual","routine","passed","allDay"].every(k=>v[k] === undefined || typeof v[k] === "boolean")
+  && ["date","time","endTime","parentId","series","warning","sourceConflict","location","link"].every(k=>v[k] === undefined || typeof v[k] === "string")
   && ["week","startWeek","dueWeek","splitCount","splitPart"].every(k=>v[k] === undefined || (Number.isInteger(v[k]) && Number(v[k]) > 0))
   && (v.coverage === undefined || (Array.isArray(v.coverage) && v.coverage.every(n=>Number.isInteger(n) && n>=1 && n<=13)))
   && (v.overrides === undefined || (Array.isArray(v.overrides) && v.overrides.every(k=>typeof k === "string" && !["__proto__","constructor","prototype"].includes(k))))

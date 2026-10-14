@@ -1,5 +1,6 @@
 import {addDays,type ClassEvent,type Task,type Semester} from "./semester";
 import {awaitingExamDate} from "./month-calendar";
+import {isPersonal,calendarOwns} from "./personal-items";
 
 export function mondayOf(date:string){return addDays(date,-((new Date(date+"T12:00:00Z").getUTCDay()+6)%7));}
 export function locationForDate(location:string,date?:string){
@@ -54,14 +55,16 @@ export function weekData(s:Semester,start:string,unit="all",showClasses=true){
   const end=addDays(start,6),active=new Set(s.units.map(u=>u.code));
   const own=(code:string)=>active.has(code)&&(unit==="all"||unit===code);
   const classes=showClasses?s.classes.filter(c=>own(c.unit)&&c.date>=start&&c.date<=end):[];
-  const tasks=s.tasks.filter(t=>own(t.unit)&&!t.splitCount);
+  const tasks=s.tasks.filter(t=>calendarOwns(s,t)&&(unit==="all"||unit===t.unit)&&!t.splitCount);
   const dated=tasks.filter(t=>t.date&&t.date>=start&&t.date<=end);
   const linked=new Map<string,Task[]>();
-  const due=dated.filter(t=>{const c=matchedClass(t,classes);if(!c)return true;linked.set(c.id,[...(linked.get(c.id)||[]),t]);return false;});
+  const events=dated.filter(t=>t.kind==="event"&&!t.allDay&&minutes(t.time)!==null&&minutes(t.endTime)!==null&&minutes(t.endTime)!>minutes(t.time)!);
+  const due=dated.filter(t=>{if(events.includes(t))return false;const c=matchedClass(t,classes);if(!c)return true;linked.set(c.id,[...(linked.get(c.id)||[]),t]);return false;});
   const weekOnly=tasks.filter(t=>!t.date&&!awaitingExamDate(t)&&t.week&&s.weeks.some(w=>w.number===t.week&&w.start<=end&&w.end>=start));
-  const unknown=tasks.filter(t=>!t.date&&!t.week&&!awaitingExamDate(t));
+  const unknown=tasks.filter(t=>!isPersonal(t)&&!t.date&&!t.week&&!awaitingExamDate(t));
+  const unscheduled=tasks.filter(t=>isPersonal(t)&&!t.date);
   const awaitingExams=tasks.filter(awaitingExamDate);
-  return {classes,due,linked,weekOnly,unknown,awaitingExams};
+  return {classes,due,events,linked,weekOnly,unknown,unscheduled,awaitingExams};
 }
 export type PositionedClass={event:ClassEvent;start:number;end:number;lane:number;lanes:number};
 export function positionClasses(classes:ClassEvent[]):PositionedClass[]{

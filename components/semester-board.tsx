@@ -44,6 +44,8 @@ import { reconcile } from "@/lib/sync";
 import { activeTasks, backupText, readBackup, replaceBoard, sameUnits } from "@/lib/backup";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
+import { PersonalEditor } from "@/components/personal-editor";
+import { isPersonal,calendarOwns } from "@/lib/personal-items";
 import { MonthCalendar } from "@/components/month-calendar";
 import { WeekCalendar } from "@/components/week-calendar";
 import {locationForDate} from "@/lib/week-calendar";
@@ -102,6 +104,8 @@ export default function SemesterBoard() {
     [detail, setDetail] = useState<Detail | null>(null),
     [subject, setSubject] = useState<{code:string;taskId?:string}|null>(null),
     [draft, setDraft] = useState<Task | null>(null),
+    [personal,setPersonal] = useState<Task|null>(null),
+    [calendarFocus,setCalendarFocus] = useState<{date?:string;eventId?:string;nonce:number}>(),
     [editError, setEditError] = useState(""),
     [showPast, setShowPast] = useState(false),
     [showWarnings, setShowWarnings] = useState(false),
@@ -126,7 +130,7 @@ export default function SemesterBoard() {
   const calendarView=view!=="semester";
   useEffect(()=>{try {setFocus(useFocusLayout(localStorage.getItem(SEMESTER_LAYOUT_KEY)));} catch {}},[]);
   useEffect(()=>{try {const saved=localStorage.getItem("semester-view");if(saved==="month"||saved==="week")setView(saved);} catch {}},[]);
-  function chooseView(next:"semester"|"month"|"week") {setView(next);try {localStorage.setItem("semester-view",next);} catch {}}
+  function chooseView(next:"semester"|"month"|"week") {setCalendarFocus(undefined);setView(next);try {localStorage.setItem("semester-view",next);} catch {}}
   function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem(SEMESTER_LAYOUT_KEY,next ? "focus" : "full");} catch {}}
   useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
@@ -294,6 +298,7 @@ export default function SemesterBoard() {
       });
   }
   function openTask(t: Task) {
+    if(isPersonal(t)){setDetail(null);setPersonal(t);return;}
     setSplittingTask(false);
     setNewRecurring(false);
     setEditingTask(false);
@@ -306,6 +311,9 @@ export default function SemesterBoard() {
     setSubject({code:t.unit,taskId:t.id});
   }
   function newTask() {
+    setPersonal({id:`manual-${crypto.randomUUID()}`,kind:"task",unit:subject?.code||"",title:"",weight:"",timing:"Personal task",description:"",source:"",sourceText:"",hurdle:false,group:false,manual:true});
+  }
+  function newAssessment() {
     if (!semester) return;
     openTask({
       id: `manual-${crypto.randomUUID()}`,
@@ -419,8 +427,8 @@ export default function SemesterBoard() {
       Math.max(0, semester?.units.findIndex((u) => u.code === unit) ?? 0) %
         COLORS.length
     ];
-  const boardTasks = semester ? activeTasks(semester) : [];
-  const retainedCount = (semester?.tasks.length || 0) - boardTasks.length;
+  const boardTasks = semester ? activeTasks(semester).filter(t=>!isPersonal(t)) : [];
+  const retainedCount = semester?.tasks.filter(t=>!calendarOwns(semester,t)).length || 0;
   const undated = boardTasks.filter(needsPlacement);
   const ongoing = undated.filter(t=>t.routine && /ongoing/i.test(t.sourceText));
   const unplaced = undated.filter(t=>!ongoing.includes(t));
@@ -474,7 +482,7 @@ export default function SemesterBoard() {
     .sort((a,b)=>((a.date||"")+(a.time||"23:59")).localeCompare((b.date||"")+(b.time||"23:59"))) || [];
   const highlighted = focus && soon.length ? soon : upcoming;
   const participationFor = (c:ClassEvent) => /tutorial/i.test(c.activity)
-    ? semester?.tasks.find(t=>t.unit === c.unit && t.date === c.date && /participation/i.test(t.title)) : undefined;
+    ? semester?.tasks.find(t=>!isPersonal(t) && t.unit === c.unit && t.date === c.date && /participation/i.test(t.title)) : undefined;
   function displayTitle(t:Task) {
     if (!focus) return t.title;
     if (/lecture.*quiz/i.test(t.title)) return "Lecture quiz";
@@ -687,7 +695,7 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
+          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} focusItem={calendarFocus} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>B · Full overview</button>
@@ -816,7 +824,7 @@ export default function SemesterBoard() {
                     {semester.units.map((u) => {
                       const tasks = semester.tasks.filter(
                         (t) =>
-                          t.unit === u.code && !t.splitCount &&
+                          !isPersonal(t) && t.unit === u.code && !t.splitCount &&
                           (t.dueWeek ? t.dueWeek === w.number : t.date
                             ? t.date >= w.start && t.date <= w.end
                             : t.kind === "exam"
@@ -834,7 +842,7 @@ export default function SemesterBoard() {
                       const taskRows = orderedTasks.filter(t=>!focus || !learning.some(c=>participationFor(c)?.id === t.id));
                       const active = semester.tasks.filter(
                         (t) =>
-                          t.unit === u.code &&
+                          !isPersonal(t) && t.unit === u.code &&
                           t.startWeek &&
                           w.number &&
                           t.startWeek <= w.number &&
@@ -965,7 +973,7 @@ export default function SemesterBoard() {
             <section className="rule-card"><p className="eyebrow">{transfer.kind === "backup" ? "BACKUP TO RESTORE" : "NEW TIMETABLE"}</p><strong>{transfer.board.session === "S1C" ? "Semester 1" : "Semester 2"} {transfer.board.year}</strong><p>{transfer.board.units.map(u=>u.code).join(" · ")}</p><p className="hint">{transfer.board.classes.length} classes · {transfer.board.tasks.filter(t=>!t.splitCount).length} tasks · {transfer.board.tasks.filter(t=>t.done&&!t.splitCount).length} tasks completed</p></section>
             <p>{transfer.kind === "backup" ? "Restore this snapshot’s units, classes, tasks and checkmarks together. It replaces the current board; it does not add tasks to it." : "Switch to this timetable as a separate board. Tasks and checkmarks from your current board will not carry over."}</p>
             {transfer.kind === "backup" && !transfer.board.feedUrl && <p className="hint">Backups omit private timetable links. Saved classes work immediately; reconnect the correct link later in Manage.</p>}
-            {transfer.kind === "backup" && transfer.board.tasks.some(t=>!transfer.board.units.some(u=>u.code===t.unit)) && <p className="notice">This backup already contains tasks outside its unit list. They will stay in the export, not the calendar. Use a clean original backup if this came from an earlier mixed restore.</p>}
+            {transfer.kind === "backup" && transfer.board.tasks.some(t=>!calendarOwns(transfer.board,t)) && <p className="notice">This backup already contains tasks outside its unit list. They will stay in the export, not the calendar. Use a clean original backup if this came from an earlier mixed restore.</p>}
             {semester && <p className="hint">Your current board will be saved as the previous board in Manage. Only one recovery copy is kept. You can also <button onClick={backup}>Export current board</button> before proceeding.</p>}
             <button className="primary" disabled={busy || saveStatus==="Saving…" || !!saveError} onClick={()=>applyTransfer()}>{transfer.kind === "backup" ? "Restore this board" : "Switch to this board"}</button>
             {semester && transfer.kind === "import" && sameUnits(semester,transfer.board) && <section className="rule-card"><strong>Is this an updated link for the same board?</strong><p className="hint">The semester and unit codes match. Only choose this if it is your same timetable—not another student’s. Keeps your progress and manual edits while updating classes.</p><button disabled={busy || saveStatus==="Saving…" || !!saveError} onClick={()=>applyTransfer(true)}>Connect to this board</button></section>}
@@ -1239,7 +1247,8 @@ export default function SemesterBoard() {
           )}
         </SheetContent>
       </Sheet>
-      <Sheet open={!!subject && !detail} onOpenChange={o=>{if(!o)setSubject(null);}}>
+      <Sheet open={!!personal} onOpenChange={o=>{if(!o)setPersonal(null);}}><SheetContent className="detail-panel personal-panel"><SheetHeader><SheetTitle>{personal&&semester?.tasks.some(t=>t.id===personal.id)?semester.tasks.find(t=>t.id===personal.id)?.kind==="event"?"Event details":"Task details":"Add to your calendar"}</SheetTitle><SheetDescription>Personal tasks & events · Sydney time</SheetDescription></SheetHeader>{personal&&semester&&<PersonalEditor key={personal.id} item={personal} semester={semester} onSave={t=>{const s=current.current;if(s)commit({...s,tasks:s.tasks.some(x=>x.id===t.id)?s.tasks.map(x=>x.id===t.id?t:x):[...s.tasks,t]});}} onDelete={t=>{const s=current.current;if(s)commit({...s,tasks:s.tasks.filter(x=>x.id!==t.id)});}} onAssessment={()=>{setPersonal(null);newAssessment();}} onView={t=>{setPersonal(null);setSubject(null);chooseView("week");setCalendarFocus({date:t.date,eventId:t.kind==="event"&&!t.allDay?t.id:undefined,nonce:Date.now()});}}/>}</SheetContent></Sheet>
+      <Sheet open={!!subject && !detail && !personal} onOpenChange={o=>{if(!o)setSubject(null);}}>
         <SheetContent className="detail-panel subject-panel"><SheetHeader><SheetTitle>{subject?.code} · Learning overview</SheetTitle><SheetDescription>{semester?.units.find(u=>u.code===subject?.code)?.name}</SheetDescription></SheetHeader>
           {semester && subject && semester.units.find(u=>u.code===subject.code) && <UnitDetail key={subject.code+":"+(subject.taskId||"")} semester={semester} unit={semester.units.find(u=>u.code===subject.code)!} today={today} focusTaskId={subject.taskId} onToggle={toggleClass} onToggleTask={toggleTask} onScope={saveScope} onCatchUp={through=>{const s=current.current;if(!s)return;const completed={...s.completed};s.classes.filter(c=>c.unit===subject.code&&/lecture/i.test(c.activity)&&c.week&&c.week<=through).forEach(c=>completed[c.id]=true);commit({...s,completed});setNotice(`${subject.code} lectures through W${through} marked watched. Individual ticks can be undone.`);}} onOpenTask={(task,taskId)=>{setSubject({...subject,taskId});openTask(task);}} onOpenClass={(event,taskId)=>{setSubject({...subject,taskId});setDetail({type:"class",event});}}/>}
         </SheetContent>

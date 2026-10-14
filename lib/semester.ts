@@ -27,7 +27,10 @@ export type Task = {
   time?: string;
   startWeek?: number;
   timing: string;
-  kind: "assessment" | "quiz" | "recurring" | "exam";
+  kind: "assessment" | "quiz" | "recurring" | "exam" | "task" | "event";
+  allDay?: boolean;
+  location?: string;
+  link?: string;
   description: string;
   source: string;
   sourceText: string;

@@ -1,9 +1,10 @@
 import type { Semester, Task } from "./semester";
+import {isPersonal} from "./personal-items";
 
 // Display projections only: no new completion state or inferred assessment dates.
 export function subjectTasks(s: Semester, code: string, today: string) {
   if (!s.units.some(u => u.code === code)) return { upcoming: [], past: [], unknown: [], exams: [] };
-  const tasks = s.tasks.filter(t => t.unit === code && !t.splitCount &&
+  const tasks = s.tasks.filter(t => !isPersonal(t) && t.unit === code && !t.splitCount &&
     !s.tasks.some(child => child.series === t.id || child.parentId === t.id));
   const end = (t: Task) => t.date || s.weeks.find(w => w.number === t.week && w.kind === "teaching")?.end;
   const start = (t: Task) => t.date || s.weeks.find(w => w.number === t.week && w.kind === "teaching")?.start || "9999";
@@ -19,7 +20,7 @@ export function subjectTasks(s: Semester, code: string, today: string) {
 export function subjectAssessments(s: Semester, code: string) {
   const imported = s.units.find(u => u.code === code)?.assessments || [];
   const byId = new Map(imported.filter(t=>!s.tasks.some(current=>current.id===t.id && current.unit!==code)).map(t => [t.id,t]));
-  s.tasks.filter(t => t.unit === code).forEach(t => byId.set(t.id,t));
+  s.tasks.filter(t => !isPersonal(t) && t.unit === code).forEach(t => byId.set(t.id,t));
   return [...byId.values()].filter(t => t.unit === code &&
     !(t.parentId && byId.has(t.parentId)) && !(t.series && byId.has(t.series)));
 }
