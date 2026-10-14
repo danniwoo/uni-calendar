@@ -1,4 +1,4 @@
-import {addDays, weekFor, type Semester, type Task} from "./semester";
+import {addDays, shortDate, timingLabel, weekFor, type Semester, type Task} from "./semester";
 
 export const validDate = (value:string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+"T00:00:00Z")) && new Date(value+"T00:00:00Z").toISOString().slice(0,10)===value;
 const validTime = (value:string) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -15,6 +15,31 @@ export function availabilityError(t:Task):string {
 }
 
 export type AssessmentStep = {id?:string; title:string; weight?:string; mode:"unknown"|"week"|"date"|"tutorial"; week?:number; date?:string; time?:string; classId?:string; scheduleEdited?:boolean; autoFilled?:boolean};
+
+export function initialAssessmentSteps(s:Semester,task:Task):AssessmentStep[] {
+  const existing=s.tasks.filter(t=>t.parentId===task.id);
+  if(existing.length)return existing.map(t=>assessmentStepFromTask(s,t));
+  const count=Math.min(30,Math.max(2,task.rules?.count||2));
+  const verified=task.rules?.perOccurrence!==undefined&&Math.abs(count*task.rules.perOccurrence-parseFloat(task.weight))<0.01;
+  return Array.from({length:count},(_,i)=>({title:i===0&&task.date?"Submission deadline":`Part ${i+1}`,mode:i===0&&task.date?"date":"unknown",...(i===0&&task.date?{date:task.date,time:task.time,week:task.week,scheduleEdited:true}:{}),weight:verified?String(task.rules!.perOccurrence):""}));
+}
+export function submissionStep():AssessmentStep {return {title:"Submission",mode:"date",time:"23:59",scheduleEdited:true};}
+export function assessmentTiming(t:Task):string {
+  if(t.splitCount)return `${t.splitCount} steps`;
+  if(t.timing.startsWith("Before"))return `Due ${timingLabel(t)}`;
+  if(t.timeBasis==="class")return t.date?`${shortDate(t.date)} · ${/lecture/i.test(t.timing)?"Lecture":/lab|practical/i.test(t.timing)?"Lab":"Tutorial"}${t.time?` ${t.time}${t.endTime?`–${t.endTime}`:""}`:" · time not set"}`:"Class date/time not set";
+  return t.date?`Due ${shortDate(t.date)}${t.time?` · ${t.time}`:" · time not set"}`:t.week?`W${t.week} · due date not set`:"Due date not set";
+}
+export function assessmentMetadataError(s:Semester,draft:Task):string {
+  const original=s.tasks.find(t=>t.id===draft.id);
+  if(original&&(original.splitCount||original.parentId)&&draft.unit!==original.unit)return "The assessment and its steps must stay in the same unit.";
+  const parent=draft.parentId?s.tasks.find(t=>t.id===draft.parentId):draft;
+  if(!parent?.splitCount)return "";
+  const children=s.tasks.filter(t=>t.parentId===parent.id).map(t=>t.id===draft.id?draft:t);
+  const total=parseFloat(parent.weight),sum=children.reduce((n,t)=>n+(parseFloat(t.weight)||0),0);
+  if(Number.isFinite(total)&&(sum>total+0.01||children.length&&children.every(t=>t.weight)&&Math.abs(sum-total)>0.01))return "Step weights must match the assessment total, or leave unconfirmed step weights blank. Edit steps to adjust their weights.";
+  return "";
+}
 
 // Draft-only suggestions. Saved rows and individually edited schedules are never overwritten.
 export function suggestFollowingSteps(s:Semester,rows:AssessmentStep[]):AssessmentStep[] {
@@ -95,8 +120,8 @@ export function createAssessmentSteps(s:Semester,parent:Task,rows:AssessmentStep
     return {id:`${original.id}-part-${i+1}`,unit:original.unit,title:r.title.trim(),kind:"assessment",weight:weights[i]?`${weights[i]}%`:"",parentId:original.id,splitPart:i+1,
       ...timing,description:`Part of ${original.title}. Schedule entered by you.`,source:original.source,sourceText:original.sourceText,group:original.group,hurdle:false,manual:true,overrides:[],done:false};
   });
-  const aggregate:Task={...original,splitCount:rows.length,date:undefined,time:undefined,week:undefined,dueWeek:undefined,startWeek:undefined,manual:true,
-    overrides:[...new Set([...(original.overrides||[]),"splitCount","date","time","week","dueWeek","startWeek"])]};
+  const aggregate:Task={...original,splitCount:rows.length,date:undefined,time:undefined,week:undefined,dueWeek:undefined,manual:true,
+    overrides:[...new Set([...(original.overrides||[]),"splitCount","date","time","week","dueWeek"])]};
   return {...s,tasks:[...s.tasks.map(t=>t.id===parent.id?aggregate:t),...children]};
 }
 
