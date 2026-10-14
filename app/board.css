@@ -1132,6 +1132,28 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .personal-delete { border-top:1px solid #dce3ed; padding-top:12px; }
 .personal-delete>button { margin-right:8px; }
 .personal-editor .field-pair { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+/* Unit hue stays consistent; surface and icon distinguish personal item types. */
+.item-type-icon { display:inline-block; width:13px; height:13px; margin-right:4px; vertical-align:-2px; flex-shrink:0; color:var(--entry-color,#64748b); }
+.item-kind { display:inline; font-style:normal; font-size:10px; font-weight:600; color:#526176; margin-right:5px; white-space:nowrap; }
+.personal-unit { color:var(--entry-color,#64748b); font-weight:500; }
+.week-class.personal-event,.week-task.personal-event,.month-entry.personal-event {
+  background:color-mix(in srgb,var(--entry-color) 2%,white);
+  border:1px solid color-mix(in srgb,var(--entry-color) 65%,white);
+}
+.week-task.personal-task,.month-entry.personal-task { background:#fff; border:0; border-bottom:1px solid #e2e7ef; border-radius:0; }
+.week-task.personal-task strong,.week-class.personal-event .week-class-main strong span { font-weight:500; }
+.week-task.personal-task.week-done { background:#fff; }
+.month-entry.personal-event { padding:3px 5px; }
+.week-class.personal-event .week-class-main>button { width:100%; }
+.week-due-inline .personal-task .week-task-content>button>span,.week-due-inline .personal-event .week-task-content>button>span { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+@media(max-width:700px) {
+  .week-view .week-class.personal-event { border-width:1px; }
+  .month-mobile-item.personal-event { border:1px solid color-mix(in srgb,var(--entry-color) 65%,white); background:color-mix(in srgb,var(--entry-color) 2%,white); color:#243650; }
+  .month-mobile-item.personal-task { background:#fff; border:0; border-bottom:1px solid #e2e7ef; color:#243650; }
+  .month-mobile-item .item-type-icon,.week-mobile-class .item-type-icon { width:10px; height:10px; margin-right:2px; vertical-align:-1px; }
+  .month-mobile-item.personal-task.mobile-entry-done { color:#526176; }
+}
 @media(min-width:701px) {
   .week-view .week-mobile-due-row { display:none; }
   .week-layout .week-toolbar .month-navigation>div:first-child { display:flex; align-items:baseline; gap:10px; }

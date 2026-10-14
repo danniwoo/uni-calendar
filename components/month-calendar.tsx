@@ -9,17 +9,18 @@ import {awaitingExamDate} from "@/lib/month-calendar";
 import {learningScope} from "@/lib/learning-scope";
 import {isPersonal,calendarOwns,personalWhen} from "@/lib/personal-items";
 import {UnscheduledTasks} from "@/components/unscheduled-tasks";
+import {CalendarDays,ListTodo} from "lucide-react";
 
 type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
 function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEntry;color:string;onOpen:(e:MonthEntry)=>void;onToggle:(e:MonthEntry)=>void;full?:boolean}) {
   const when=e.task&&isPersonal(e.task)?personalWhen(e.task):e.task?.timing.startsWith("Before")?"Before "+(e.time || "class"):e.task?.timeBasis==="class"?(e.time || "")+" in class":e.time || "Time TBC";
   const badge=entryBadge(e),routine=e.task&&(isPersonal(e.task)||e.task.routine&&!e.task.hurdle);
-  return <div className={["month-entry",e.task?routine?"routine-entry":"deadline":"class-entry",e.done?"entry-done":"",full?"full-entry":""].join(" ")} style={{"--entry-color":color} as React.CSSProperties}>
+  return <div className={["month-entry",e.task?routine?"routine-entry":"deadline":"class-entry",e.task&&isPersonal(e.task)?"personal-"+e.task.kind:"",e.done?"entry-done":"",full?"full-entry":""].join(" ")} style={{"--entry-color":color} as React.CSSProperties}>
     {e.task?.kind!=="event"&&<label className="month-check"><input type="checkbox" aria-label={[e.done?"Uncheck":"Complete",e.unit,e.title,e.date].join(" ")} checked={e.done} onChange={()=>onToggle(e)}/></label>}
     <button title={[e.unit,e.title,when,badge,e.done?"Recorded complete":""].filter(Boolean).join(" · ")} onClick={()=>onOpen(e)}>
       {e.event&&!full?<><span className="month-entry-name"><b>{e.unit}</b> {shortEntryTitle(e)}</span><small className="month-entry-time">{e.time}</small></>:<>
-        <span className="month-entry-name">{full && <b>{e.unit}</b>} {full?e.title:shortEntryTitle(e)}</span>
-        <span className="month-entry-meta">{!full && <b>{e.unit}</b>}<small>{when}{full && e.event?"–"+e.event.end:""}</small>{badge && <span className="month-entry-badge">{badge}</span>}</span>
+        <span className="month-entry-name">{full && <b>{e.unit}</b>}{e.task?.kind==="event"&&<CalendarDays className="item-type-icon" aria-hidden="true"/>} {full?e.title:shortEntryTitle(e)}</span>
+        <span className="month-entry-meta">{e.task&&isPersonal(e.task)&&<em className="item-kind">{e.task.kind==="event"?"Event":"Task"}</em>} {!full && <b>{e.unit}</b>}<small>{when}{full && e.event?"–"+e.event.end:""}</small>{badge && <span className="month-entry-badge">{badge}</span>}</span>
       </>}
     </button>
   </div>;
@@ -76,7 +77,7 @@ export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onTog
             return <div key={date} className={"month-day "+(date.slice(0,7)!==month?"other-month":"")}>
               <div className="month-date-heading"><button className="month-day-number" aria-label={"Open "+date+(date===today?", today":"")} aria-current={date===today?"date":undefined} onClick={()=>setDay(date)}>{Number(date.slice(-2))}</button></div>
               <div className="month-day-items">{preview.visible.map(e=>item(e))}{preview.overflow.length>0 && <button className="month-more" onClick={()=>setDay(date)}>+{preview.overflow.length} more{hiddenTasks?" · "+hiddenTasks+" task"+(hiddenTasks===1?"":"s"):""}</button>}{preview.completed.length>0 && <details className="month-completed-group"><summary>✓ {preview.completed.length} completed</summary><div>{preview.completed.map(e=>item(e))}</div></details>}</div>
-              {items.length>0 && <button className="month-mobile-summary" aria-label={shortDate(date)+": "+items.length+" items, "+items.filter(e=>e.done).length+" complete. Open day to view and tick."} onClick={()=>setDay(date)}>{mobile.visible.map(e=><span key={e.id} className={"month-mobile-item "+(e.task&&!isPersonal(e.task)&&(!e.task.routine||e.task.hurdle)?"mobile-deadline":"")+(e.done?" mobile-entry-done":"")} style={{"--entry-color":color(e.unit)} as React.CSSProperties} title={e.unit+" · "+e.title}><span>{e.done?"✓ ":""}{shortEntryTitle(e,true)}</span>{e.task?.hurdle && <small>Hurdle</small>}</span>)}{mobile.overflow.length>0 && <span className="month-mobile-more">+{mobile.overflow.length} more</span>}{mobile.completed.length>0 && <span className="month-mobile-completed">✓ {mobile.completed.length}</span>}</button>}
+              {items.length>0 && <button className="month-mobile-summary" aria-label={shortDate(date)+": "+items.length+" items, "+items.filter(e=>e.done).length+" complete. Open day to view and tick."} onClick={()=>setDay(date)}>{mobile.visible.map(e=><span key={e.id} className={"month-mobile-item "+(e.task&&!isPersonal(e.task)&&(!e.task.routine||e.task.hurdle)?"mobile-deadline":"")+(e.task&&isPersonal(e.task)?" personal-"+e.task.kind:"")+(e.done?" mobile-entry-done":"")} style={{"--entry-color":color(e.unit)} as React.CSSProperties} title={e.unit+" · "+e.title}><span>{e.task?.kind==="event"?<CalendarDays className="item-type-icon" aria-hidden="true"/>:e.task?.kind==="task"&&!e.done?<ListTodo className="item-type-icon" aria-hidden="true"/>:null}{e.done?"✓ ":""}{shortEntryTitle(e,true)}</span>{e.task?.hurdle && <small>Hurdle</small>}</span>)}{mobile.overflow.length>0 && <span className="month-mobile-more">+{mobile.overflow.length} more</span>}{mobile.completed.length>0 && <span className="month-mobile-completed">✓ {mobile.completed.length}</span>}</button>}
             </div>;
           })}</div>
         </div>;
