@@ -51,6 +51,8 @@ import { WeekCalendar } from "@/components/week-calendar";
 import {locationForDate} from "@/lib/week-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
+import { AssessmentAvailability, AvailabilitySummary } from "@/components/assessment-availability";
+import { availabilityError } from "@/lib/assessment-schedule";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
 import { SEMESTER_LAYOUT_KEY, useFocusLayout, inNextSevenDays } from "@/lib/semester-display";
 
@@ -334,6 +336,8 @@ export default function SemesterBoard() {
   function saveTask() {
     if (!semester || !draft) return;
     setEditError("");
+    const availabilityIssue = availabilityError(draft);
+    if (availabilityIssue) { setEditError(availabilityIssue); return; }
     if (!draft.title.trim()) {
       setEditError("Give this task a name.");
       return;
@@ -362,7 +366,7 @@ export default function SemesterBoard() {
     }
     const previous = semester.tasks.find(t=>t.id === draft.id);
     const edited = { ...draft, title: draft.title.trim(), week, dueWeek:preservedDueWeek };
-    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek"];
+    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime"];
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
       JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
@@ -1014,12 +1018,13 @@ export default function SemesterBoard() {
               {semester.tasks.some(t=>t.id===draft.id) && !splittingTask && <section className="rule-card">
                 {focus && <p><strong>{timingLabel(draft)}</strong></p>}
                 <strong>{weightLabel(draft)}</strong>
+                <AvailabilitySummary task={draft}/>
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
                 {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>}
-              {semester.tasks.some(t=>t.id===draft.id) && <SplitAssessment key={`split-${draft.id}`} flexible={!focus} task={draft} semester={semester} onModeChange={setSplittingTask} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Submissions created. Open any part to adjust its date or mark it complete.");}}/>}
+              {semester.tasks.some(t=>t.id===draft.id) && <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onModeChange={setSplittingTask} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Assessment steps created. Each demo or submission can be edited and completed separately.");}}/>}
               {!draft.splitCount && !splittingTask && <>
               {semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
               {focus && !editingTask && <>
@@ -1115,6 +1120,7 @@ export default function SemesterBoard() {
                 A week without an exact date stays on that week, marked “Day &
                 time TBC”.
               </p>
+              <AssessmentAvailability task={draft} onChange={t=>{setDraft(t);setEditError("");}}/>
               <details className="optional-task-fields"><summary>More options · notes & planned start</summary>
               <label>
                 My planned start

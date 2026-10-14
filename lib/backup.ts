@@ -1,4 +1,5 @@
 import type { Semester, Task } from "./semester";
+import {availabilityError} from "./assessment-schedule";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const strings = (v: Record<string, unknown>, keys: string[]) => keys.every(k => typeof v[k] === "string");
@@ -11,11 +12,12 @@ const task = (v: unknown): v is Task => object(v)
   && strings(v,["id","unit","title","weight","timing","description","source","sourceText"])
   && ["assessment","quiz","recurring","exam","task","event"].includes(String(v.kind))
   && ["hurdle","group","done","manual","routine","passed","allDay"].every(k=>v[k] === undefined || typeof v[k] === "boolean")
-  && ["date","time","endTime","parentId","series","warning","sourceConflict","location","link"].every(k=>v[k] === undefined || typeof v[k] === "string")
+  && ["date","time","endTime","parentId","series","warning","sourceConflict","location","link","availableFrom","availableFromTime","availableUntil","availableUntilTime"].every(k=>v[k] === undefined || typeof v[k] === "string")
   && ["week","startWeek","dueWeek","splitCount","splitPart"].every(k=>v[k] === undefined || (Number.isInteger(v[k]) && Number(v[k]) > 0))
   && (v.coverage === undefined || (Array.isArray(v.coverage) && v.coverage.every(n=>Number.isInteger(n) && n>=1 && n<=13)))
   && (v.overrides === undefined || (Array.isArray(v.overrides) && v.overrides.every(k=>typeof k === "string" && !["__proto__","constructor","prototype"].includes(k))))
-  && rules(v.rules);
+  && rules(v.rules)
+  && !availabilityError(v as unknown as Task);
 
 // Backups are complete snapshots, never a bag of tasks to merge into a different feed.
 export function readBackup(text: string): Semester {

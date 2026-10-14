@@ -52,6 +52,10 @@ export type Task = {
   splitCount?: number;
   splitPart?: number;
   dueWeek?: number;
+  availableFrom?: string;
+  availableFromTime?: string;
+  availableUntil?: string;
+  availableUntilTime?: string;
 };
 export type AssessmentRules = {
   count?: number;
