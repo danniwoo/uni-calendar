@@ -14,7 +14,7 @@ export function availabilityError(t:Task):string {
   return "";
 }
 
-export type AssessmentStep = {title:string; weight?:string; mode:"unknown"|"week"|"date"|"tutorial"; week?:number; date?:string; time?:string; classId?:string};
+export type AssessmentStep = {id?:string; title:string; weight?:string; mode:"unknown"|"week"|"date"|"tutorial"; week?:number; date?:string; time?:string; classId?:string};
 export function tutorialChoices(s:Semester,unit:string,week?:number) {
   return s.classes.filter(c=>c.unit===unit && c.week===week && /tut/i.test(c.activity));
 }
@@ -66,4 +66,36 @@ export function createAssessmentSteps(s:Semester,parent:Task,rows:AssessmentStep
   const aggregate:Task={...original,splitCount:rows.length,date:undefined,time:undefined,week:undefined,dueWeek:undefined,startWeek:undefined,manual:true,
     overrides:[...new Set([...(original.overrides||[]),"splitCount","date","time","week","dueWeek","startWeek"])]};
   return {...s,tasks:[...s.tasks.map(t=>t.id===parent.id?aggregate:t),...children]};
+}
+
+export function assessmentStepFromTask(s:Semester,t:Task):AssessmentStep {
+  const tutorial=t.timeBasis==="class"&&/^During tutorial/.test(t.timing);
+  const match=tutorial?tutorialChoices(s,t.unit,t.week).find(c=>c.date===t.date&&c.time===t.time&&c.end===t.endTime):undefined;
+  return {id:t.id,title:t.title,weight:t.weight.replace(/%\s*$/,"").trim(),mode:tutorial&&(match||!t.date)?"tutorial":t.date?"date":t.week?"week":"unknown",week:t.week,date:t.date,time:t.time,classId:match?.id};
+}
+
+// Existing steps keep their identities, completion, notes, scope and availability.
+// Rescheduling a different step must not silently rematch an unchanged tutorial.
+export function updateAssessmentSteps(s:Semester,parent:Task,rows:AssessmentStep[]):Semester {
+  const existing=s.tasks.filter(t=>t.parentId===parent.id);
+  if(!existing.length) return createAssessmentSteps(s,parent,rows);
+  if(existing.some(t=>t.series||t.routine)) throw new Error("Edit recurring occurrences individually.");
+  const ids=rows.flatMap(r=>r.id?[r.id]:[]);
+  if(new Set(ids).size!==ids.length||ids.some(id=>!existing.some(t=>t.id===id))) throw new Error("The step list changed. Reopen it before saving.");
+  const clean={...s,tasks:s.tasks.filter(t=>t.parentId!==parent.id).map(t=>t.id===parent.id?{...t,splitCount:undefined}:t)};
+  const generated=createAssessmentSteps(clean,parent,rows);
+  const candidates=generated.tasks.filter(t=>t.parentId===parent.id);
+  const timingKeys=["date","time","week","endTime","timeBasis","timing","dueWeek"] as const;
+  const children=candidates.map((candidate,i)=>{
+    const row=rows[i],old=existing.find(t=>t.id===row.id);
+    if(!old)return {...candidate,id:`${parent.id}-step-${crypto.randomUUID()}`};
+    const before=assessmentStepFromTask(s,old);
+    const unchanged=["mode","week","date","time","classId"].every(k=>before[k as keyof AssessmentStep]===row[k as keyof AssessmentStep]);
+    const result:Task={...old,title:candidate.title,weight:candidate.weight,splitPart:i+1,manual:true};
+    if(!unchanged) for(const key of timingKeys) (result as unknown as Record<string,unknown>)[key]=candidate[key];
+    const issue=availabilityError(result);if(issue)throw new Error(`Step ${i+1}: ${issue}`);
+    result.overrides=[...new Set([...(old.overrides||[]),"title","weight","splitPart",...(!unchanged?timingKeys:[])])];
+    return result;
+  });
+  return {...generated,tasks:[...generated.tasks.filter(t=>t.parentId!==parent.id),...children]};
 }

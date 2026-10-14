@@ -51,6 +51,7 @@ import { WeekCalendar } from "@/components/week-calendar";
 import {locationForDate} from "@/lib/week-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
+import { AssessmentConfirm } from "@/components/assessment-confirm";
 import { AssessmentAvailability, AvailabilitySummary } from "@/components/assessment-availability";
 import { availabilityError } from "@/lib/assessment-schedule";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
@@ -118,6 +119,10 @@ export default function SemesterBoard() {
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
     [editingTask, setEditingTask] = useState(false),
     [splittingTask, setSplittingTask] = useState(false),
+    [stepsDirty, setStepsDirty] = useState(false),
+    [taskFeedback,setTaskFeedback] = useState(""),
+    [discardAssessment,setDiscardAssessment] = useState<"close"|"edit"|null>(null),
+    [assessmentUndo,setAssessmentUndo] = useState<{before:Semester;after:Semester;taskId:string}|null>(null),
     [newRecurring, setNewRecurring] = useState(false),
     [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
     [transfer, setTransfer] = useState<{board:Semester; kind:"backup"|"import"} | null>(null),
@@ -128,6 +133,10 @@ export default function SemesterBoard() {
     revision = useRef(0),
     pending = useRef<Semester | null>(null),
     saving = useRef(false);
+  const detailPanel=useRef<HTMLDivElement>(null);
+  const unsavedAssessment=useRef(false);
+  unsavedAssessment.current=!!(detail?.type==="task"&&(stepsDirty || (draft&&JSON.stringify(draft)!==JSON.stringify(detail.task))));
+  useEffect(()=>{if(detailPanel.current)detailPanel.current.scrollTop=0;},[draft?.id,editingTask,splittingTask]);
   const today = sydneyDate(clock);
   const calendarView=view!=="semester";
   useEffect(()=>{try {setFocus(useFocusLayout(localStorage.getItem(SEMESTER_LAYOUT_KEY)));} catch {}},[]);
@@ -164,18 +173,13 @@ export default function SemesterBoard() {
     () =>
       registerSemesterTools(
         () => current.current,
-        (t) => {
-          setEditingTask(false);
-          setDetail({ type: "task", task: t });
-          setDraft({ ...t });
-          setEditError("");
-        },
+        (t) => { if(!unsavedAssessment.current)openTask(t); },
       ),
     [],
   );
   useEffect(() => {
     const warn = (e: BeforeUnloadEvent) => {
-      if (pending.current || saving.current) {
+      if (pending.current || saving.current || unsavedAssessment.current) {
         e.preventDefault();
         e.returnValue = "";
       }
@@ -302,11 +306,42 @@ export default function SemesterBoard() {
   function openTask(t: Task) {
     if(isPersonal(t)){setDetail(null);setPersonal(t);return;}
     setSplittingTask(false);
+    setStepsDirty(false);
+    setTaskFeedback("");
     setNewRecurring(false);
     setEditingTask(false);
     setDetail({ type: "task", task: t });
     setDraft({ ...t });
     setEditError("");
+  }
+  function closeAssessment() {
+    if(unsavedAssessment.current){setDiscardAssessment("close");return;}
+    finishCloseAssessment();
+  }
+  function finishCloseAssessment() {
+    setDetail(null);setDraft(null);setStepsDirty(false);setSplittingTask(false);setTaskFeedback("");
+  }
+  function cancelAssessmentEdit() {
+    if(unsavedAssessment.current){setDiscardAssessment("edit");return;}
+    finishCancelAssessmentEdit();
+  }
+  function finishCancelAssessmentEdit() {
+    const original=semester?.tasks.find(t=>t.id===draft?.id);
+    if(original){setDraft({...original});setDetail({type:"task",task:original});setEditingTask(false);setEditError("");}
+    else {setDetail(null);setDraft(null);setEditError("");}
+  }
+  function saveAssessmentPlan(next:Semester) {
+    const before=current.current;if(!before||!draft)return;
+    setAssessmentUndo({before,after:next,taskId:draft.id});commit(next);
+    const parent=next.tasks.find(t=>t.id===draft.id)!;
+    setDraft({...parent});setDetail({type:"task",task:parent});setStepsDirty(false);setTaskFeedback("Steps updated.");
+  }
+  function undoAssessmentPlan() {
+    if(!assessmentUndo||!current.current)return;
+    const result=reconcile(assessmentUndo.after,assessmentUndo.before,current.current);
+    if(result.conflicts.length){setEditError("These steps changed again. Reopen Edit steps to review them; undo would overwrite newer changes.");return;}
+    commit(result.semester);const parent=result.semester.tasks.find(t=>t.id===assessmentUndo.taskId)!;
+    setDraft({...parent});setDetail({type:"task",task:parent});setAssessmentUndo(null);setTaskFeedback("Step changes undone.");
   }
   function openPreparation(t: Task) {
     setDetail(null);
@@ -319,7 +354,7 @@ export default function SemesterBoard() {
     if (!semester) return;
     openTask({
       id: `manual-${crypto.randomUUID()}`,
-      unit: semester.units[0]?.code || "",
+      unit: subject?.code || semester.units[0]?.code || "",
       title: "",
       weight: "",
       timing: "Added by you",
@@ -379,7 +414,7 @@ export default function SemesterBoard() {
         ? semester.tasks.map((t) => (t.id === next.id ? next : t))
         : [...semester.tasks, next],
     });
-    setDetail(null);
+    setDraft({...next});setDetail({type:"task",task:next});setEditingTask(false);setTaskFeedback("Assessment updated.");
   }
   function saveScope(task: Task, weeks: number[]) {
     const s = current.current;
@@ -388,6 +423,7 @@ export default function SemesterBoard() {
     const updated = withCoverage(existing || task, weeks);
     commit({...s, tasks: existing ? s.tasks.map(t=>t.id === task.id ? updated : t) : [...s.tasks,updated]});
     setDraft(prev=>prev?.id === task.id ? withCoverage(prev,weeks) : prev);
+    setDetail(prev=>prev?.type==="task"&&prev.task.id===task.id?{type:"task",task:updated}:prev);
   }
   function downloadBackup(snapshot:Semester, prefix="semester") {
     const blob = new Blob(
@@ -989,14 +1025,12 @@ export default function SemesterBoard() {
       <Sheet
         open={!!detail}
         onOpenChange={(o) => {
-          if (!o) {
-            setDetail(null);
-            setDraft(null);
-          }
+          if (!o) closeAssessment();
         }}
       >
-        <SheetContent className="detail-panel">
-          {subject && <button className="subject-back" onClick={()=>{setDetail(null);setDraft(null);}}>← Back to {subject.code}</button>}
+        <SheetContent ref={detailPanel} className="detail-panel">
+          {discardAssessment&&<AssessmentConfirm title="Discard unsaved changes?" description="Your saved assessment will stay unchanged." action="Discard changes" onCancel={()=>setDiscardAssessment(null)} onConfirm={()=>{const intent=discardAssessment;setDiscardAssessment(null);if(intent==="close")finishCloseAssessment();else finishCancelAssessmentEdit();}}/>}
+          {subject && <button className="subject-back" onClick={closeAssessment}>← Back to {subject.code}</button>}
           <SheetHeader>
             <SheetTitle>
               {detail?.type === "class"
@@ -1011,29 +1045,34 @@ export default function SemesterBoard() {
           </SheetHeader>
           {detail?.type === "task" && draft && semester && (
             <div className="detail-body">
+              {taskFeedback&&!editingTask&&!splittingTask&&<p className="hint" role="status">{taskFeedback} {saveStatus==="Saving…"?"Saving…":saveStatus==="Saved"?"Saved.":""}</p>}
+              {saveError&&<p className="error" role="alert">Changes are not saved: {saveError}</p>}
+              {draft.parentId&&!editingTask&&!splittingTask&&semester.tasks.some(t=>t.id===draft.parentId)&&<button className="assessment-parent" onClick={()=>openTask(semester.tasks.find(t=>t.id===draft.parentId)!)}>← {semester.tasks.find(t=>t.id===draft.parentId)!.title}</button>}
+              {assessmentUndo?.taskId===draft.id&&!editingTask&&!splittingTask&&<button onClick={undoAssessmentPlan}>Undo last step changes</button>}
+              {editError&&!editingTask&&!splittingTask&&<p role="alert" className="error">{editError}</p>}
               {!semester.tasks.some(t=>t.id===draft.id) && <div className="task-mode" aria-label="Task frequency"><button aria-pressed={!newRecurring} onClick={()=>setNewRecurring(false)}>One-off task</button><button aria-pressed={newRecurring} onClick={()=>setNewRecurring(true)}>Repeating task</button></div>}
               {newRecurring ? <SplitAssessment key={`repeat-${draft.id}`} recurring task={draft} semester={semester} onOpen={openTask} onCancel={()=>setNewRecurring(false)} onSave={next=>{commit(next);setDetail(null);setDraft(null);setNewRecurring(false);setNotice("Repeating tasks created. Each occurrence can be checked off or edited separately.");}}/> : <>
               {draft.sourceConflict && <p className="notice error">{draft.sourceConflict}</p>}
               {draft.warning && (!/individual occurrences|Recurring assessment/i.test(draft.warning) || needsPlacement(draft)) && <p className="notice">{draft.warning}</p>}
-              {semester.tasks.some(t=>t.id===draft.id) && !splittingTask && <section className="rule-card">
-                {focus && <p><strong>{timingLabel(draft)}</strong></p>}
+              {semester.tasks.some(t=>t.id===draft.id) && !splittingTask && !editingTask && <section className="rule-card">
+                <p><strong>{draft.splitCount?`${draft.splitCount} steps · see schedule below`:timingLabel(draft)}</strong></p>
                 <strong>{weightLabel(draft)}</strong>
                 <AvailabilitySummary task={draft}/>
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
-                {(draft.series || draft.parentId || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
+                {(draft.series || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>}
-              {semester.tasks.some(t=>t.id===draft.id) && <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onModeChange={setSplittingTask} onOpen={openTask} onSave={next=>{commit(next);setDraft(next.tasks.find(t=>t.id===draft.id)||draft);setNotice("Assessment steps created. Each demo or submission can be edited and completed separately.");}}/>}
+              {semester.tasks.some(t=>t.id===draft.id) && !editingTask && <SplitAssessment key={`split-${draft.id}`} task={draft} semester={semester} onDirtyChange={setStepsDirty} onModeChange={setSplittingTask} onOpen={openTask} onSave={saveAssessmentPlan}/>}
               {!draft.splitCount && !splittingTask && <>
-              {semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
-              {focus && !editingTask && <>
-                <p>{draft.description}</p>
-                <button className="primary" onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id);if(task){toggleTask(task);setDraft({...draft,done:!task.done});}}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button>
+              {!editingTask && <>
+                <div className="assessment-actions"><button className="primary" onClick={()=>{setTaskFeedback("");setEditingTask(true);}}>{needsPlacement(draft) ? "Add missing details" : "Edit details"}</button><button onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id);if(task){toggleTask(task);const updated={...draft,done:!task.done};setDraft(updated);setDetail({type:"task",task:updated});}}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button></div>
+                {draft.date&&<button onClick={()=>{setDetail(null);setDraft(null);setSubject(null);chooseView("week");setCalendarFocus({date:draft.date,nonce:Date.now()});}}>View in Week</button>}
+                {semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
+                {draft.description&&<details><summary>Notes & instructions</summary><p>{draft.description}</p></details>}
                 {draft.source && <a href={draft.source} target="_blank" rel="noreferrer">Open assessment source</a>}
-                <button onClick={()=>setEditingTask(true)}>{needsPlacement(draft) ? "Add missing details" : "Edit details"}</button>
               </>}
-              <div className="task-editor" hidden={focus && !editingTask}>
+              <div className="task-editor" hidden={!editingTask}>
               <label>
                 Task name
                 <input
@@ -1093,13 +1132,13 @@ export default function SemesterBoard() {
                   <input
                     type="date"
                     value={draft.date || ""}
-                    onChange={(e) =>
+                    onInput={(e) =>
                       setDraft({
                         ...draft,
-                        date: e.target.value || undefined,
-                        time: e.target.value ? draft.time || "23:59" : undefined,
-                        week: e.target.value
-                          ? weekFor(e.target.value, semester.weeks)
+                        date: e.currentTarget.value || undefined,
+                        time: e.currentTarget.value ? draft.time : undefined,
+                        week: e.currentTarget.value
+                          ? weekFor(e.currentTarget.value, semester.weeks)
                           : draft.week,
                       })
                     }
@@ -1110,8 +1149,8 @@ export default function SemesterBoard() {
                   <input
                     type="time"
                     value={draft.time || ""}
-                    onChange={(e) =>
-                      setDraft({ ...draft, time: e.target.value || undefined })
+                    onInput={(e) =>
+                      setDraft({ ...draft, time: e.currentTarget.value || undefined })
                     }
                   />
                 </label>
@@ -1167,9 +1206,7 @@ export default function SemesterBoard() {
                   {editError}
                 </p>
               )}
-              <button className="primary" onClick={saveTask}>
-                Save task
-              </button>
+              <div className="assessment-actions"><button onClick={cancelAssessmentEdit}>Cancel</button><button className="primary" onClick={saveTask}>Save details</button></div>
               {draft.series && (
                 <p className="hint">
                   This edits only this occurrence. Series totals are not the weight of each individual task.
