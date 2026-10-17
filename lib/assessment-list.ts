@@ -1,4 +1,4 @@
-import { type Semester, type Task, shortDate, weightLabel } from "./semester";
+import { type Semester, type Task, shortDate, weightLabel, addDays } from "./semester";
 import { subjectAssessments } from "./subject-view";
 import { isPersonal } from "./personal-items";
 import { assessmentTiming } from "./assessment-schedule";
@@ -54,6 +54,11 @@ export function assessmentListWeight(t: Task, grouped = false) {
   return weightLabel(t) || "—";
 }
 
+function nextStep(s: Semester, children: Task[], today: string) {
+  const pending=children.filter(t=>!t.done);
+  return pending.find(t=>(dateRange(s,t)?.end || "")>=today) || pending[0] || children[0];
+}
+
 // A projection over the same records as the calendar, not a second task store.
 export function assessmentRows(s: Semester, filters: AssessmentFilters, today: string): AssessmentRow[] {
   const query=filters.query.trim().toLocaleLowerCase();
@@ -71,8 +76,7 @@ export function assessmentRows(s: Semester, filters: AssessmentFilters, today: s
     if (children.length) {
       if (!matchingChildren.length) continue;
     } else if ((query&&!textMatches(task)) || !statusMatches(done) || !assessmentDateMatches(s,task,filters.dates,today)) continue;
-    const pending=matchingChildren.filter(t=>!t.done);
-    const next=grouped ? (pending.find(t=>(dateRange(s,t)?.end || "")>=today) || pending[0] || matchingChildren[0]) : task;
+    const next=grouped ? nextStep(s,matchingChildren,today) : task;
     rows.push({task,children,matchingChildren,grouped,completed,total,done,next});
   }
   return rows.sort((a,b)=>{
@@ -94,4 +98,47 @@ export function assessmentDateContext(s: Semester, t: Task) {
   if (t.date) return t.week ? `W${t.week}` : "";
   const week=s.weeks.find(w=>w.kind==="teaching"&&w.number===t.week);
   return week && t.kind!=="exam" ? `${shortDate(week.start)} – ${shortDate(week.end)}` : "";
+}
+
+export type AssessmentDateSection = {
+  key: string; label: string; detail: string; start?: string; end?: string;
+  current: boolean; rows: AssessmentRow[];
+};
+function monday(date: string) {
+  const day = new Date(`${date}T12:00:00Z`).getUTCDay();
+  return addDays(date, -((day + 6) % 7));
+}
+
+// Group the displayed schedule, not a parent's original date or a stale week field.
+// This is presentation only: it never creates deadlines for week-only work.
+export function assessmentDateSections(s: Semester, rows: AssessmentRow[], today: string): AssessmentDateSection[] {
+  const currentMonday = monday(today);
+  const sections = new Map<string, AssessmentDateSection>();
+  for (const row of rows) {
+    const t = row.next;
+    const range = t && dateRange(s, t);
+    let section: Omit<AssessmentDateSection, "rows">;
+    if (range) {
+      const start = monday(range.start), end = addDays(start, 6);
+      const week = s.weeks.find(w => w.start <= range.start && w.end >= range.start);
+      const relative = start === currentMonday ? "This week" : start === addDays(currentMonday, 7) ? "Next week" : end < today ? "Past" : "";
+      const label = [relative, week?.label || "Week of " + shortDate(start)].filter(Boolean).join(" · ");
+      section = {key:start, label, detail:`${shortDate(start)} – ${shortDate(end)}`, start, end, current:start === currentMonday};
+    } else {
+      const exam = t?.kind === "exam" || (!t && row.task.kind === "exam");
+      section = {key:exam?"exams":"unknown", label:exam?"Awaiting exam dates":"Dates to confirm", detail:exam?"Timetable not yet announced":"No confirmed calendar date", current:false};
+    }
+    const existing = sections.get(section.key);
+    if (existing) existing.rows.push(row);
+    else sections.set(section.key, {...section, rows:[row]});
+  }
+  return [...sections.values()];
+}
+
+export function assessmentStepLabel(s: Semester, row: AssessmentRow, today: string) {
+  if (!row.next) return "Schedule to confirm";
+  if (row.next.done) return "Recorded step";
+  const range = dateRange(s, row.next);
+  if (range && range.end < today) return "Past step · unrecorded";
+  return nextStep(s,row.children,today)?.id === row.next.id ? "Next step" : "Matching step";
 }

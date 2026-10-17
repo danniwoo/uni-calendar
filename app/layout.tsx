@@ -5,9 +5,6 @@ import "./board.css";
 export const metadata: Metadata = {
   title: "Semester — USYD",
   description: "Your assessments and weekly learning, in one semester view.",
-  other: {
-    "codex-preview": "development",
-  },
   icons: {
     icon: "/favicon.svg",
     shortcut: "/favicon.svg",

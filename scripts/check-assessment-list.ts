@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { calendar, type Semester, type Task } from "../lib/semester";
-import { assessmentRows, assessmentListDate, assessmentListWeight, defaultAssessmentFilters as defaults, assessmentDateMatches } from "../lib/assessment-list";
+import { assessmentRows, assessmentListDate, assessmentListWeight, defaultAssessmentFilters as defaults, assessmentDateMatches, assessmentDateSections, assessmentStepLabel } from "../lib/assessment-list";
 
 const task:Task={id:"report",unit:"TEST1001",title:"Report",kind:"assessment",weight:"10%",date:"2026-10-23",time:"23:59",timing:"Due",description:"",source:"",sourceText:"",hurdle:false,group:false};
 const quiz:Task={...task,id:"quiz",title:"Weekly quizzes",kind:"recurring",date:undefined,weight:"21%",rules:{text:"Best seven",perOccurrence:3,total:21,bestOf:7}};
@@ -52,4 +52,22 @@ assert.equal(assessmentRows(moved,{...defaults,unit:"TEST1001"},"2026-10-18").so
 const orphan={...s,tasks:[...s.tasks,{...task,id:"orphan",parentId:"missing"}]};
 assert(assessmentRows(orphan,defaults,"2026-10-18").some(r=>r.task.id==="orphan"),"orphan steps remain findable");
 assert.equal(JSON.stringify(s),before,"inventory must not modify saved records");
+const sections=assessmentDateSections(s,rows,"2026-10-18");
+assert.equal(sections.find(g=>g.key==="2026-10-19")?.label,"Next week · Week 11");
+assert.equal(sections.find(g=>g.key==="2026-10-26")?.label,"Week 12");
+assert.equal(sections.find(g=>g.key==="exams")?.label,"Awaiting exam dates");
+assert.equal(sections.find(g=>g.key==="unknown")?.rows[0].task.id,"unknown");
+assert.equal(sections.flatMap(g=>g.rows).length,rows.length);
+assert.equal(assessmentStepLabel(s,group,"2026-10-18"),"Next step");
+assert.equal(assessmentStepLabel(s,{...group,next:group.children[0]},"2026-10-18"),"Recorded step");
+assert.equal(assessmentStepLabel(s,{...group,next:{...group.children[0],done:false}},"2026-10-18"),"Past step · unrecorded");
+const makeRow=(date:string,week?:number)=>({...group,task:{...task,date,week},next:{...task,date,week}});
+assert.equal(assessmentDateSections(s,[makeRow("2026-10-18",3)],"2026-10-18")[0].label,"This week · Week 10","exact date wins over stale week");
+assert.equal(assessmentDateSections(s,[makeRow("2026-10-18")],"2026-10-19")[0].label,"Past · Week 10","Monday boundary uses Sydney date passed in");
+assert.equal(assessmentDateSections(s,[makeRow("2026-09-30")],"2026-09-27")[0].label,"Next week · Midsemester break");
+assert.equal(assessmentDateSections(s,[makeRow("2026-11-23")],"2026-11-18")[0].label,"Next week · Exam period","two-week exam period has separate calendar weeks");
+assert.equal(assessmentDateSections(s,[makeRow("2027-01-01")],"2026-12-31")[0].label,"This week · Week of 28 Dec");
+const reverseSections=assessmentDateSections(s,assessmentRows(s,{...defaults,descending:true},"2026-10-18"),"2026-10-18");
+assert.deepEqual(reverseSections.filter(g=>g.start).map(g=>g.key),["2026-10-26","2026-10-19"]);
+assert.equal(JSON.stringify(s),before,"date sections must not modify saved records");
 console.log("PASS: assessment inventory isolation, grouping, status/date/search filters, stable sorting, honest weights, unknown exams and shared records.");
