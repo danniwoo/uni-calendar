@@ -44,6 +44,7 @@ import { reconcile } from "@/lib/sync";
 import { activeTasks, backupText, readBackup, replaceBoard, sameUnits } from "@/lib/backup";
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
+import { AssessmentList } from "@/components/assessment-list";
 import { PersonalEditor } from "@/components/personal-editor";
 import { isPersonal,calendarOwns } from "@/lib/personal-items";
 import { MonthCalendar } from "@/components/month-calendar";
@@ -114,7 +115,7 @@ export default function SemesterBoard() {
     [showWarnings, setShowWarnings] = useState(false),
     [showRoutines, setShowRoutines] = useState(false),
     [focus, setFocus] = useState(true),
-    [view, setView] = useState<"semester"|"month"|"week">("semester"),
+    [view, setView] = useState<"semester"|"month"|"week"|"assessments">("semester"),
     [showTray, setShowTray] = useState(false),
     [expandedWeeks, setExpandedWeeks] = useState<Record<string,boolean>>({}),
     [editingTask, setEditingTask] = useState(false),
@@ -139,10 +140,12 @@ export default function SemesterBoard() {
   unsavedAssessment.current=!!(detail?.type==="task"&&(stepsDirty || (draft&&JSON.stringify(draft)!==JSON.stringify(detail.task))));
   useEffect(()=>{if(detailPanel.current)detailPanel.current.scrollTop=0;},[draft?.id,editingTask,splittingTask]);
   const today = sydneyDate(clock);
-  const calendarView=view!=="semester";
+  const calendarView=view==="month"||view==="week";
+  const draftChildren=draft ? semester?.tasks.filter(t=>t.parentId===draft.id||t.series===draft.id)||[] : [];
+  const draftGroup=!!draft?.splitCount||draftChildren.length>0;
   useEffect(()=>{try {setFocus(useFocusLayout(localStorage.getItem(SEMESTER_LAYOUT_KEY)));} catch {}},[]);
-  useEffect(()=>{try {const saved=localStorage.getItem("semester-view");if(saved==="month"||saved==="week")setView(saved);} catch {}},[]);
-  function chooseView(next:"semester"|"month"|"week") {setCalendarFocus(undefined);setView(next);try {localStorage.setItem("semester-view",next);} catch {}}
+  useEffect(()=>{try {const saved=localStorage.getItem("semester-view");if(saved==="month"||saved==="week"||saved==="assessments")setView(saved);} catch {}},[]);
+  function chooseView(next:"semester"|"month"|"week"|"assessments") {setCalendarFocus(undefined);setView(next);try {localStorage.setItem("semester-view",next);} catch {}}
   function chooseLayout(next:boolean) {setFocus(next);try {localStorage.setItem(SEMESTER_LAYOUT_KEY,next ? "focus" : "full");} catch {}}
   useEffect(() => { const id = setInterval(()=>setClock(new Date()),60000); return ()=>clearInterval(id); }, []);
   async function load() {
@@ -288,12 +291,13 @@ export default function SemesterBoard() {
   }
   function toggleTask(t: Task) {
     const s = current.current;
+    if(s&&(t.splitCount||s.tasks.some(x=>x.parentId===t.id||x.series===t.id)))return;
     if (s)
       commit({
         ...s,
-        tasks: s.tasks.map((x) =>
+        tasks: s.tasks.some(x=>x.id===t.id) ? s.tasks.map((x) =>
           x.id === t.id ? { ...x, done: !x.done } : x,
-        ),
+        ) : s.units.some(u=>u.assessments.some(a=>a.id===t.id)) ? [...s.tasks,{...t,done:!t.done}] : s.tasks,
       });
   }
   function toggleClass(c: ClassEvent) {
@@ -352,11 +356,11 @@ export default function SemesterBoard() {
   function newTask() {
     setPersonal({id:`manual-${crypto.randomUUID()}`,kind:"task",unit:subject?.code||"",title:"",weight:"",timing:"Personal task",description:"",source:"",sourceText:"",hurdle:false,group:false,manual:true});
   }
-  function newAssessment() {
+  function newAssessment(unit?:string) {
     if (!semester) return;
     openTask({
       id: `manual-${crypto.randomUUID()}`,
-      unit: subject?.code || semester.units[0]?.code || "",
+      unit: unit || subject?.code || semester.units[0]?.code || "",
       title: "",
       weight: "",
       timing: "Added by you",
@@ -373,7 +377,7 @@ export default function SemesterBoard() {
   function saveTask() {
     if (!semester || !draft) return;
     setEditError("");
-    const availabilityIssue = availabilityError(draft);
+    const availabilityIssue = availabilityError(draftGroup ? {...draft,date:undefined,time:undefined} : draft);
     if (availabilityIssue) { setEditError(availabilityIssue); return; }
     const metadataIssue = assessmentMetadataError(semester,draft);
     if (metadataIssue) { setEditError(metadataIssue); return; }
@@ -381,12 +385,12 @@ export default function SemesterBoard() {
       setEditError("Give this task a name.");
       return;
     }
-    if (draft.time && !draft.date) {
+    if (!draftGroup && draft.time && !draft.date) {
       setEditError("Choose a date for the time, or leave both unknown.");
       return;
     }
     if (
-      draft.date &&
+      !draftGroup && draft.date &&
       !semester.weeks.some(
         (w) => draft.date! >= w.start && draft.date! <= w.end,
       )
@@ -399,13 +403,13 @@ export default function SemesterBoard() {
     const originalTask = semester.tasks.find(t=>t.id===draft.id);
     const preservedDueWeek = draft.date === originalTask?.date && draft.time === originalTask?.time ? draft.dueWeek : undefined;
     const week = preservedDueWeek || (draft.date ? weekFor(draft.date, semester.weeks) : draft.week);
-    if (draft.startWeek && week && draft.startWeek > week) {
+    if (!draftGroup && draft.startWeek && week && draft.startWeek > week) {
       setEditError("Your planned start must be before the due week.");
       return;
     }
-    const previous = semester.tasks.find(t=>t.id === draft.id);
-    const edited = { ...draft, title: draft.title.trim(), week, dueWeek:preservedDueWeek };
-    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime"];
+    const previous = semester.tasks.find(t=>t.id === draft.id) || semester.units.flatMap(u=>u.assessments).find(t=>t.id===draft.id);
+    const edited = { ...draft, title: draft.title.trim(), week, dueWeek:preservedDueWeek, ...(draftGroup ? {splitCount:draftChildren.length||draft.splitCount,date:undefined,time:undefined,week:undefined,dueWeek:undefined} : {}) };
+    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime","splitCount"];
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
       JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
@@ -598,12 +602,12 @@ export default function SemesterBoard() {
     </div>;
   }
   return (
-    <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
+    <main className={`${focus ? "focus-layout" : "full-layout"}${calendarView||view==="assessments" ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
       <header className={semester ? "board-header semester-header" : ""}>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
         </div>
-        {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Calendar view">{(["semester","month","week"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>}
+        {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Board view">{(["semester","month","week","assessments"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}<select className="mobile-board-view" aria-label="Board view" value={view} onChange={e=>chooseView(e.target.value as typeof view)}><option value="semester">Semester</option><option value="month">Month</option><option value="week">Week</option><option value="assessments">Assessments</option></select></div>}
         {semester && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
         <div className="header-actions">
           {semester && <select className="subject-picker" aria-label="Open subject overview" value="" onChange={e=>{if(e.target.value){setDetail(null);setSubject({code:e.target.value});}}}><option value="" disabled>Subjects</option>{semester.units.map(u=><option key={u.code} value={u.code}>{u.code}</option>)}</select>}
@@ -739,7 +743,8 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          {view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} focusItem={calendarFocus} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
+          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment}/></div>
+          {view==="assessments" ? null : view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} focusItem={calendarFocus} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>
             <button aria-pressed={!focus} onClick={()=>chooseLayout(false)}>B · Full overview</button>
@@ -1054,12 +1059,12 @@ export default function SemesterBoard() {
               {draft.parentId&&!editingTask&&!splittingTask&&semester.tasks.some(t=>t.id===draft.parentId)&&<button className="assessment-parent" onClick={()=>openTask(semester.tasks.find(t=>t.id===draft.parentId)!)}>← {semester.tasks.find(t=>t.id===draft.parentId)!.title}</button>}
               {assessmentUndo?.taskId===draft.id&&!editingTask&&!splittingTask&&<button className="assessment-undo" onClick={undoAssessmentPlan}>Undo last step changes</button>}
               {editError&&!editingTask&&!splittingTask&&<p role="alert" className="error">{editError}</p>}
-              {!semester.tasks.some(t=>t.id===draft.id) && <div className="task-mode" aria-label="Task frequency"><button aria-pressed={!newRecurring} onClick={()=>setNewRecurring(false)}>One-off task</button><button aria-pressed={newRecurring} onClick={()=>setNewRecurring(true)}>Repeating task</button></div>}
+              {!semester.tasks.some(t=>t.id===draft.id) && !semester.units.some(u=>u.assessments.some(t=>t.id===draft.id)) && <div className="task-mode" aria-label="Task frequency"><button aria-pressed={!newRecurring} onClick={()=>setNewRecurring(false)}>One-off task</button><button aria-pressed={newRecurring} onClick={()=>setNewRecurring(true)}>Repeating task</button></div>}
               {newRecurring ? <SplitAssessment key={`repeat-${draft.id}`} recurring task={draft} semester={semester} onOpen={openTask} onCancel={()=>setNewRecurring(false)} onSave={next=>{commit(next);setDetail(null);setDraft(null);setNewRecurring(false);setNotice("Repeating tasks created. Each occurrence can be checked off or edited separately.");}}/> : <>
               {draft.sourceConflict && <p className="notice error">{draft.sourceConflict}</p>}
               {draft.warning && (!/individual occurrences|Recurring assessment/i.test(draft.warning) || needsPlacement(draft)) && <p className="notice">{draft.warning}</p>}
-              {semester.tasks.some(t=>t.id===draft.id) && !splittingTask && !editingTask && <section className="rule-card">
-                <p><strong>{draft.splitCount?`${draft.splitCount} steps · see schedule below`:draft.parentId?assessmentTiming(draft):timingLabel(draft)}</strong></p>
+              {(semester.tasks.some(t=>t.id===draft.id)||semester.units.some(u=>u.assessments.some(t=>t.id===draft.id))) && !splittingTask && !editingTask && <section className="rule-card">
+                <p><strong>{draftGroup?`${draftChildren.length||draft.splitCount} steps · see schedule below`:draft.parentId?assessmentTiming(draft):timingLabel(draft)}</strong></p>
                 <strong>{weightLabel(draft)}</strong>
                 <AvailabilitySummary task={draft}/>
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
@@ -1067,14 +1072,14 @@ export default function SemesterBoard() {
                 {(draft.series || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
                 {draft.rules?.text && <details><summary>Assessment rules from outline</summary><p>{draft.rules.text}</p></details>}
               </section>}
-              {!!draft.splitCount&&!editingTask&&!splittingTask&&<button className="primary" onClick={()=>{setTaskFeedback("");setEditingTask(true);}}>Edit assessment</button>}
-              {semester.tasks.some(t=>t.id===draft.id) && !editingTask && <SplitAssessment key={`split-${draft.id}-${stepRequest||""}`} task={draft} semester={semester} focusStepId={stepRequest} onDirtyChange={setStepsDirty} onModeChange={open=>{setSplittingTask(open);if(!open)setStepRequest(undefined);}} onOpen={openTask} onSave={saveAssessmentPlan}/>}
+              {draftGroup&&!editingTask&&!splittingTask&&<button className="primary" onClick={()=>{setTaskFeedback("");setEditingTask(true);}}>Edit assessment</button>}
+              {(semester.tasks.some(t=>t.id===draft.id)||draftChildren.length>0) && !editingTask && <SplitAssessment key={`split-${draft.id}-${stepRequest||""}`} task={draft} semester={semester} focusStepId={stepRequest} onDirtyChange={setStepsDirty} onModeChange={open=>{setSplittingTask(open);if(!open)setStepRequest(undefined);}} onOpen={openTask} onSave={saveAssessmentPlan}/>}
               {!splittingTask && <>
               {!editingTask && <>
                 {draft.parentId&&!draft.series&&!draft.routine&&<button onClick={()=>{const parent=semester.tasks.find(t=>t.id===draft.parentId);if(parent){const id=draft.id;openTask(parent);setStepRequest(id);setSplittingTask(true);}}}>Edit step schedule</button>}
-                {!draft.splitCount&&<div className="assessment-actions"><button className="primary" onClick={()=>{setTaskFeedback("");setEditingTask(true);}}>{needsPlacement(draft) ? "Add missing details" : "Edit details"}</button><button onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id);if(task){toggleTask(task);const updated={...draft,done:!task.done};setDraft(updated);setDetail({type:"task",task:updated});}}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button></div>}
+                {!draftGroup&&<div className="assessment-actions"><button className="primary" onClick={()=>{setTaskFeedback("");setEditingTask(true);}}>{needsPlacement(draft) ? "Add missing details" : "Edit details"}</button><button onClick={()=>{const task=current.current?.tasks.find(t=>t.id === draft.id)||draft;toggleTask(task);const updated={...draft,done:!task.done};setDraft(updated);setDetail({type:"task",task:updated});}}>{draft.done ? "Mark unfinished" : "Mark complete"}</button></div>}
                 {draft.date&&<button onClick={()=>{setDetail(null);setDraft(null);setSubject(null);chooseView("week");setCalendarFocus({date:draft.date,nonce:Date.now()});}}>View in Week</button>}
-                {!draft.splitCount&&(!draft.parentId||!!draft.coverage?.length)&&semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
+                {!draftGroup&&(!draft.parentId||!!draft.coverage?.length)&&semester.tasks.some(t=>t.id===draft.id) && <AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/>}
                 {!!draft.parentId&&!draft.coverage?.length&&<details><summary>Preparation scope · optional</summary><AssessmentScope key={draft.id} task={draft} semester={semester} onSave={saveScope} onToggle={toggleClass}/></details>}
                 {draft.description&&<details><summary>Notes & instructions</summary><p>{draft.description}</p></details>}
                 {draft.source && <a href={draft.source} target="_blank" rel="noreferrer">Open assessment source</a>}
@@ -1091,7 +1096,7 @@ export default function SemesterBoard() {
               </label>
               <label>
                 Unit
-                {draft.splitCount||draft.parentId?<span>{draft.unit} · shared with this assessment’s steps</span>:<Choice
+                {draftGroup||draft.parentId?<span>{draft.unit} · shared with this assessment’s steps</span>:<Choice
                   label="Unit"
                   value={draft.unit}
                   onChange={(unit) => setDraft({ ...draft, unit })}
@@ -1099,7 +1104,7 @@ export default function SemesterBoard() {
                 />}
               </label>
               <div className="field-pair">
-                {!draft.splitCount&&!(draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class")&&<label>
+                {!draftGroup&&!(draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class")&&<label>
                   Teaching week
                   <Choice
                     label="Teaching week"
@@ -1133,7 +1138,7 @@ export default function SemesterBoard() {
                   />
                 </label>
               </div>
-              {!draft.splitCount&&!(draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class")&&<><div className="field-pair">
+              {!draftGroup&&!(draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class")&&<><div className="field-pair">
                 <label>
                   {draft.timeBasis==="class"?"Class appointment date":"Due date"}
                   <input
@@ -1166,7 +1171,7 @@ export default function SemesterBoard() {
                 A week without an exact date stays marked “Day & time TBC”.
               </p></>}
               {!!draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class"&&<p className="hint">{assessmentTiming(draft)}. To change this appointment, cancel back to its summary and choose “Edit step schedule”. A submission deadline is a separate step.</p>}
-              {!!draft.splitCount&&<p className="hint">Each step keeps its own schedule. To add a hand-in date, return to the assessment and choose “Add submission deadline”. Editing these details does not change your steps.</p>}
+              {draftGroup&&<p className="hint">Each step keeps its own schedule. Open an individual step to change its date. Editing these assessment details does not change your steps.</p>}
               <AssessmentAvailability task={draft} onChange={t=>{setDraft(t);setEditError("");}}/>
               <details className="optional-task-fields"><summary>More options · notes & planned start</summary>
               <label>
@@ -1200,7 +1205,7 @@ export default function SemesterBoard() {
                   }
                 />
               </label>
-              {!draft.splitCount&&<label className="inline-label">
+              {!draftGroup&&<label className="inline-label">
                 <Checkbox
                   checked={!!draft.done}
                   onCheckedChange={(v) => setDraft({ ...draft, done: !!v })}
@@ -1234,7 +1239,7 @@ export default function SemesterBoard() {
                   </a>
                 </details>
               )}
-              {draft.kind === "recurring" && !draft.series && (
+              {draft.kind === "recurring" && !draft.series && !draftGroup && (
                 <button
                   onClick={() => {
                     const copy = {

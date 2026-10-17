@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Semester, Unit, ClassEvent, Task, shortDate, timingLabel, weightLabel } from "@/lib/semester";
 import { AssessmentScope } from "@/components/assessment-scope";
+import { AssessmentList } from "@/components/assessment-list";
 import { learningScope } from "@/lib/learning-scope";
 import { subjectTasks, subjectAssessments } from "@/lib/subject-view";
 
@@ -67,16 +68,7 @@ export function UnitDetail({ semester, unit, today, focusTaskId, onToggle, onTog
     <section aria-labelledby="subject-requirements"><div className="subject-section-heading"><h3 id="subject-requirements">Assessments & requirements</h3></div>
       <a href={unit.outline} target="_blank" rel="noreferrer">Official outline ↗</a>
       {!assessments.length && <p className="hint">No assessments imported. Check the official outline and Canvas / Ed.</p>}
-      {assessments.map(t=>{const occurrences=semester.tasks.filter(x=>x.series===t.id||x.parentId===t.id);return <details className="unit-assessment" key={t.id}><summary>
-        <div className="assessment-title"><strong>{t.title}</strong><span>{t.weight}{occurrences.length?" total":""}</span></div>
-        <p>{occurrences.length?`${occurrences.length} parts · ${occurrences.filter(x=>x.done).length} recorded complete`:timingLabel(t)}</p>
-        {t.hurdle&&<span className="unit-flag">Hurdle</span>}{t.sourceConflict&&<p className="unit-conflict">Source dates conflict</p>}
-      </summary>
-        {t.rules?.perOccurrence!==undefined&&<p>{t.rules.perOccurrence}% each · {t.weight} maximum</p>}
-        {t.rules?.text&&<p>{t.rules.text}</p>}{t.description&&<p>{t.description}</p>}
-        {occurrences.length?<div className="series-occurrences">{occurrences.map(o=><div key={o.id}><button onClick={()=>onOpenTask(o)}>{o.title} · {timingLabel(o)}{o.done?" · recorded":""}</button><button className="subject-prep-link" onClick={()=>setPreparing(o.id)}>Preparation →</button></div>)}</div>:<button onClick={()=>onOpenTask(t)}>Open task / edit details</button>}
-        {t.source&&<a href={t.source} target="_blank" rel="noreferrer">Assessment source ↗</a>}
-      </details>;})}
+      <AssessmentList semester={semester} today={today} unit={unit.code} compact onOpen={onOpenTask} onToggle={onToggleTask}/>
       <details className="unit-rule"><summary>Full assessment summary</summary><p>{unit.summary||"No summary imported. Check the official outline."}</p></details>
     </section>
   </div>;
