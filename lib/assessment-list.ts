@@ -6,12 +6,13 @@ import { assessmentTiming } from "./assessment-schedule";
 export type AssessmentStatus = "all" | "open" | "done";
 export type AssessmentDates = "all" | "upcoming" | "past" | "unknown" | "exams";
 export type AssessmentSort = "date" | "title" | "unit" | "weight";
+export type AssessmentDisplay = "overview" | "schedule";
 export type AssessmentFilters = {
   query: string; unit: string; status: AssessmentStatus; dates: AssessmentDates;
-  sort: AssessmentSort; descending: boolean;
+  sort: AssessmentSort; descending: boolean; hideRecurring: boolean;
 };
 export const defaultAssessmentFilters: AssessmentFilters = {
-  query: "", unit: "", status: "all", dates: "all", sort: "date", descending: false,
+  query: "", unit: "", status: "all", dates: "all", sort: "date", descending: false, hideRecurring: false,
 };
 export type AssessmentRow = {
   task: Task; children: Task[]; matchingChildren: Task[]; grouped: boolean;
@@ -59,8 +60,32 @@ function nextStep(s: Semester, children: Task[], today: string) {
   return pending.find(t=>(dateRange(s,t)?.end || "")>=today) || pending[0] || children[0];
 }
 
+export function isRecurringAssessment(task: Task, children: Task[] = []) {
+  return task.kind === "recurring" || !!task.routine || children.some(t=>t.series===task.id);
+}
+
+// Overview uses the full assessment's earliest recorded schedule, independent of
+// completion and child filters. It must not move when a next step is completed.
+function overviewAnchor(row: AssessmentRow) {
+  return row.grouped ? row.children[0] : row.task;
+}
+
+export function assessmentOverviewSchedule(s: Semester, row: AssessmentRow) {
+  const recurring=isRecurringAssessment(row.task,row.children);
+  if (!row.grouped && !recurring) return {label:assessmentListDate(row.task),detail:""};
+  const label=recurring?"Recurring":row.total===1?"1 step":"Multiple dates";
+  const dates=row.children.flatMap(t=>t.date?[t.date]:[]).sort();
+  if (!dates.length) {
+    const weeks=row.children.flatMap(t=>s.weeks.some(w=>w.kind==="teaching"&&w.number===t.week)?[t.week!]:[]).sort((a,b)=>a-b);
+    return {label,detail:weeks.length?`W${weeks[0]}${weeks[0]===weeks.at(-1)?"":`–W${weeks.at(-1)}`} · dates TBC`:"Dates to confirm"};
+  }
+  const first=dates[0], last=dates.at(-1)!;
+  const partial=row.children.length<row.total || row.children.some(t=>!t.date);
+  return {label:!recurring&&!partial&&first===last?`${row.total} ${row.total===1?"step":"steps"}`:label,detail:`${shortDate(first)}${first===last?"":` – ${shortDate(last)}`}${partial?" · some dates TBC":""}`};
+}
+
 // A projection over the same records as the calendar, not a second task store.
-export function assessmentRows(s: Semester, filters: AssessmentFilters, today: string): AssessmentRow[] {
+export function assessmentRows(s: Semester, filters: AssessmentFilters, today: string, display: AssessmentDisplay = "schedule"): AssessmentRow[] {
   const query=filters.query.trim().toLocaleLowerCase();
   const textMatches=(t:Task)=>`${t.title} ${t.unit}`.toLocaleLowerCase().includes(query);
   const statusMatches=(done:boolean)=>filters.status === "all" || (filters.status === "done" ? done : !done);
@@ -68,11 +93,13 @@ export function assessmentRows(s: Semester, filters: AssessmentFilters, today: s
   const rows:AssessmentRow[]=[];
   for (const task of roots) {
     const children=s.tasks.filter(t=>!isPersonal(t) && t.unit===task.unit && (t.parentId===task.id || t.series===task.id)).sort((a,b)=>compareDate(s,a,b));
+    if (filters.hideRecurring && isRecurringAssessment(task,children)) continue;
     const grouped=children.length>0 || !!task.splitCount;
     const total=grouped ? Math.max(children.length,task.splitCount || 0) : 1;
     const completed=grouped ? children.filter(t=>t.done).length : Number(!!task.done);
     const done=completed===total;
-    const matchingChildren=children.filter(t=>(!query || textMatches(task) || textMatches(t)) && statusMatches(!!t.done) && assessmentDateMatches(s,t,filters.dates,today));
+    if (display==="overview" && !statusMatches(done)) continue;
+    const matchingChildren=children.filter(t=>(!query || textMatches(task) || textMatches(t)) && (display==="overview" || statusMatches(!!t.done)) && assessmentDateMatches(s,t,filters.dates,today));
     if (children.length) {
       if (!matchingChildren.length) continue;
     } else if ((query&&!textMatches(task)) || !statusMatches(done) || !assessmentDateMatches(s,task,filters.dates,today)) continue;
@@ -82,8 +109,9 @@ export function assessmentRows(s: Semester, filters: AssessmentFilters, today: s
   return rows.sort((a,b)=>{
     const direction=filters.descending?-1:1;
     if (filters.sort === "date") {
-      if (!a.next || !b.next) return a.next ? -1 : b.next ? 1 : a.task.id.localeCompare(b.task.id);
-      return compareDate(s,a.next,b.next,filters.descending);
+      const x=display==="overview"?overviewAnchor(a):a.next, y=display==="overview"?overviewAnchor(b):b.next;
+      if (!x || !y) return x ? -1 : y ? 1 : a.task.id.localeCompare(b.task.id);
+      return compareDate(s,x,y,filters.descending);
     }
     if (filters.sort === "weight") {
       const x=parseFloat(a.task.weight), y=parseFloat(b.task.weight);

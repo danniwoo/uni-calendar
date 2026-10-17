@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { calendar, type Semester, type Task } from "../lib/semester";
-import { assessmentRows, assessmentListDate, assessmentListWeight, defaultAssessmentFilters as defaults, assessmentDateMatches, assessmentDateSections, assessmentStepLabel } from "../lib/assessment-list";
+import { assessmentRows, assessmentListDate, assessmentListWeight, defaultAssessmentFilters as defaults, assessmentDateMatches, assessmentDateSections, assessmentStepLabel, assessmentOverviewSchedule, isRecurringAssessment } from "../lib/assessment-list";
 
 const task:Task={id:"report",unit:"TEST1001",title:"Report",kind:"assessment",weight:"10%",date:"2026-10-23",time:"23:59",timing:"Due",description:"",source:"",sourceText:"",hurdle:false,group:false};
 const quiz:Task={...task,id:"quiz",title:"Weekly quizzes",kind:"recurring",date:undefined,weight:"21%",rules:{text:"Best seven",perOccurrence:3,total:21,bestOf:7}};
@@ -71,3 +71,34 @@ const reverseSections=assessmentDateSections(s,assessmentRows(s,{...defaults,des
 assert.deepEqual(reverseSections.filter(g=>g.start).map(g=>g.key),["2026-10-26","2026-10-19"]);
 assert.equal(JSON.stringify(s),before,"date sections must not modify saved records");
 console.log("PASS: assessment inventory isolation, grouping, status/date/search filters, stable sorting, honest weights, unknown exams and shared records.");
+
+const overview=assessmentRows(s,defaults,"2026-10-18","overview");
+assert.equal(overview.length,rows.length,"overview is the same inventory, not a duplicate store");
+assert.equal(assessmentRows(s,{...defaults,status:"done"},"2026-10-18","overview").length,0,"a completed child does not make its assessment complete");
+assert.equal(assessmentRows(completed,{...defaults,status:"done"},"2026-10-18","overview")[0].task.id,"project");
+assert.deepEqual(overview.map(r=>r.task.id),assessmentRows(completed,defaults,"2026-10-18","overview").map(r=>r.task.id),"overview ordering is independent of completion");
+assert.deepEqual(overview.map(r=>r.task.id),assessmentRows(s,defaults,"2026-11-01","overview").map(r=>r.task.id),"overview ordering does not move with today");
+assert.equal(assessmentOverviewSchedule(s,group).label,"Multiple dates");
+assert.equal(assessmentOverviewSchedule(s,group).detail,"15 Oct · some dates TBC","week-only steps must not invent an exact due date at the week's end");
+assert.equal(assessmentOverviewSchedule(s,overview.find(r=>r.task.id==="quiz")!).label,"Recurring");
+assert.equal(assessmentOverviewSchedule(s,overview.find(r=>r.task.id==="exam")!).label,"Awaiting exam date");
+assert.equal(assessmentOverviewSchedule(s,overview.find(r=>r.task.id==="unknown")!).label,"Date not set");
+const noRecurring=assessmentRows(s,{...defaults,hideRecurring:true},"2026-10-18","overview");
+assert.equal(noRecurring.some(r=>r.task.id==="quiz"),false);
+assert.equal(noRecurring.some(r=>r.task.id==="project"),true,"finite assignment steps are not recurring coursework");
+assert.equal(noRecurring.some(r=>r.task.id==="exam"),true);
+assert.equal(isRecurringAssessment({...task,routine:true}),true);
+assert.equal(isRecurringAssessment(task,[{...task,series:task.id}]),true);
+assert.equal(isRecurringAssessment({...task,title:"Weekly planning report"}),false,"do not infer recurrence from names");
+const queried=assessmentRows(s,{...defaults,query:"Final hand-in"},"2026-10-18","overview")[0];
+assert.equal(queried.task.id,"project");
+assert.deepEqual(assessmentOverviewSchedule(s,queried),assessmentOverviewSchedule(s,group),"filter matches do not replace the full assessment date range");
+assert.deepEqual(assessmentOverviewSchedule(s,{...group,children:[],total:3}),{label:"Multiple dates",detail:"Dates to confirm"},"missing children do not invent a deadline");
+assert.deepEqual(assessmentOverviewSchedule(s,{...group,children:[{...task,date:undefined,week:10},{...task,date:undefined,week:12}]}),{label:"Multiple dates",detail:"W10–W12 · dates TBC"});
+assert.equal(assessmentOverviewSchedule(s,{...group,children:[task,task]}).label,"2 steps","same-day steps are not labelled multiple dates");
+for (const descending of [true,false]) {
+  const sorted=assessmentRows(s,{...defaults,descending},"2026-10-18","overview");
+  assert(sorted.slice(-2).every(r=>["exam","unknown"].includes(r.task.id)),"undated records remain last");
+}
+assert.equal(JSON.stringify(s),before,"overview filters do not alter user records");
+console.log("PASS: clean overview, aggregate completion, stable full-range sorting, recurring filter and shared records.");

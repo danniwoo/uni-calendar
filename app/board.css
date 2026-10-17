@@ -1210,6 +1210,16 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 }
 .mobile-board-view { display:none; }
 .assessment-list { margin:20px 0; color:#263750; }
+.assessment-list:not(.assessment-list-compact) { max-width:1120px; margin:20px auto; }
+.assessment-list-viewbar { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:12px; }
+.assessment-list-modes { display:flex; background:#eaf0f7; border:1px solid #dbe1ec; border-radius:8px; padding:3px; }
+.assessment-list .assessment-list-modes button { border:0; background:transparent; font-size:13px; padding:6px 12px; border-radius:5px; min-height:32px; color:#526176; }
+.assessment-list .assessment-list-modes button[aria-pressed="true"] { background:white; color:#233b64; box-shadow:0 1px 3px #26375015; }
+.assessment-list .assessment-list-recurring { display:flex; align-items:center; gap:7px; margin:0; font-size:12px; font-weight:400; color:#526176; cursor:pointer; min-height:36px; }
+.assessment-list-recurring [data-slot="checkbox"] { width:16px; height:16px; }
+.assessment-list .assessment-list-summary-date { display:block; border:0; background:transparent; padding:0; font-size:13px; color:#33465f; text-align:left; line-height:1.5; }
+.assessment-list-summary-date:hover>span { color:#2855c8; text-decoration:underline; }
+.assessment-list .assessment-list-summary-date small { display:inline; margin-left:5px; }
 .assessment-list-heading { display:flex; align-items:center; justify-content:space-between; gap:16px; margin-bottom:12px; }
 .assessment-list-heading h2 { font-size:26px; letter-spacing:-.5px; }
 .assessment-list-heading p { color:#637085; font-size:13px; margin:4px 0 0; }
@@ -1230,9 +1240,11 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .assessment-list-table th { text-align:left; font-weight:500; color:#637085; font-size:12px; background:#f9fafc; padding:9px 12px; border-bottom:1px solid #dbe1ec; }
 .assessment-list-table thead th:first-child { text-align:center; padding:7px 3px; }
 .assessment-col-check { width:44px; }
-.assessment-col-name { width:40%; }
-.assessment-col-weight { width:12%; }
+.assessment-col-name { width:auto; }
+.assessment-col-weight { width:11%; }
 .assessment-col-unit { width:13%; }
+.assessment-col-date { width:30%; }
+.assessment-list-single-unit .assessment-col-date { width:36%; }
 .assessment-list-table th button { background:transparent; border:0; padding:3px 0; display:inline-flex; align-items:center; gap:6px; color:inherit; font-size:12px; }
 .assessment-list-table td { padding:7px 10px; height:42px; border-bottom:1px solid #e8edf4; vertical-align:middle; overflow-wrap:anywhere; }
 .assessment-list-table tbody>tr:hover { background:#fafbfe; }
@@ -1279,7 +1291,7 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .assessment-list-compact .assessment-list-filters { display:grid; grid-template-columns:1fr 1fr; }
 .assessment-list-compact .assessment-list-search { grid-column:1/-1; max-width:none; }
 .assessment-list-compact .assessment-list-filters select { width:100%; font-size:12px; }
-.assessment-list-compact .assessment-col-name { width:39%; }
+.assessment-list-compact .assessment-col-name { width:auto; }
 .assessment-list-compact .assessment-col-weight { width:16%; }
 .assessment-list-compact .assessment-list-table td,.assessment-list-compact .assessment-list-table th { padding:8px 5px; }
 .assessment-list-compact .assessment-list-title { font-size:13px; }
@@ -1287,6 +1299,10 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
   .board-header .header-view-switch button { display:none; }
   .board-header .header-view-switch .mobile-board-view { display:block; width:145px; max-width:100%; border:0; border-radius:6px; min-height:32px; background:white; padding:4px 8px; font-size:13px; color:#22334b; }
   .assessment-list { margin:12px 4px; }
+  .assessment-list:not(.assessment-list-compact) { margin:12px 4px; }
+  .assessment-list-viewbar { gap:4px 8px; margin-bottom:8px; }
+  .assessment-list .assessment-list-modes button { padding:5px 8px; font-size:12px; }
+  .assessment-list .assessment-list-recurring { font-size:11px; }
   .assessment-list-heading { gap:8px; margin-bottom:12px; align-items:flex-start; }
   .assessment-list-heading h2 { font-size:22px; }
   .assessment-list-heading p { font-size:12px; }
@@ -1304,12 +1320,15 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
   .assessment-col-name { width:auto; }
   .assessment-col-weight { width:15%; }
   .assessment-col-date { width:34%; }
+  .assessment-list-single-unit .assessment-col-date { width:34%; }
   .assessment-col-unit,.assessment-list-unit-heading,.assessment-list-unit { display:none; }
   .assessment-list-table th button { font-size:10px; gap:2px; }
   .assessment-list-table th button svg { width:10px; }
   .assessment-list-table td { padding:6px 4px; }
   .assessment-list .assessment-list-title { font-size:12px; }
   .assessment-list-date { font-size:11px; }
+  .assessment-list .assessment-list-summary-date { font-size:11px; }
+  .assessment-list .assessment-list-summary-date small { display:block; margin-left:0; }
   .assessment-list-weight,.assessment-list-date small,.assessment-list .assessment-list-progress { font-size:10px; }
   .assessment-list-mobile-unit { display:block; font-size:10px; margin-top:2px; }
   .assessment-list-child-row .assessment-list-name { padding-left:10px; }
