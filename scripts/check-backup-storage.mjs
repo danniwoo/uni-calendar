@@ -26,5 +26,13 @@ assert.equal(read("alice").data,"new-a");assert.equal(recovery("alice").data,"bo
 assert.throws(()=>switchBoard("alice",2,"failed-a",true));
 assert.equal(read("alice").data,"new-a");assert.equal(recovery("alice").data,"board-a");
 assert.equal(switchBoard("alice",2,"third-a"),1);assert.equal(recovery("alice").data,"new-a");
+const grades={tasks:[{id:"quiz",grade:{earned:14,possible:20}},{id:"exam",grade:{earned:0,possible:100}}]};
+assert.equal(save.run("grades",JSON.stringify(grades),"now",0).changes,1);
+assert.deepEqual(JSON.parse(read("grades").data),grades,"Grade fractions and explicit zeros survive storage");
+assert.equal(save.run("grades",JSON.stringify({tasks:[]}),"now",0).changes,0,"A stale save cannot discard grades");
+assert.deepEqual(JSON.parse(read("grades").data),grades);
+grades.tasks[0].grade=null;
+assert.equal(save.run("grades",JSON.stringify(grades),"now",1).changes,1);
+assert.equal(JSON.parse(read("grades").data).tasks[0].grade,null,"Clearing a grade persists independently from zero");
 db.close();
 console.log("PASS: recovery SQL, account isolation, stale-revision safety, transaction rollback and one-step recovery rotation.");

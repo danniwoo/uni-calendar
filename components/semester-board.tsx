@@ -45,6 +45,7 @@ import { activeTasks, backupText, readBackup, replaceBoard, sameUnits } from "@/
 import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
 import { AssessmentList } from "@/components/assessment-list";
+import { saveGrade } from "@/lib/grades";
 import { PersonalEditor } from "@/components/personal-editor";
 import { isPersonal,calendarOwns } from "@/lib/personal-items";
 import { MonthCalendar } from "@/components/month-calendar";
@@ -204,7 +205,7 @@ export default function SemesterBoard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            syncVersion: 2,
+            syncVersion: 3,
             semester: snapshot,
             revision: revision.current,
           }),
@@ -408,7 +409,7 @@ export default function SemesterBoard() {
       return;
     }
     const previous = semester.tasks.find(t=>t.id === draft.id) || semester.units.flatMap(u=>u.assessments).find(t=>t.id===draft.id);
-    const edited = { ...draft, title: draft.title.trim(), week, dueWeek:preservedDueWeek, ...(draftGroup ? {splitCount:draftChildren.length||draft.splitCount,date:undefined,time:undefined,week:undefined,dueWeek:undefined} : {}) };
+    const edited = { ...draft, grade:previous?.grade, title: draft.title.trim(), week, dueWeek:preservedDueWeek, ...(draftGroup ? {splitCount:draftChildren.length||draft.splitCount,date:undefined,time:undefined,week:undefined,dueWeek:undefined} : {}) };
     const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime","splitCount"];
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
@@ -743,7 +744,7 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment}/></div>
+          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment} onGrade={(id,grade,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGrade(s,id,grade,expected));}}/></div>
           {view==="assessments" ? null : view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} focusItem={calendarFocus} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>

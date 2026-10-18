@@ -2,17 +2,21 @@
 import { Fragment, useId, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Search, Plus, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { COLORS, type Semester, type Task } from "@/lib/semester";
+import { COLORS, type Semester, type Task, type Grade } from "@/lib/semester";
+import { AssessmentGrades } from "@/components/assessment-grades";
 import { assessmentRows, assessmentListDate, assessmentListWeight, assessmentDateContext, assessmentDateSections, assessmentDateMatches, assessmentStepLabel, assessmentOverviewSchedule, isRecurringAssessment, defaultAssessmentFilters, type AssessmentDisplay, type AssessmentFilters, type AssessmentSort } from "@/lib/assessment-list";
 
-export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd}:{
+export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade}:{
   semester:Semester; today:string; unit?:string; compact?:boolean;
   onOpen:(task:Task)=>void; onToggle:(task:Task)=>void; onAdd?:(unit?:string)=>void;
+  onGrade?:(id:string,grade:Grade|null,expected:Grade|null|undefined)=>void;
 }) {
   const [filters,setFilters]=useState<AssessmentFilters>({...defaultAssessmentFilters,unit:unit||""});
   const [expanded,setExpanded]=useState<Set<string>>(new Set());
   const [display,setDisplay]=useState<AssessmentDisplay>("overview");
+  const [showGrades,setShowGrades]=useState(false);
   const overview=display==="overview";
+  const grades=overview&&showGrades&&!!onGrade;
   const id=useId();
   const upcomingRef=useRef<HTMLTableRowElement>(null);
   const effective={...filters,unit:unit||filters.unit};
@@ -42,8 +46,10 @@ export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggl
       <label><span className="sr-only">Completion</span><select aria-label="Filter assessments by completion" value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value as AssessmentFilters["status"]})}><option value="all">All statuses</option><option value="open">Not recorded complete</option><option value="done">Recorded complete</option></select></label>
       <label><span className="sr-only">Schedule</span><select aria-label="Filter assessments by schedule" value={filters.dates} onChange={e=>setFilters({...filters,dates:e.target.value as AssessmentFilters["dates"]})}><option value="all">All dates</option><option value="upcoming">Today & upcoming</option><option value="past">Past dates</option><option value="unknown">Date to confirm</option><option value="exams">Awaiting exam date</option></select></label>
     </div>
+    {onGrade&&overview&&<label className="grade-display-toggle" htmlFor={`${id}-grades`}><Checkbox id={`${id}-grades`} checked={showGrades} onCheckedChange={v=>setShowGrades(v===true)}/>Show grades</label>}
     <div className="assessment-list-tools"><span role="status">{rows.length} of {total} assessments{filtered&&" · filtered"}</span><div>{upcomingKey&&<button className="assessment-list-jump" onClick={()=>{upcomingRef.current?.scrollIntoView({block:"start"});upcomingRef.current?.focus({preventScroll:true});}}>Jump to upcoming</button>}<label>Sort <select aria-label="Sort assessments" value={filters.sort} onChange={e=>setFilters({...filters,sort:e.target.value as AssessmentSort,descending:e.target.value==="weight"})}><option value="date">Due / scheduled</option><option value="title">Name</option><option value="unit">Unit</option><option value="weight">Weight</option></select></label><button aria-label={filters.descending?"Sort ascending":"Sort descending"} title={filters.descending?"Sort ascending":"Sort descending"} onClick={()=>setFilters({...filters,descending:!filters.descending})}>{filters.descending?<ArrowDown size={15}/>:<ArrowUp size={15}/>}</button>{filtered&&<button onClick={()=>setFilters({...defaultAssessmentFilters,unit:unit||""})}>Clear filters</button>}</div></div>
-    <div className="assessment-list-table-wrap"><table className="assessment-list-table">
+    {onGrade&&<div hidden={!grades}><AssessmentGrades semester={semester} rows={rows} unit={effective.unit} onGrade={onGrade} onOpen={onOpen} onToggle={onToggle}/></div>}
+    <div className="assessment-list-table-wrap" hidden={grades}><table className="assessment-list-table">
       <caption className="sr-only">{overview?"One row per assessment. Group ranges show known dates across all steps; date sorting uses the earliest recorded schedule.":"Expand grouped assessments to see steps."} Completion is shared with your calendar, not a grade.</caption>
       <colgroup><col className="assessment-col-check"/><col className="assessment-col-name"/><col className="assessment-col-weight"/><col className="assessment-col-date"/>{showUnits&&<col className="assessment-col-unit"/>}</colgroup>
       <thead><tr><th scope="col">Done</th>{sortHeading("title","Assessment")}{sortHeading("weight","Weight")}{sortHeading("date",overview?"Due / dates":"Due / scheduled")}{showUnits&&<th className="assessment-list-unit-heading" scope="col" aria-sort={filters.sort==="unit"?(filters.descending?"descending":"ascending"):"none"}><button onClick={()=>changeSort("unit")}>Unit{filters.sort==="unit"&&(filters.descending?<ArrowDown size={13}/>:<ArrowUp size={13}/>)}</button></th>}</tr></thead>
@@ -65,6 +71,6 @@ export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggl
       })}</tbody>)}
     </table></div>
     {!rows.length&&<div className="assessment-list-empty"><strong>{total?"No assessments match these filters":"No assessments recorded yet"}</strong><p>{total?"Try a different search, unit or date filter.":"Add an assessment, or check your imported unit outlines. An empty list does not mean there is no coursework."}</p>{filtered&&<button onClick={()=>setFilters({...defaultAssessmentFilters,unit:unit||""})}>Clear filters</button>}</div>}
-    <p className="assessment-list-note">{overview?"One row per assessment. Ranges show known dates; date sorting uses the earliest schedule. Completion filters apply to the whole assessment.":"Groups are placed by the step shown; expand to see all steps. Completion filters apply to individual steps."} Group weights are totals. Unchecked means unrecorded, not necessarily unfinished.{filters.hideRecurring&&" Recurring assessments are hidden, not removed."}</p>
+    {!grades&&<p className="assessment-list-note">{overview?"One row per assessment. Ranges show known dates; date sorting uses the earliest schedule. Completion filters apply to the whole assessment.":"Groups are placed by the step shown; expand to see all steps. Completion filters apply to individual steps."} Group weights are totals. Unchecked means unrecorded, not necessarily unfinished.{filters.hideRecurring&&" Recurring assessments are hidden, not removed."}</p>}
   </section>;
 }

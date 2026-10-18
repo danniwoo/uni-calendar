@@ -17,6 +17,7 @@ export type ClassEvent = {
   week?: number;
   topic?: string;
 };
+export type Grade = { earned: number; possible: number };
 export type Task = {
   id: string;
   unit: string;
@@ -41,6 +42,8 @@ export type Task = {
   warning?: string;
   manual?: boolean;
   done?: boolean;
+  // A reported result for this assessment as a whole, independent of completion.
+  grade?: Grade | null;
   rules?: AssessmentRules;
   routine?: boolean;
   parentId?: string;
@@ -196,7 +199,7 @@ export function mergeSemester(
       return { ...t, ...prev, rules: t.rules, source: t.source, sourceText: t.sourceText,
         sourceConflict: t.sourceConflict,
         warning: [t.warning, "Previously edited: your dates are preserved. Compare with the current outline."].filter(Boolean).join(" ") };
-    const next = { ...t, done: prev.done, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
+    const next = { ...t, done: prev.done, grade: prev.grade, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
     for (const key of prev.overrides || [])
       (next as unknown as Record<string, unknown>)[key] = (prev as unknown as Record<string, unknown>)[key];
     return next;

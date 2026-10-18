@@ -1295,6 +1295,55 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .assessment-list-compact .assessment-col-weight { width:16%; }
 .assessment-list-compact .assessment-list-table td,.assessment-list-compact .assessment-list-table th { padding:8px 5px; }
 .assessment-list-compact .assessment-list-title { font-size:13px; }
+.assessment-list .grade-display-toggle { display:flex; align-items:center; gap:8px; width:fit-content; font-size:13px; margin:10px 0 4px; font-weight:400; }
+.grade-summary { border:1px solid #dbe1ec; border-radius:10px; background:white; margin:8px 0 14px; overflow:hidden; }
+.grade-summary-main { display:flex; gap:28px; align-items:center; padding:16px 20px; }
+.grade-summary-label { font-size:13px; color:#526176; }
+.grade-summary-number { font-size:30px; line-height:1.3; font-weight:600; color:#22334b; font-variant-numeric:tabular-nums; white-space:nowrap; }
+.grade-summary-main p { font-size:13px; margin:3px 0; }
+.grade-secondary,.grade-contribution { display:block; color:#637085; font-size:12px; }
+.grade-summary-footer { border-top:1px solid #e8edf4; padding:10px 20px; font-size:11px; color:#637085; }
+.grade-summary-footer details { margin-top:8px; }
+.grade-summary-footer summary { color:#2855c8; font-size:13px; cursor:pointer; }
+.grade-target { padding-top:12px; font-size:13px; color:#344760; }
+.grade-target label { display:flex; align-items:center; gap:10px; font-size:13px; }
+.grade-target p { margin:8px 0 0; }
+.grade-review { border-top:1px solid #e8edf4; padding:10px 20px; font-size:12px; color:#80531a; }
+.grade-review p { margin:8px 0; }
+.grade-review button { display:block; border:0; background:transparent; color:inherit; padding:5px 0; text-align:left; font-size:12px; }
+.grade-col-weight { width:11%; }.grade-col-result { width:23%; }.grade-col-date { width:28%; }
+.grade-edit-button { border:0; background:transparent; color:#2855c8; text-align:left; padding:3px 0; font-size:13px; min-height:32px; font-variant-numeric:tabular-nums; }
+.grade-edit-button small { display:block; color:#526176; font-size:12px; }
+.grade-date { font-size:12px; }.grade-date small { display:block; color:#637085; }
+.grade-mobile-date { display:none; }
+.grade-editor { padding:14px; background:#edf2ff; border:1px solid #c6d5f7; border-radius:8px; margin:12px 0; scroll-margin-top:100px; }
+.grade-editor>strong { color:#22334b; font-size:14px; }
+.grade-editor>p { font-size:12px; color:#526176; margin:6px 0 12px; }
+.grade-editor-fields { display:flex; align-items:flex-end; flex-wrap:wrap; gap:10px; }
+.grade-editor-fields label { display:grid; gap:5px; font-size:12px; margin:0; font-weight:400; }
+.grade-editor-fields input { width:110px; font-size:16px; }
+.grade-editor-fields select { max-width:100%; }
+.grade-editor-fields button { font-size:13px; }
+.grade-editor .grade-warning { color:#a02f36; margin-bottom:0; }
+.grade-feedback { font-size:12px; color:#526176; margin:6px 0; }
+.grade-feedback:empty { display:none; }
+.grade-unit-hint { font-size:13px; margin:12px 0; color:#526176; }
+@media(max-width:700px) {
+  .grade-summary-main { gap:10px; padding:12px; flex-wrap:wrap; }
+  .grade-summary-number { font-size:26px; }
+  .grade-summary-main>div:last-child { flex:1; min-width:170px; }
+  .grade-summary-main p { font-size:12px; }
+  .grade-summary-footer,.grade-review { padding:9px 12px; }
+  .grade-col-date,.grade-date { display:none; }
+  .grade-mobile-date { display:block; color:#637085; font-size:11px; margin-top:4px; }
+  .grade-col-weight { width:16%; }.grade-col-result { width:32%; }
+  .grade-edit-button { font-size:12px; min-height:44px; }
+  .grade-contribution,.grade-edit-button small { font-size:11px; }
+  .grade-editor-fields label:first-child { width:100%; }
+  .grade-editor-fields input { width:100%; }
+  .grade-editor-fields label:not(:first-child) { width:calc(50% - 5px); }
+  .grade-editor-fields button { min-height:44px; }
+}
 @media(max-width:700px) {
   .board-header .header-view-switch button { display:none; }
   .board-header .header-view-switch .mobile-board-view { display:block; width:145px; max-width:100%; border:0; border-radius:6px; min-height:32px; background:white; padding:4px 8px; font-size:13px; color:#22334b; }

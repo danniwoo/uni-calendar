@@ -1,5 +1,6 @@
 import type { Semester, Task } from "./semester";
 import {availabilityError} from "./assessment-schedule";
+import { validGrade } from "./grade-value";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const strings = (v: Record<string, unknown>, keys: string[]) => keys.every(k => typeof v[k] === "string");
@@ -17,6 +18,7 @@ const task = (v: unknown): v is Task => object(v)
   && (v.coverage === undefined || (Array.isArray(v.coverage) && v.coverage.every(n=>Number.isInteger(n) && n>=1 && n<=13)))
   && (v.overrides === undefined || (Array.isArray(v.overrides) && v.overrides.every(k=>typeof k === "string" && !["__proto__","constructor","prototype"].includes(k))))
   && rules(v.rules)
+  && (v.grade == null || validGrade(v.grade))
   && !availabilityError(v as unknown as Task);
 
 // Backups are complete snapshots, never a bag of tasks to merge into a different feed.

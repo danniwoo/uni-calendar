@@ -1,6 +1,7 @@
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { database } from "@/lib/storage";
 import { upgradeSemester } from "@/lib/importer";
+import { validGrade } from "@/lib/grade-value";
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user)
@@ -68,12 +69,16 @@ export async function PUT(request: Request) {
         { error: "Invalid semester backup or data." },
         { status: 400 },
       );
+    if ([...semester.tasks,...semester.units.flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{grade?:unknown})=>t.grade!=null&&!validGrade(t.grade)))
+      return Response.json({error:"Invalid grade. Check marks earned and maximum marks before saving."},{status:400});
     // Tabs running a pre-fix bundle must reload before editing a replaced board.
     // They do not understand replacement generations and could otherwise merge it back.
     const saved = await database().prepare("SELECT data, revision FROM semesters WHERE owner = ?").bind(user.userId).first<{data:string;revision:number}>();
     const previous = saved ? JSON.parse(saved.data) : null;
-    if (syncVersion !== 2 && previous?.boardGeneration)
+    if (syncVersion !== 2 && syncVersion !== 3 && previous?.boardGeneration)
         return Response.json({error:"This board was restored or switched. Export unsaved edits, then reload this tab before continuing."},{status:409});
+    if (syncVersion !== 3 && previous?.tasks?.some((t:{grade?:unknown})=>t.grade!==undefined))
+      return Response.json({error:"This board now includes grades. Export unsaved edits, then reload this older tab before saving so grades are preserved."},{status:409});
     if ((saved?.revision || 0) !== revision)
       return Response.json({error:"The saved board changed. Reload or resolve the conflict before saving."},{status:409});
     const switched = previous && (previous.boardGeneration !== semester.boardGeneration || previous.feedUrl !== semester.feedUrl
