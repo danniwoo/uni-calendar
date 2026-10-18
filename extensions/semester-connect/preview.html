@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Semester Connect · Read-only preview</title>
+  <link rel="stylesheet" href="preview.css">
+  <script type="module" src="preview.js"></script>
+</head>
+<body>
+  <header class="topbar"><div class="brand"><span class="brandmark" aria-hidden="true">S</span><strong>semester <span>connect</span></strong><span id="version" class="version">0.1.0</span></div><span class="readonly">Read-only local preview</span></header>
+  <main>
+    <section class="intro"><div><p class="eyebrow">CANVAS → PREVIEW ONLY</p><h1>Check your Canvas data.</h1><p class="lead">Your assignments and released marks, before we connect them to Semester.</p></div><button id="clear" class="secondary">Clear preview</button></section>
+    <div class="privacy"><span aria-hidden="true">✓</span><p><strong>No changes to Canvas or Semester.</strong> Reads happen only when you click. Preview data stays in memory in this tab — no uploads, saved grades, or background syncing.</p></div>
+    <section id="start" class="panel start">
+      <div><h2>Start with your Canvas account</h2><p id="start-copy">Keep your signed-in USYD Canvas tab open. We’ll read your name and active student course list first; you choose which course’s assignments to read.</p></div>
+      <button id="courses" class="primary">Read my courses</button>
+    </section>
+    <p id="message" class="message" role="status" aria-live="polite"></p>
+    <section id="workspace" hidden>
+      <div class="connection"><span><span class="dot" aria-hidden="true"></span> <strong id="identity"></strong><span id="account-id" class="muted"></span> · canvas.sydney.edu.au</span><span>Times: Australia/Sydney</span></div>
+      <div class="picker panel"><label for="course">Course <select id="course"><option value="">Choose a course…</option></select></label><button id="read" class="primary" disabled>Read selected course</button><p>Only active student enrollments are listed. Select your teaching unit, not a student portal. Nothing is selected automatically.</p></div>
+      <section id="results" hidden>
+        <div class="result-heading"><div><p class="eyebrow" id="course-code"></p><h2 id="course-title"></h2><p id="fetched" class="muted"></p></div><a id="canvas-grades" class="secondary link-button" target="_blank" rel="noopener noreferrer">Compare in Canvas ↗</a></div>
+        <div id="summary" class="summary"></div>
+        <p class="scope-note">Source records only. This is not a final grade, GPA, or weighted unit calculation. A blank or hidden score is never converted to zero.</p>
+        <details class="groups panel"><summary>Assignment groups &amp; weighting <span id="group-count"></span></summary><div id="groups"></div></details>
+        <div class="filters"><label class="search">Find an assignment <input id="search" type="search" placeholder="Search assignment names"></label><label>Grades <select id="status"><option value="all">All assignments</option><option value="released">Released grades</option><option value="other">Other / no released grade</option></select></label><span id="count" class="muted" aria-live="polite"></span></div>
+        <div class="table-wrap"><table><caption class="sr-only">Canvas assignments, due dates, released marks and submission status</caption><thead><tr><th scope="col">Assignment</th><th scope="col">Due · Sydney</th><th scope="col">Grade</th><th scope="col">Submission</th></tr></thead><tbody id="rows"></tbody></table><p id="empty" class="empty" hidden>No assignments match these filters.</p></div>
+        <p class="footnote">Open “Dates &amp; source details” for separate opening/closing dates and source IDs. Due dates use Canvas’s student-specific assignment response. Missing records or dates need checking in Canvas; they do not mean there is no work.</p>
+      </section>
+    </section>
+    <footer><span>Semester Connect · <span id="footer-version">0.1.0</span> · Manual preview</span><span>Close or clear this tab when you’re finished. No import in this version.</span></footer>
+  </main>
+</body>
+</html>

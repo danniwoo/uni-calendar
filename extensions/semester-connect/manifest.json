@@ -1,0 +1,13 @@
+{
+  "manifest_version": 3,
+  "name": "Semester Connect — Local Preview",
+  "version": "0.1.0",
+  "version_name": "0.1.0 · read-only local preview",
+  "description": "Preview your USYD Canvas assignments and released marks. Manual, read-only, and local to this preview tab.",
+  "permissions": ["activeTab", "scripting"],
+  "action": { "default_title": "Open Semester Connect from USYD Canvas" },
+  "background": { "service_worker": "background.js", "type": "module" },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'; connect-src 'none'; base-uri 'none'; frame-src 'none'"
+  }
+}
