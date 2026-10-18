@@ -32,7 +32,9 @@ assert.deepEqual(JSON.parse(read("grades").data),grades,"Grade fractions and exp
 assert.equal(save.run("grades",JSON.stringify({tasks:[]}),"now",0).changes,0,"A stale save cannot discard grades");
 assert.deepEqual(JSON.parse(read("grades").data),grades);
 grades.tasks[0].grade=null;
+grades.tasks[0].gradePlan={mode:"parts",method:"points",items:[{id:"p1",name:"Part 1",grade:{earned:2.7,possible:3}},{id:"p2",name:"Part 2",maximum:3,grade:null},{id:"demo",name:"Demo",excluded:true}]};
 assert.equal(save.run("grades",JSON.stringify(grades),"now",1).changes,1);
 assert.equal(JSON.parse(read("grades").data).tasks[0].grade,null,"Clearing a grade persists independently from zero");
+assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks[0].gradePlan,"Part scores, ungraded maxima and exclusions survive storage");
 db.close();
 console.log("PASS: recovery SQL, account isolation, stale-revision safety, transaction rollback and one-step recovery rotation.");

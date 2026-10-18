@@ -2,14 +2,15 @@
 import { Fragment, useId, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Search, Plus, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
-import { COLORS, type Semester, type Task, type Grade } from "@/lib/semester";
+import { COLORS, type Semester, type Task, type Grade, type GradePlan } from "@/lib/semester";
 import { AssessmentGrades } from "@/components/assessment-grades";
 import { assessmentRows, assessmentListDate, assessmentListWeight, assessmentDateContext, assessmentDateSections, assessmentDateMatches, assessmentStepLabel, assessmentOverviewSchedule, isRecurringAssessment, defaultAssessmentFilters, type AssessmentDisplay, type AssessmentFilters, type AssessmentSort } from "@/lib/assessment-list";
 
-export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade}:{
+export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade,onGradePlan}:{
   semester:Semester; today:string; unit?:string; compact?:boolean;
   onOpen:(task:Task)=>void; onToggle:(task:Task)=>void; onAdd?:(unit?:string)=>void;
   onGrade?:(id:string,grade:Grade|null,expected:Grade|null|undefined)=>void;
+  onGradePlan?:(id:string,plan:GradePlan,expected:GradePlan|null|undefined)=>void;
 }) {
   const [filters,setFilters]=useState<AssessmentFilters>({...defaultAssessmentFilters,unit:unit||""});
   const [expanded,setExpanded]=useState<Set<string>>(new Set());
@@ -39,16 +40,16 @@ export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggl
   const sectionContent=(section:typeof sections[number])=><><span>{section.label}</span><small>{section.detail}</small><small className="assessment-list-section-count">{section.rows.length} {section.rows.length===1?"assessment":"assessments"}</small></>;
   return <section className={`assessment-list${compact?" assessment-list-compact":""}${overview?" assessment-list-overview":""}${!showUnits?" assessment-list-single-unit":""}`} aria-label={unit?`${unit} assessment list`:"All assessments"}>
     {!compact&&<div className="assessment-list-heading"><div><h2>Assessments</h2><p>Your coursework, deadlines and assessment steps.</p></div>{onAdd&&<button className="primary" onClick={()=>onAdd(effective.unit||undefined)}><Plus size={16}/>Add assessment</button>}</div>}
-    <div className="assessment-list-viewbar"><div className="assessment-list-modes" role="group" aria-label="Assessment display"><button aria-pressed={overview} onClick={()=>setDisplay("overview")}>Overview</button><button aria-pressed={!overview} onClick={()=>setDisplay("schedule")}>Steps &amp; schedule</button></div><label className="assessment-list-recurring" htmlFor={`${id}-recurring`}><Checkbox id={`${id}-recurring`} checked={filters.hideRecurring} onCheckedChange={checked=>setFilters({...filters,hideRecurring:checked===true})}/>Hide recurring</label></div>
+    <div className="assessment-list-viewbar"><div className="assessment-list-modes" role="group" aria-label="Assessment display"><button aria-pressed={overview} onClick={()=>setDisplay("overview")}>Overview</button><button aria-pressed={!overview} onClick={()=>setDisplay("schedule")}>Steps &amp; schedule</button></div></div>
     <div className="assessment-list-filters">
       <label className="assessment-list-search"><Search size={16} aria-hidden="true"/><input aria-label="Search assessments" placeholder="Search assessments" value={filters.query} onChange={e=>setFilters({...filters,query:e.target.value})}/></label>
       {!unit&&<label><span className="sr-only">Filter by unit</span><select aria-label="Filter assessments by unit" value={filters.unit} onChange={e=>setFilters({...filters,unit:e.target.value})}><option value="">All units</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select></label>}
       <label><span className="sr-only">Completion</span><select aria-label="Filter assessments by completion" value={filters.status} onChange={e=>setFilters({...filters,status:e.target.value as AssessmentFilters["status"]})}><option value="all">All statuses</option><option value="open">Not recorded complete</option><option value="done">Recorded complete</option></select></label>
       <label><span className="sr-only">Schedule</span><select aria-label="Filter assessments by schedule" value={filters.dates} onChange={e=>setFilters({...filters,dates:e.target.value as AssessmentFilters["dates"]})}><option value="all">All dates</option><option value="upcoming">Today & upcoming</option><option value="past">Past dates</option><option value="unknown">Date to confirm</option><option value="exams">Awaiting exam date</option></select></label>
     </div>
-    {onGrade&&overview&&<label className="grade-display-toggle" htmlFor={`${id}-grades`}><Checkbox id={`${id}-grades`} checked={showGrades} onCheckedChange={v=>setShowGrades(v===true)}/>Show grades</label>}
+    <div className="grade-display-options">{onGrade&&overview&&<label className="grade-display-toggle" htmlFor={`${id}-grades`}><Checkbox id={`${id}-grades`} checked={showGrades} onCheckedChange={v=>setShowGrades(v===true)}/>Show grades</label>}<label className="grade-display-toggle" htmlFor={`${id}-recurring`}><Checkbox id={`${id}-recurring`} checked={filters.hideRecurring} onCheckedChange={checked=>setFilters({...filters,hideRecurring:checked===true})}/>Hide recurring</label></div>
     <div className="assessment-list-tools"><span role="status">{rows.length} of {total} assessments{filtered&&" · filtered"}</span><div>{upcomingKey&&<button className="assessment-list-jump" onClick={()=>{upcomingRef.current?.scrollIntoView({block:"start"});upcomingRef.current?.focus({preventScroll:true});}}>Jump to upcoming</button>}<label>Sort <select aria-label="Sort assessments" value={filters.sort} onChange={e=>setFilters({...filters,sort:e.target.value as AssessmentSort,descending:e.target.value==="weight"})}><option value="date">Due / scheduled</option><option value="title">Name</option><option value="unit">Unit</option><option value="weight">Weight</option></select></label><button aria-label={filters.descending?"Sort ascending":"Sort descending"} title={filters.descending?"Sort ascending":"Sort descending"} onClick={()=>setFilters({...filters,descending:!filters.descending})}>{filters.descending?<ArrowDown size={15}/>:<ArrowUp size={15}/>}</button>{filtered&&<button onClick={()=>setFilters({...defaultAssessmentFilters,unit:unit||""})}>Clear filters</button>}</div></div>
-    {onGrade&&<div hidden={!grades}><AssessmentGrades semester={semester} rows={rows} unit={effective.unit} onGrade={onGrade} onOpen={onOpen} onToggle={onToggle}/></div>}
+    {onGrade&&<div hidden={!grades}><AssessmentGrades semester={semester} rows={rows} unit={effective.unit} onGrade={onGrade} onGradePlan={onGradePlan} onOpen={onOpen} onToggle={onToggle}/></div>}
     <div className="assessment-list-table-wrap" hidden={grades}><table className="assessment-list-table">
       <caption className="sr-only">{overview?"One row per assessment. Group ranges show known dates across all steps; date sorting uses the earliest recorded schedule.":"Expand grouped assessments to see steps."} Completion is shared with your calendar, not a grade.</caption>
       <colgroup><col className="assessment-col-check"/><col className="assessment-col-name"/><col className="assessment-col-weight"/><col className="assessment-col-date"/>{showUnits&&<col className="assessment-col-unit"/>}</colgroup>
