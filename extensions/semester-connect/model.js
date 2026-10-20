@@ -2,6 +2,7 @@ export const CANVAS_ORIGIN = "https://canvas.sydney.edu.au";
 export const TIMEZONE = "Australia/Sydney";
 export const ERRORS = {
   WRONG_SITE: "Open USYD Canvas, then click Semester Connect in Chrome’s toolbar again.",
+  VERSION_MISMATCH: "Semester Connect has changed. Reload it at chrome://extensions, close this preview, then reopen from Canvas and read again. Old downloads are not updated automatically.",
   INVALID_REQUEST: "This preview could not start. Reopen it from your Canvas tab.",
   LOGIN_REQUIRED: "Your Canvas login is missing or expired. Sign in to Canvas, then reopen Semester Connect.",
   FORBIDDEN: "Canvas did not allow this read. Check that you are signed in as a student. No data was changed.",
@@ -27,6 +28,9 @@ export function gradeView(assignment) {
   const s = assignment.submission;
   if (s?.excused) return { label: "Excused", detail: "Not treated as zero", kind: "neutral" };
   if (assignment.gradingType === "not_graded") return { label: "Not graded", detail: "No numerical grade expected", kind: "neutral" };
+  if (s?.released === true && assignment.gradingType === "pass_fail" && /^(complete|incomplete)$/i.test(s.grade || "")) {
+    return { label: s.grade.toLowerCase() === "complete" ? "Complete" : "Incomplete", detail: "Canvas result · not converted to a percentage", kind: "released" };
+  }
   if (s?.released === true && typeof s.score === "number" && Number.isFinite(s.score)) {
     const max = assignment.pointsPossible;
     const validMax = typeof max === "number" && Number.isFinite(max);
@@ -34,6 +38,7 @@ export function gradeView(assignment) {
     return { label: `${s.score} / ${validMax ? max : "?"}`, detail: percent, kind: "released" };
   }
   if (s?.released === true && s.grade) return { label: s.grade, detail: "Canvas grade · no numeric score", kind: "released" };
+  if (s?.unavailableReason === "hidden-in-canvas") return { label: "Not released in Canvas", detail: "Hidden by Canvas · not zero", kind: "pending" };
   if (s?.state === "graded" || (s && !s.released && s.postedAt)) return { label: "Grade unavailable", detail: "Not confirmed released · not zero", kind: "pending" };
   if (s?.submittedAt || s?.state === "submitted" || s?.state === "pending_review") return { label: "Awaiting grade", detail: "No released score provided", kind: "pending" };
   return { label: "No released grade", detail: "Not treated as zero", kind: "neutral" };
@@ -48,6 +53,11 @@ export function submissionLabel(a) {
   if (s.state === "pending_review") return "Pending review";
   if (s.state === "unsubmitted") return "Not submitted";
   return s.state || "Status not provided";
+}
+export function releasedSummary(rows) {
+  const released = rows.filter(a => gradeView(a).kind === "released");
+  const numeric = released.filter(a => typeof a.submission?.score === "number" && Number.isFinite(a.submission.score)).length;
+  return `${numeric} numeric grades${released.length > numeric ? ` + ${released.length - numeric} text results` : ""}`;
 }
 export function visibleAssignments(rows, query, status) {
   const search = query.trim().toLocaleLowerCase();

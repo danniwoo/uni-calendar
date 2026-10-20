@@ -1,5 +1,5 @@
-import { readCanvas } from "./reader.js";
-import { CANVAS_ORIGIN, ERRORS, dateLabel, gradeView, submissionLabel, visibleAssignments } from "./model.js";
+import { readCanvas, READER_VERSION } from "./reader.js";
+import { CANVAS_ORIGIN, ERRORS, dateLabel, gradeView, releasedSummary, submissionLabel, visibleAssignments } from "./model.js";
 
 const $ = (id) => document.getElementById(id);
 const params = new URL(location.href).searchParams;
@@ -57,6 +57,7 @@ function clear(text = "Preview cleared. No grades were saved. You can read your 
   controls();
 }
 async function execute(request) {
+  if (version !== READER_VERSION || chrome.runtime.getManifest().version !== version) throw new Error("VERSION_MISMATCH");
   if (sourceTab === null) throw new Error("WRONG_SITE");
   let tab;
   try { tab = await chrome.tabs.get(sourceTab); } catch { throw new Error("TAB_CLOSED"); }
@@ -64,10 +65,11 @@ async function execute(request) {
   catch { throw new Error("ACCESS"); }
   let results;
   try {
-    results = await chrome.scripting.executeScript({ target: { tabId: sourceTab }, world: "ISOLATED", func: readCanvas, args: [request] });
+    results = await chrome.scripting.executeScript({ target: { tabId: sourceTab }, world: "ISOLATED", func: readCanvas, args: [{ ...request, expectedVersion: version }] });
   } catch { throw new Error("ACCESS"); }
   const result = results?.[0]?.result;
   if (!result || result.ok !== true) throw new Error(result?.code || "INVALID_RESPONSE");
+  if (result.readerVersion !== version) throw new Error("VERSION_MISMATCH");
   return result;
 }
 async function read(operation) {
@@ -132,6 +134,7 @@ function render() {
   $("group-count").textContent = groupsUnavailable ? "· unavailable" : `· ${groups.length}`;
   $("groups").replaceChildren(element("p", groupsUnavailable ? "Canvas did not return the assignment groups. Weights are unavailable, not zero. The assignment list was read successfully." : course.weighted === true ? "Canvas reports weighted assignment groups. These are group totals, not each assignment’s weight. Rules are shown, not calculated here." : course.weighted === false ? "Canvas reports that group weighting is OFF. The configured weights below are not applied weights." : "Canvas did not confirm whether group weighting is enabled. Do not assume the percentages below are applied."));
   $("read-warning").textContent = snapshot.marksPageUnavailable ? "Marks-page cross-check unavailable. Posted API grades are shown; other scores remain unavailable. Compare in Canvas before importing." : "Grades checked against the student Marks page where supported. Hidden marks and What-If values are not imported.";
+  $("read-warning").textContent += ` ${releasedSummary(assignments)}. Complete/Incomplete stays text in this preview and download; Semester’s current grade calculator imports numeric marks only.`;
   const grid = element("div", null, "group-list");
   for (const g of groups) {
     const item = element("div", null, "group-item");
@@ -198,10 +201,10 @@ $("read-many").addEventListener("click", async () => {
         const result = await execute({operation:"course",courseId:id,expectedUserId:user.id});
         if (ownGeneration !== generation) return;
         snapshots.set(id,result);
-        statuses.push(`${result.course.code}: ${result.assignments.length} items, ${result.assignments.filter(a => gradeView(a).kind === "released").length} released grades`);
+        statuses.push(`${result.course.code}: ${result.assignments.length} items, ${releasedSummary(result.assignments)}`);
       } catch (error) {
         if (ownGeneration !== generation) return;
-        if (["ACCOUNT_CHANGED","LOGIN_REQUIRED","ACCESS","TAB_CLOSED"].includes(error.message)) throw error;
+        if (["ACCOUNT_CHANGED","LOGIN_REQUIRED","ACCESS","TAB_CLOSED","VERSION_MISMATCH"].includes(error.message)) throw error;
         statuses.push(`${courses.find(c=>c.id===id)?.code || id}: ${error.message in ERRORS ? error.message : "INVALID_RESPONSE"} — retry this course`);
       }
       $("batch-status").textContent = statuses.join("\n");
@@ -215,6 +218,9 @@ $("read-many").addEventListener("click", async () => {
 $("export").addEventListener("click", () => {
   const ids=selectedCourses();
   if(busy || !user || !ids.length || ids.length>8 || ids.some(id=>!snapshots.has(id)))return;
+  if(version!==READER_VERSION || chrome.runtime.getManifest().version!==version || ids.some(id=>snapshots.get(id).readerVersion!==version)){
+    clear(ERRORS.VERSION_MISMATCH,true);return;
+  }
   const data={format:"semester-connect",schemaVersion:1,extensionVersion:version,source:CANVAS_ORIGIN,accountId:user.id,exportedAt:new Date().toISOString(),courses:ids.map(id=>{
     const {course,assignments,groups,groupsUnavailable,marksPageUnavailable,fetchedAt}=snapshots.get(id);
     return {course,assignments,groups,groupsUnavailable,marksPageUnavailable,fetchedAt};

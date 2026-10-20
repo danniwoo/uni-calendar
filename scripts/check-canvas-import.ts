@@ -71,3 +71,15 @@ const ambiguous=structuredClone(b);ambiguous.courses[0].assignments[1].name=ambi
 assert.equal(Object.keys(suggestCanvasMatches(exact,ambiguous).choices).length,0,"many-to-one exact title guesses all skipped");
 assert.equal(validCanvasMetadata({...updated.semester,canvasImports:[{...updated.semester.canvasImports![0],lastGrade:{earned:11,possible:10}}]}),false);
 console.log("PASS: remembered/exact matching, ambiguity, source-owned grade updates, stale files, legacy/manual protection and ungraded-to-released transitions.");
+
+// Connect 0.2.2 preserves pass/fail as text with no fabricated numeric score.
+// Format 1 readers accept extra source facts but never turn Complete into 100%.
+const textResult=structuredClone(b);
+Object.assign(textResult,{extensionVersion:"0.2.2"});
+Object.assign(textResult.courses[0].assignments[0],{gradingType:"pass_fail"});
+Object.assign(textResult.courses[0].assignments[0].submission!,{released:true,score:null,grade:"complete",unavailableReason:null,releaseEvidence:"marks-page"});
+const parsedText=readCanvasBundle(JSON.stringify(textResult));
+assert.equal(planCanvasImport(s,parsedText,[choices[0]]).semester.tasks[0].grade,undefined);
+assert.deepEqual(planCanvasImport(applied.semester,parsedText,[choices[0]]).semester.tasks[0].grade,applied.semester.tasks[0].grade,"text-only result never clears an existing numeric grade");
+assert.deepEqual(planCanvasImport(s,parsedText,[choices[1]]).semester.tasks[1].grade,s.tasks[1].grade,"manual grade remains protected");
+console.log("PASS: Connect 0.2.2 text results accepted without invented marks or overwriting saved grades.");

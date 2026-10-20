@@ -2,8 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
 import { readFile } from "node:fs/promises";
-import { readCanvas } from "../reader.js";
-import { dateLabel, gradeView, submissionLabel, visibleAssignments } from "../model.js";
+import { readCanvas, READER_VERSION } from "../reader.js";
+import { dateLabel, gradeView, releasedSummary, submissionLabel, visibleAssignments } from "../model.js";
 
 const ORIGIN = "https://canvas.sydney.edu.au";
 const profile = { id: 91, name: "Synthetic Student", primary_email: "DO NOT FORWARD", avatar_url: "DO NOT FORWARD" };
@@ -44,8 +44,10 @@ async function run(options = {}) {
 test("extension version and least-privilege manifest are consistent", async () => {
   const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url)));
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
-  assert.equal(manifest.version, "0.2.1");
+  assert.equal(manifest.version, "0.2.2");
   assert.equal(pkg.version, manifest.version);
+  assert.equal(READER_VERSION, manifest.version);
+  assert.equal((await run()).result.readerVersion, manifest.version);
   assert.equal(manifest.manifest_version, 3);
   assert.deepEqual(manifest.permissions, ["activeTab", "scripting"]);
   for (const key of ["host_permissions", "externally_connectable", "content_scripts", "web_accessible_resources"]) assert.equal(manifest[key], undefined);
@@ -81,7 +83,8 @@ test("single-course responses without enrollment fields still verify against the
 function marksParser(rows,supported=true){return class {parseFromString(){return {
   querySelector:()=>supported?{}:null,
   querySelectorAll:()=>rows.map(r=>({id:`submission_${r.id}`,getAttribute:key=>key==="data-muted"?String(!!r.muted):String(!!r.pending),querySelector:()=>({
-    closest:()=>r.hidden?{}:r.bootstrap?{id:"grade-summary-content",hasAttribute:()=>false,getAttribute:()=>null,style:{},parentElement:{closest:()=>r.outerHidden?{}:null}}:null,querySelector:()=>r.icon?{}:null,
+    closest:()=>r.hidden?{}:r.bootstrap?{id:"grade-summary-content",hasAttribute:()=>false,getAttribute:()=>null,style:{},parentElement:{closest:()=>r.outerHidden?{}:null}}:null,
+    querySelector:selector=>selector.includes(".icon-off")&&r.icon?{}:null,querySelectorAll:()=>[],
     cloneNode:()=>({textContent:String(r.score),querySelectorAll:()=>[],querySelector:()=>null})
   })}))
 };}};}
@@ -110,6 +113,38 @@ test("four independently selected courses use their own endpoints, not a fixed f
     }});
     assert.equal(result.ok,true);assert.equal(result.course.id,String(c.id));assert.equal(result.assignments[0].submission.score,14);
   }
+});
+test("deprecated assignment muted never vetoes a released grade; real visibility still does", async () => {
+  for (const DOMParser of [undefined, marksParser([{id:1,score:14}])]) {
+    const {result}=await run({DOMParser,assignments:[{...assignment,muted:true}]});
+    assert.equal(result.assignments[0].submission.score,14);
+    assert.equal(result.assignments[0].submission.released,true);
+  }
+  for (const overrides of [
+    {DOMParser:marksParser([{id:1,score:14,muted:true}])},
+    {DOMParser:marksParser([{id:1,score:14,pending:true}])},
+    {DOMParser:marksParser([{id:1,score:14}]),submission:{...posted,grade_hidden:true}},
+    {submission:{...posted,posted_at:null}},
+  ]) {
+    const {result}=await run({...overrides,assignments:[{...assignment,muted:true,submission:overrides.submission||posted}]});
+    assert.equal(result.assignments[0].submission.score,null);
+    assert.equal(result.assignments[0].submission.released,false);
+  }
+});
+test("posted pass/fail results stay text, never inferred numeric grades",async()=>{
+  for (const grade of ["complete","incomplete"]) {
+    const {result}=await run({assignments:[{...assignment,muted:true,grading_type:"pass_fail",submission:{...posted,grade}}]});
+    const a=result.assignments[0];
+    assert.equal(a.submission.score,null);
+    assert.equal(a.submission.grade,grade);
+    assert.equal(gradeView(a).kind,"released");
+    assert.match(gradeView(a).detail,/not converted/);
+  }
+});
+test("reader refuses mixed versions before accessing Canvas",async()=>{
+  const {result,requests}=await run({request:{operation:"courses",expectedVersion:"0.1.0"}});
+  assert.deepEqual(result,{ok:false,code:"VERSION_MISMATCH"});
+  assert.equal(requests.length,0);
 });
 test("null/hidden/unposted/excused scores do not cross the reader boundary", async () => {
   const cases = [
@@ -217,4 +252,12 @@ test("filter and date sort keep undated assignments last", () => {
   assert.deepEqual(visibleAssignments(rows, "QUIZ", "all").map((a) => a.id), ["b", "a"]);
   assert.equal(visibleAssignments(rows, "", "released")[0].id, "b");
   assert.equal(visibleAssignments(rows, "", "other")[0].id, "a");
+});
+test("summary distinguishes numeric grades from text results and excludes hidden/excused",()=>{
+  assert.equal(releasedSummary([
+    {submission:{released:true,score:0}},
+    {gradingType:"pass_fail",submission:{released:true,score:null,grade:"complete"}},
+    {submission:{released:false,score:null}},
+    {submission:{released:true,score:5,excused:true}},
+  ]),"1 numeric grades + 1 text results");
 });

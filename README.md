@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.4.1** · **Semester Connect 0.2.1**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.4.1** · **Semester Connect 0.2.2**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -16,7 +16,8 @@ Current source versions: **Semester Web 0.4.1** · **Semester Connect 0.2.1**. C
 | [PROGRESS.md](PROGRESS.md) | Concise engineering handoff, code map, checks and safety constraints. |
 | [Connect guide](extensions/semester-connect/README.md) | Chrome installation/reload, reading Canvas and reviewed import. |
 | [Connect changelog](extensions/semester-connect/CHANGELOG.md) | Independently versioned extension changes. |
-| [Historical checkpoints](docs/archive/IMPLEMENTATION-2026-10-20.md) | Past implementation milestones; not current priorities or proof of user acceptance. |
+| [Historical milestones](docs/archive/IMPLEMENTATION-2026-10-20.md) | Short digest of past implementation milestones; not current priorities or proof of user acceptance. |
+| [Full historical PROGRESS](docs/archive/PROGRESS-2026-10-20-full.md) | Verbatim detailed engineering log: decisions, fixes, limitations and test evidence. Historical context, not current instructions. |
 
 ## What works today
 

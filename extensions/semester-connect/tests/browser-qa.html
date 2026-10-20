@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><title>Semester Connect — synthetic reader QA</title>
+<style>body{font:16px system-ui;max-width:1000px;margin:40px auto;color:#17243a}button,a{font:inherit;padding:12px}li{margin:5px}.pass{color:#15705a}.fail{color:#b32334}</style>
+<h1>Semester Connect — synthetic reader QA</h1>
+<p>No Canvas connection, no real grades, no account writes. Runs the actual serialized reader against invented API responses and real browser DOMParser.</p>
+<button id="run">Run browser checks</button>
+<a href="/preview.html?tab=10">Open synthetic preview</a>
+<h2 id="result">Not run</h2><ol id="checks"></ol>
+<script type="module">
+import {runChecks} from "./browser-fixtures.js";
+document.querySelector("#run").onclick=async()=>{
+  const button=document.querySelector("#run"), result=document.querySelector("#result"), list=document.querySelector("#checks");
+  button.disabled=true; list.replaceChildren(); let count=0;
+  try{
+    await runChecks((ok,name)=>{const li=document.createElement("li");li.className=ok?"pass":"fail";li.textContent=`${ok?"PASS":"FAIL"}: ${name}`;list.append(li);count++;});
+    result.textContent=`${count} / ${count} checks passed`;
+  }catch(e){result.textContent=`FAILED: ${e.message}`;}finally{button.disabled=false;}
+};
+</script></html>

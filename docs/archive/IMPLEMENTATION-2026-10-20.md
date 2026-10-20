@@ -2,13 +2,13 @@
 
 **Archive, not a current plan or acceptance record.** Earlier checkpoints mixed implementation, synthetic QA, pending publication and user-test requests. Later work superseded some exclusions and defects. Use [ROADMAP](../../ROADMAP.md) for what to resume and [PROGRESS](../../PROGRESS.md) for current engineering context.
 
-The complete former checkpoint log remains in Git:
+The [complete former checkpoint log is preserved verbatim here](PROGRESS-2026-10-20-full.md), including implementation details, caveats and test evidence. This digest supplements that full snapshot; it does not replace it. The original is also available in Git:
 
 ```sh
 git show 0374e9c:PROGRESS.md
 ```
 
-This digest preserves the meaningful history without duplicating old session quotas, machine-specific paths or stale instructions. Historical `vNN` labels were deployment/checkpoint labels, not the current Web/Connect SemVer sequence. They do not prove that a user accepted a workflow.
+This digest provides a shorter overview; session-specific details and superseded instructions remain in the full snapshot for historical reference only. Historical `vNN` labels were deployment/checkpoint labels, not the current Web/Connect SemVer sequence. They do not prove that a user accepted a workflow.
 
 | Period / checkpoint | What was built or changed | Carry-forward lesson |
 | --- | --- | --- |

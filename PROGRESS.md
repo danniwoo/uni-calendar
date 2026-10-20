@@ -4,12 +4,12 @@ Updated: 2026-10-20. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
-- Web **0.4.1**, Connect **0.2.1**, import format **1**, web sync guard **v6**.
+- Web **0.4.1**, Connect **0.2.2**, import format **1**, web sync guard **v6**.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
 - Web release was published in the preceding release workflow. Connect remains an unpacked extension requiring Chrome reload and a fresh preview/read/download.
 - Safe updates reuse confirmed account/course/item mappings and compare source baselines. Manual edits/clears, stale files, legacy records without a baseline and removed items are protected.
-- The reader fix ignores only Canvas's known bootstrap-hidden Marks wrapper; actual hidden/pending/What-If scores remain excluded.
-- **Real four-course verification after extension reload remains outstanding** ([CONNECT-01](ROADMAP.md#connect-01)). Do not claim synthetic tests completed this trial.
+- Connect 0.2.2 additionally removes the incorrect API `assignment.muted` veto (deprecated notification flag); student Marks row `data-muted`, pending quiz, submission `grade_hidden` and excused checks remain authoritative. Complete/Incomplete icon + accessibility-label pairs are text-only (`score:null`), not inferred percentages.
+- A user-generated 0.2.2 export after reload passed format validation; released numeric/text results matched the earlier read-only four-course Marks comparison. End-to-end mapping/import acceptance remains outstanding ([CONNECT-01](ROADMAP.md#connect-01)). No private export or individual marks belong in Git.
 - Web 0.4.1 adds missing manual-assessment deletion, confirmation and immediate conflict-aware undo. `manual` alone is not provenance: require a saved `manual-` root absent from outline assessments. Cascade descendants, retain Canvas ledgers, and reject stale confirmation/source-defined descendants.
 - No live user records were changed during QA. User acceptance remains T09 / FLOW-01-F1 in ROADMAP; previous workstreams retain their pending tests.
 
@@ -20,6 +20,7 @@ Updated: 2026-10-20. **Priorities, resumable work and acceptance tests live only
 3. Inspect relevant code and tests below; reproduce the specific issue before changing behaviour.
 4. On handoff, update the same roadmap card's next action and test evidence. “Implemented”, “published” and “user verified” are separate facts.
 5. Record code/check details here only when they help the next session. Release notes belong in the appropriate changelog.
+6. Preserve detailed implementation reasoning, failed approaches, edge cases and test evidence. Before shortening this handoff, move the full prior text into a dated archive with a historical-status warning and link it here; a summary or Git history alone is not a replacement.
 
 ## Code map
 
@@ -38,6 +39,14 @@ Updated: 2026-10-20. **Priorities, resumable work and acceptance tests live only
 Check filenames without a directory prefix in the table are under `scripts/`. Commands and local database setup are in [README](README.md#local-development).
 
 ## Verification evidence and limits
+
+Connect 0.2.2: 34 Node tests and 81 real-browser DOMParser assertions passed, plus four-course synthetic preview selection/batch read, grade filters, mixed-manifest error UI and the website's complete import-protection regression script. Reproducible harness: `extensions/semester-connect/scripts/qa-server.mjs`. It serves only synthetic fixtures on localhost; production reader body is unchanged, with lexical origin/fetch doubles. No real grades are fixtures.
+
+Diagnosis used read-only live Marks pages and a focused API comparison: deprecated assignment `muted:true` existed alongside posted scores visible to the student. Complete icons were incorrectly caught by the generic `aria-hidden` descendant rejection. The user's earlier export also identified an older manifest version, so 0.2.2 checks manifest/reader/preview consistency before read/export. Keep the embedded reader version synchronized (Node test enforces this).
+
+Installed-extension end-to-end QA is **not complete**: browser policy blocks `chrome-extension://` access. Do not circumvent it. The user subsequently reloaded and supplied a fresh 0.2.2 four-course export; released results were checked against earlier live evidence and passed the website parser. This does not validate every date, mapping or write. No real import, Canvas mutation or web publication occurred for this extension patch.
+
+Known follow-up: an unsubmitted pass/fail item with `posted_at` but no result can retain `released:true` with `score:null` and empty `grade`. Preview counts/calculation exclude it, and import does not turn it into zero. Normalize this metadata in a future patch with a regression test; submission state, result visibility and completion are separate concepts. The user confirmed that the affected work was not submitted.
 
 For 0.4.1, all web regression scripts, storage checks and TypeScript passed. The temporary full-board browser harness intercepted account API calls with synthetic data only. It verified deletion from summary/edit, cancellation, Undo restoring grades/completion, group scope, imported-item protection, simulated reload persistence and removal from Week. The harness was removed before packaging. Production-build/publication verification is part of the release workflow; inspect deployment status when resuming.
 
@@ -65,4 +74,7 @@ Documentation changes require link/path/version checks and `git diff --check`; t
 
 ## History
 
-[Archived milestone digest](docs/archive/IMPLEMENTATION-2026-10-20.md) replaces the long mixed checkpoint log. The full former `PROGRESS.md` is retained in Git at `0374e9c`; it includes superseded scope, provisional release notes and session-specific details. Do not treat it as current instructions or an acceptance ledger.
+- [Full former PROGRESS — verbatim snapshot](docs/archive/PROGRESS-2026-10-20-full.md): detailed implementation decisions, fixes, limitations and verification notes from `0374e9c`, retained for engineering reference.
+- [Archived milestone digest](docs/archive/IMPLEMENTATION-2026-10-20.md): a shorter navigation aid, not a substitute for the full record.
+
+The snapshot includes superseded scope, provisional release notes and session-specific details. Read historical sections when investigating relevant code, but use ROADMAP and this handoff for current priorities and constraints. Do not treat archived next steps as current instructions or an acceptance ledger.

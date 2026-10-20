@@ -2,7 +2,10 @@
  * Only fixed GET endpoints. No cookies are read, exported or copied. Browser
  * credentials stay on Canvas. Do not add generic URL or HTTP-method parameters.
  */
+export const READER_VERSION = "0.2.2";
 export async function readCanvas(request) {
+  // Keep inside the function too: Chrome serializes this function without imports.
+  const readerVersion = "0.2.2";
   const ORIGIN = "https://canvas.sydney.edu.au";
   const started = Date.now();
   const id = (v) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0) ||
@@ -11,10 +14,11 @@ export async function readCanvas(request) {
   const number = (v) => typeof v === "number" && Number.isFinite(v) ? v : null;
   const date = (v) => typeof v === "string" && Number.isFinite(Date.parse(v)) ? new Date(v).toISOString() : null;
   const fail = (code) => { throw new Error(code); };
-  const allowedErrors = new Set(["WRONG_SITE", "INVALID_REQUEST", "LOGIN_REQUIRED", "FORBIDDEN", "RATE_LIMITED", "NETWORK", "TIMEOUT", "INVALID_RESPONSE", "PAGINATION", "LIMIT", "ACCOUNT_CHANGED", "NOT_STUDENT"]);
+  const allowedErrors = new Set(["WRONG_SITE", "VERSION_MISMATCH", "INVALID_REQUEST", "LOGIN_REQUIRED", "FORBIDDEN", "RATE_LIMITED", "NETWORK", "TIMEOUT", "INVALID_RESPONSE", "PAGINATION", "LIMIT", "ACCOUNT_CHANGED", "NOT_STUDENT"]);
   try {
     if (location.origin !== ORIGIN) fail("WRONG_SITE");
     if (!request || !["courses", "course"].includes(request.operation)) fail("INVALID_REQUEST");
+    if (request.expectedVersion && request.expectedVersion !== readerVersion) fail("VERSION_MISMATCH");
     if (request.operation === "course" && (!id(request.courseId) || !id(request.expectedUserId))) fail("INVALID_REQUEST");
     const allowedPaths = new Set(["/api/v1/users/self/profile", "/api/v1/courses"]);
     if (request.operation === "course") {
@@ -143,15 +147,29 @@ export async function readCanvas(request) {
           let hidden = cell.closest(hiddenSelector);
           // Canvas ships the whole classic grade-summary-content wrapper with
           // display:none until its JS mounts. This is NOT a grade-release flag.
-          // Exempt only that known bootstrap style, never hidden rows/cells,
-          // accessibility-hidden elements, icons, or any other hidden ancestor.
+          // Exempt only that known bootstrap ancestor style, never hidden
+          // rows/cells or any other hidden ancestor. Child icons are checked below.
           if(hidden?.id==="grade-summary-content"&&!hidden.hasAttribute("hidden")&&hidden.getAttribute("aria-hidden")!=="true"&&hidden.style.visibility!=="hidden") hidden=hidden.parentElement?.closest(hiddenSelector)||null;
-          if (hidden || cell.querySelector('.icon-off, [hidden], [aria-hidden="true"]')) {withheldMarks.add(assignmentId);continue;}
+          // A decorative aria-hidden check/cross is Canvas's visible pass/fail
+          // result, not a concealed score. Only recognize those exact icons.
+          const passFailIcon = cell.querySelector("i.graded_icon.icon-check, i.graded_icon.icon-x");
+          const resultLabel = passFailIcon
+            ? [...cell.querySelectorAll(".screenreader-only")].map(n => n.textContent.trim()).find(t => /^(Complete|Incomplete)$/i.test(t))
+            : null;
+          const passFail = resultLabel && (
+            (passFailIcon.classList.contains("icon-check") && /^Complete$/i.test(resultLabel)) ||
+            (passFailIcon.classList.contains("icon-x") && /^Incomplete$/i.test(resultLabel))
+          ) ? resultLabel.toLowerCase() : null;
+          if (hidden || cell.querySelector('.icon-off, [hidden]') ||
+              [...cell.querySelectorAll('[aria-hidden="true"]')].some(n => n !== passFailIcon || !passFail)) {
+            withheldMarks.add(assignmentId);continue;
+          }
           const copy = cell.cloneNode(true);
           copy.querySelectorAll('.tooltip_wrap, .screenreader-only, .sr-only').forEach(n => n.remove());
-          if (copy.querySelector('[style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]')) continue;
+          if (copy.querySelector('[style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]')) {withheldMarks.add(assignmentId);continue;}
           const scoreText = copy.textContent.trim();
-          if (/^\d+(?:\.\d+)?$/.test(scoreText)) visibleMarks.set(assignmentId, Number(scoreText));
+          if (passFail && !scoreText) visibleMarks.set(assignmentId, { score: null, grade: passFail });
+          else if (/^\d+(?:\.\d+)?$/.test(scoreText)) visibleMarks.set(assignmentId, { score: Number(scoreText), grade: scoreText });
         }
       } catch (error) {
         if (["LOGIN_REQUIRED", "ACCOUNT_CHANGED", "RATE_LIMITED", "TIMEOUT"].includes(error.message)) throw error;
@@ -169,9 +187,12 @@ export async function readCanvas(request) {
           if (s?.user_id != null && String(s.user_id) !== user.id) fail("ACCOUNT_CHANGED");
           if (s?.assignment_id != null && String(s.assignment_id) !== String(a.id)) fail("INVALID_RESPONSE");
           // Only an explicitly posted, non-hidden grade crosses the boundary.
-          const pageScore = visibleMarks.get(String(a.id));
-          const pageConfirmed = typeof pageScore === "number";
-          const released = (!!date(s?.posted_at) || pageConfirmed) && !withheldMarks.has(String(a.id)) && s?.grade_hidden !== true && a.muted !== true && s?.excused !== true;
+          const pageMark = visibleMarks.get(String(a.id));
+          const pageConfirmed = !!pageMark && (typeof pageMark.score === "number" || a.grading_type === "pass_fail");
+          const withheld = withheldMarks.has(String(a.id)) || s?.grade_hidden === true;
+          // Assignment.muted is a deprecated notification flag, NOT student
+          // release visibility. Fresh Marks row data-muted IS a visibility flag.
+          const released = (!!date(s?.posted_at) || pageConfirmed) && !withheld && s?.excused !== true;
           return { id: String(a.id), name: text(a.name), groupId: id(a.assignment_group_id) ? String(a.assignment_group_id) : null,
             dueAt: date(a.due_at), opensAt: date(a.unlock_at), closesAt: date(a.lock_at),
             pointsPossible: number(a.points_possible), gradingType: text(a.grading_type, 40),
@@ -180,10 +201,12 @@ export async function readCanvas(request) {
               state: text(s?.workflow_state, 60), submittedAt: date(s?.submitted_at),
               postedAt: date(s?.posted_at), released, excused: s?.excused === true,
               releaseEvidence: released ? pageConfirmed ? "marks-page" : "posted-api" : null,
+              unavailableReason: released ? null : withheld ? "hidden-in-canvas" : "unconfirmed",
               late: s?.late === true, missing: s?.missing === true,
               currentAttemptGraded: typeof s?.grade_matches_current_submission === "boolean" ? s.grade_matches_current_submission : null,
-              score: released ? pageConfirmed ? pageScore : number(s?.score) : null,
-              grade: released ? pageConfirmed ? String(pageScore) : text(s?.grade, 80) : "",
+              // Complete/Incomplete is a result, not an inferred percentage.
+              score: released && a.grading_type !== "pass_fail" ? pageConfirmed ? pageMark.score : number(s?.score) : null,
+              grade: released ? pageConfirmed ? pageMark.grade : text(s?.grade, 80) : "",
             } : null,
           };
         }),
@@ -191,7 +214,7 @@ export async function readCanvas(request) {
     }
     const after = await identity();
     if (after.id !== user.id) fail("ACCOUNT_CHANGED");
-    return { ok: true, user, source: ORIGIN, fetchedAt: new Date().toISOString(), ...payload };
+    return { ok: true, readerVersion, user, source: ORIGIN, fetchedAt: new Date().toISOString(), ...payload };
   } catch (error) {
     return { ok: false, code: allowedErrors.has(error?.message) ? error.message : "INVALID_RESPONSE" };
   }

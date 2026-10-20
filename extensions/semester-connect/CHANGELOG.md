@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.2 — 2026-10-20
+
+- Stop treating deprecated assignment-level `muted` as a student grade-release flag. Posted API grades and freshly confirmed Marks results can now be read even when that notification flag is true. Fresh Marks row visibility, pending-quiz, `grade_hidden` and excused checks still take priority.
+- Read visible Complete/Incomplete icons and their accessibility labels as text results. Do not fabricate numerical scores or percentages; Semester Web's current calculator still imports only numeric marks.
+- Distinguish numeric grades from text results in batch summaries, and explicitly label results withheld by Canvas.
+- Check reader/preview/installed-manifest versions before reading and exporting; show reload/reopen instructions for mixed builds.
+- Developer verification: 34 Node tests, 81 real-DOM browser assertions across four synthetic courses, preview selection/batch/filter/version-error checks and website import-protection regressions. No real account data was changed. Full installed-extension/four-live-course acceptance still requires reload and fresh comparison; restricted extension URLs prevented automated live-preview access.
+
 ## 0.2.1 — 2026-10-20
 
 - Fix zero released grades caused by treating Canvas's initially hidden `grade-summary-content` loading wrapper as an unpublished-score signal. Actual muted/pending/hidden cells and What-If values remain excluded.
