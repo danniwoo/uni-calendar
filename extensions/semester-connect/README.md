@@ -20,9 +20,11 @@ Compatible website: Semester Web 0.4.0 or later for safe grade updates; import f
 10. 匯入的 individual grades 暫列 provisional。到 **Show grades → Edit individual grades** 檢查計算與完整項目清單（Canvas 可能還沒有未來項目），儲存後才作為已確認設定。
 
 首次安裝：Chrome → Extensions → Developer mode → Load unpacked，選：
-`/Users/Daniel/USYD/Project/UNI_calendar/semester/extensions/semester-connect`
+本 repository 內的 `extensions/semester-connect` 資料夾。
 
 不用重新安裝，也不用重新匯入課表。既有四科資料保留。Web 與 extension 各有自己的版本號。
+
+四科比對與網站匯入的待測步驟統一追蹤在 [ROADMAP 的 CONNECT-01](../../ROADMAP.md#connect-01)；不要把完成下載視為完成驗收。
 
 ## 不覆蓋的界線
 

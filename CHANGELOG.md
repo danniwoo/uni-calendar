@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Documentation
+
+- Update README capabilities, Connect instructions, privacy boundaries and both local database migrations.
+- Add VISION and a resumable ROADMAP with MVP stages, workstream IDs, explicit user-test queue and acceptance criteria.
+- Condense PROGRESS into an engineering handoff; preserve historical context in an archive digest and Git history.
+- Documentation only: no Web/Connect version bump, application deployment or user-data change.
+
 ## 0.4.0 — 2026-10-20
 
 - Reuse confirmed Canvas unit/item mappings and suggest unique exact titles or assignment links. Ambiguous matches stay skipped; nothing saves before review.
