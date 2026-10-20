@@ -5,6 +5,8 @@ const $ = (id) => document.getElementById(id);
 const params = new URL(location.href).searchParams;
 const sourceTab = /^\d+$/.test(params.get("tab") || "") ? Number(params.get("tab")) : null;
 let user = null, courses = [], snapshot = null, generation = 0, busy = false;
+const snapshots = new Map();
+const selectedCourses = () => [...document.querySelectorAll('#course-checks input:checked')].map(el => el.value);
 const version = chrome.runtime.getManifest().version;
 $("version").textContent = version;
 $("footer-version").textContent = version;
@@ -24,6 +26,10 @@ function controls() {
   $("courses").disabled = busy || sourceTab === null;
   $("course").disabled = busy;
   $("read").disabled = busy || !user || !$("course").value;
+  const selected = selectedCourses();
+  $("read-many").disabled = busy || !user || !selected.length;
+  $("export").disabled = busy || !selected.length || selected.length>8 || selected.some(id => !snapshots.has(id));
+  document.querySelectorAll('#course-checks input').forEach(el => {el.disabled = busy;});
 }
 function discardResults() {
   snapshot = null;
@@ -38,6 +44,9 @@ function clear(text = "Preview cleared. No grades were saved. You can read your 
   busy = false;
   user = null;
   courses = [];
+  snapshots.clear();
+  $("course-checks").replaceChildren();
+  $("batch-status").textContent = "";
   discardResults();
   $("identity").textContent = "";
   $("account-id").textContent = "";
@@ -82,11 +91,20 @@ async function read(operation) {
       $("account-id").textContent = ` · account ${user.id}`;
       $("course").replaceChildren(new Option("Choose a course…", ""));
       for (const c of courses) $("course").append(new Option(`${c.code || c.name} — ${c.name}${c.term ? ` · ${c.term}` : ""}`, c.id));
+      for (const c of courses) {
+        const label = element("label", null, "course-check"), input = document.createElement("input");
+        input.type = "checkbox"; input.value = c.id;
+        input.addEventListener("change", controls);
+        label.append(input, element("span", `${c.code || c.name} · ${c.term || "Term unknown"}`));
+        $("course-checks").append(label);
+      }
       $("workspace").hidden = false;
       $("start").hidden = true;
       message(courses.length ? `${courses.length} active student courses found. Select one to read its assignments and marks.` : "No active student courses were returned. Check your Canvas account and enrollment; this is not proof that you have no coursework.");
     } else {
       snapshot = result;
+      snapshots.set(result.course.id, result);
+      $("batch-status").textContent = selectedCourses().map(id=>{const s=snapshots.get(id);return s?`${s.course.code}: ${s.assignments.length} items, ${s.assignments.filter(a=>gradeView(a).kind==="released").length} released grades`:`${courses.find(c=>c.id===id)?.code||id}: not read — retry this course`;}).join("\n");
       render();
       message("Read complete. This is a snapshot, not live syncing. Nothing was imported into Semester.");
     }
@@ -112,7 +130,8 @@ function render() {
     $("summary").append(metric);
   }
   $("group-count").textContent = groupsUnavailable ? "· unavailable" : `· ${groups.length}`;
-  $("groups").replaceChildren(element("p", groupsUnavailable ? "Canvas did not return the assignment groups. Weights are unavailable, not zero. The assignment list was read successfully." : course.weighted === true ? "Canvas reports weighted assignment groups. These are group totals, not each assignment’s weight. Rules are shown, not calculated in 0.1.0." : course.weighted === false ? "Canvas reports that group weighting is OFF. The configured weights below are not applied weights." : "Canvas did not confirm whether group weighting is enabled. Do not assume the percentages below are applied."));
+  $("groups").replaceChildren(element("p", groupsUnavailable ? "Canvas did not return the assignment groups. Weights are unavailable, not zero. The assignment list was read successfully." : course.weighted === true ? "Canvas reports weighted assignment groups. These are group totals, not each assignment’s weight. Rules are shown, not calculated here." : course.weighted === false ? "Canvas reports that group weighting is OFF. The configured weights below are not applied weights." : "Canvas did not confirm whether group weighting is enabled. Do not assume the percentages below are applied."));
+  $("read-warning").textContent = snapshot.marksPageUnavailable ? "Marks-page cross-check unavailable. Posted API grades are shown; other scores remain unavailable. Compare in Canvas before importing." : "Grades checked against the student Marks page where supported. Hidden marks and What-If values are not imported.";
   const grid = element("div", null, "group-list");
   for (const g of groups) {
     const item = element("div", null, "group-item");
@@ -142,7 +161,7 @@ function renderRows() {
     link.target = "_blank"; link.rel = "noopener noreferrer";
     title.append(link, element("span", groups.get(a.groupId) || "Group unavailable", "subtext"));
     if (a.omitted) title.append(element("span", "Excluded from final grade", "badge"));
-    if (a.locked) title.append(element("span", "Locked in Canvas", "badge"));
+    if (a.locked) title.append(element("span", "Submission access locked · not grade visibility", "badge"));
     const details = element("details", null, "dates");
     details.append(element("summary", "Dates & source details"));
     const dl = element("dl");
@@ -153,6 +172,7 @@ function renderRows() {
     if (!a.dueAt && a.closesAt) due.append(element("span", "Closing date is not a due date", "subtext"));
     const view = gradeView(a);
     grade.append(element("span", view.label, `grade ${view.kind}`), element("span", view.detail, "subtext"));
+    if (a.submission?.releaseEvidence) grade.append(element("span", a.submission.releaseEvidence === "marks-page" ? "Verified on Marks page" : "Posted in Canvas API", "subtext"));
     if (view.kind !== "released" && a.pointsPossible != null) grade.append(element("span", `Out of ${a.pointsPossible} points`, "subtext"));
     if (a.submission?.currentAttemptGraded === false) grade.append(element("span", "Earlier attempt · latest not graded", "badge warning"));
     submission.append(element("span", submissionLabel(a)));
@@ -163,13 +183,55 @@ function renderRows() {
 }
 $("courses").addEventListener("click", () => read("courses"));
 $("read").addEventListener("click", () => read("course"));
-$("course").addEventListener("change", () => { discardResults(); message("Select Read selected course to fetch a fresh snapshot."); controls(); });
+$("course").addEventListener("change", () => { discardResults(); snapshot = snapshots.get($("course").value) || null; if (snapshot) render(); message("Read again to refresh this course. Saved previews remain in this tab only."); controls(); });
+$("read-many").addEventListener("click", async () => {
+  const ids = selectedCourses();
+  if (busy || !user || !ids.length || ids.length > 8) {message("Select between 1 and 8 teaching courses.", true);return;}
+  const ownGeneration = ++generation;
+  busy = true; controls(); discardResults();
+  ids.forEach(id => snapshots.delete(id));
+  const statuses = [];
+  try {
+    for (const id of ids) {
+      message(`Reading ${courses.find(c => c.id === id)?.code || id}… (${statuses.length + 1}/${ids.length})`);
+      try {
+        const result = await execute({operation:"course",courseId:id,expectedUserId:user.id});
+        if (ownGeneration !== generation) return;
+        snapshots.set(id,result);
+        statuses.push(`${result.course.code}: ${result.assignments.length} items, ${result.assignments.filter(a => gradeView(a).kind === "released").length} released grades`);
+      } catch (error) {
+        if (ownGeneration !== generation) return;
+        if (["ACCOUNT_CHANGED","LOGIN_REQUIRED","ACCESS","TAB_CLOSED"].includes(error.message)) throw error;
+        statuses.push(`${courses.find(c=>c.id===id)?.code || id}: ${error.message in ERRORS ? error.message : "INVALID_RESPONSE"} — retry this course`);
+      }
+      $("batch-status").textContent = statuses.join("\n");
+    }
+    snapshot = snapshots.get(ids.find(id => snapshots.has(id))) || null;
+    if (snapshot) {$("course").value = snapshot.course.id;render();}
+    message(ids.every(id=>snapshots.has(id)) ? "Selected courses read. Review each course, then download the import file. Nothing has been sent to Semester." : "Some courses failed. Successful previews are retained; retry failed courses before exporting the selection.", !ids.every(id=>snapshots.has(id)));
+  } catch(error) {if (ownGeneration === generation) clear(`${ERRORS[error.message] || ERRORS.INVALID_RESPONSE} (${error.message})`,true);}
+  finally {if(ownGeneration===generation){busy=false;controls();}}
+});
+$("export").addEventListener("click", () => {
+  const ids=selectedCourses();
+  if(busy || !user || !ids.length || ids.length>8 || ids.some(id=>!snapshots.has(id)))return;
+  const data={format:"semester-connect",schemaVersion:1,extensionVersion:version,source:CANVAS_ORIGIN,accountId:user.id,exportedAt:new Date().toISOString(),courses:ids.map(id=>{
+    const {course,assignments,groups,groupsUnavailable,marksPageUnavailable,fetchedAt}=snapshots.get(id);
+    return {course,assignments,groups,groupsUnavailable,marksPageUnavailable,fetchedAt};
+  })};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+  if(blob.size>1500000||data.courses.reduce((n,c)=>n+c.assignments.length,0)>2500){message("This selection exceeds Semester’s import limit. Select fewer courses and export again.",true);return;}
+  const url=URL.createObjectURL(blob),a=document.createElement("a");
+  a.href=url;a.download=`semester-connect-${new Date().toISOString().slice(0,10)}.json`;a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  message("Import file downloaded — it contains your grades. In Semester: Manage → Import from Semester Connect. Review matches and confirm there; this download changes nothing in the website.");
+});
 $("search").addEventListener("input", renderRows);
 $("status").addEventListener("change", renderRows);
 $("clear").addEventListener("click", () => clear());
 chrome.tabs.onRemoved.addListener((tabId) => { if (tabId === sourceTab) clear(ERRORS.TAB_CLOSED, true); });
 chrome.tabs.onUpdated.addListener((tabId, change) => { if (tabId === sourceTab && (change.status === "loading" || change.url)) clear(ERRORS.TAB_CHANGED, true); });
-window.addEventListener("pagehide", () => { generation++; user = null; courses = []; snapshot = null; });
+window.addEventListener("pagehide", () => { generation++; user = null; courses = []; snapshot = null; snapshots.clear(); });
 if (sourceTab === null) {
   $("start-copy").textContent = "Open canvas.sydney.edu.au in Chrome and sign in normally. While that Canvas tab is active, click the Semester Connect extension icon. This preview cannot connect from the Semester website or another school’s Canvas.";
   message("Open this preview from the extension icon on a USYD Canvas tab.");

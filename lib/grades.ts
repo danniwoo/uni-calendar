@@ -5,7 +5,7 @@ import { validGrade, validGradePlan } from "./grade-value";
 
 export function partGrade(plan:GradePlan) {
   const items=plan.items.filter(i=>!i.excluded), marked=items.filter(i=>validGrade(i.grade));
-  const base={recorded:marked.length,total:items.length,finished:items.length>0&&marked.length===items.length};
+  const base={recorded:marked.length,total:items.length,finished:!plan.canvasPendingReview&&items.length>0&&marked.length===items.length};
   const invalid=!validGradePlan(plan)?"Check the individual grade entries.":!items.length?"Include at least one graded item.":
     plan.method==="weighted" && (items.some(i=>!i.weight)||Math.abs(items.reduce((s,i)=>s+(i.weight||0),0)-100)>0.01)?"Part weights must be filled in and total 100% of this assessment.":
     plan.method==="best" && (!plan.bestCount||plan.bestCount>items.length)?"Choose how many results count (no more than the included items).":null;
@@ -39,7 +39,8 @@ export function saveGradePlan(s:Semester,id:string,plan:GradePlan,expected:Grade
   const t=s.units.flatMap(u=>subjectAssessments(s,u.code)).find(t=>t.id===id&&!isPersonal(t));
   if (!t) throw new Error("This assessment was removed. Reopen the grade list.");
   if (JSON.stringify(t.gradePlan??null)!==JSON.stringify(expected??null)) throw new Error("Individual grades changed elsewhere. Cancel and reopen to review the latest entries.");
-  const task={...t,gradePlan:plan};
+  const {canvasPendingReview:_,...reviewed}=plan;
+  const task={...t,gradePlan:reviewed};
   return {...s,tasks:s.tasks.some(t=>t.id===id)?s.tasks.map(t=>t.id===id?task:t):[...s.tasks,task]};
 }
 

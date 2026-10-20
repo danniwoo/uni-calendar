@@ -376,6 +376,26 @@ footer {
   padding: 22px;
   overflow-y: auto;
 }
+.detail-panel.canvas-import-panel {width:min(96vw,1040px)!important;max-width:1040px!important;}
+.canvas-import-review {display:grid;gap:16px;padding:16px 0;font-size:14px;}
+.canvas-import-review h2 {font-size:24px;}
+.canvas-import-review .rule-card {display:grid;gap:12px;padding:18px;}
+.canvas-import-review label {display:grid;gap:6px;}
+.canvas-import-review select {width:100%;min-width:0;}
+.canvas-import-review details summary {cursor:pointer;color:#2855c8;}
+.canvas-import-review details.rule-card {display:block;}
+.canvas-import-review details.rule-card > * + * {margin-top:14px;}
+.canvas-import-review .canvas-course-heading {font-weight:650;font-size:16px;}
+.canvas-import-table {overflow-x:auto;}
+.canvas-import-table table {width:100%;border-collapse:collapse;table-layout:fixed;}
+.canvas-import-table th {text-align:left;font-size:12px;color:#64748b;padding:10px 8px;}
+.canvas-import-table td {vertical-align:top;border-top:1px solid #dce3ef;padding:12px 8px;overflow-wrap:anywhere;}
+.canvas-import-table th:first-child {width:40%;}
+.canvas-import-table th:nth-child(2) {width:20%;}
+.canvas-import-table small {display:block;color:#64748b;margin-top:6px;}
+.canvas-import-review .canvas-confirm {display:flex;align-items:flex-start;gap:10px;}
+.canvas-import-review input[type=checkbox] {width:18px;height:18px;flex-shrink:0;}
+.canvas-import-review ul {padding-left:20px;display:grid;gap:8px;}
 .detail-body {
   padding: 16px;
   display: grid;

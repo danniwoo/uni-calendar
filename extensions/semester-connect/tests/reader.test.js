@@ -17,7 +17,7 @@ function response(data, status = 200, link = "", type = "application/json") {
 async function run(options = {}) {
   const requests = [];
   let identityCount = 0;
-  const context = vm.createContext({ URL, Date, AbortSignal, location: { origin: options.origin || ORIGIN },
+  const context = vm.createContext({ URL, Date, AbortSignal, DOMParser:options.DOMParser, location: { origin: options.origin || ORIGIN },
     fetch: async (address, init) => {
       const url = new URL(address);
       requests.push({ url, init });
@@ -34,6 +34,7 @@ async function run(options = {}) {
       if (url.pathname === "/api/v1/courses/12") return response(options.course || course);
       if (url.pathname.endsWith("/assignments")) return response(options.assignments || [assignment]);
       if (url.pathname.endsWith("/assignment_groups")) return response([group]);
+      if (url.pathname.endsWith("/grades")) return new Response("synthetic DOM fixture",{headers:{"content-type":"text/html"}});
       throw new Error("Unexpected route");
     },
   });
@@ -43,7 +44,7 @@ async function run(options = {}) {
 test("extension version and least-privilege manifest are consistent", async () => {
   const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url)));
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
-  assert.equal(manifest.version, "0.1.0");
+  assert.equal(manifest.version, "0.2.0");
   assert.equal(pkg.version, manifest.version);
   assert.equal(manifest.manifest_version, 3);
   assert.deepEqual(manifest.permissions, ["activeTab", "scripting"]);
@@ -52,7 +53,7 @@ test("extension version and least-privilege manifest are consistent", async () =
 test("fixed course read returns sanitized source facts and independent dates", async () => {
   const { result, requests } = await run();
   assert.equal(result.ok, true);
-  assert.equal(requests.length, 5);
+  assert.equal(requests.length, 7);
   assert.equal(result.assignments[0].submission.score, 14);
   assert.equal(result.assignments[0].dueAt, "2026-10-18T12:59:00.000Z");
   assert.equal(result.assignments[0].closesAt, "2026-10-25T12:59:00.000Z");
@@ -67,6 +68,43 @@ test("course discovery asks for active student enrollments, not all grades", asy
   assert.equal(requests[1].url.searchParams.get("enrollment_state"), "active");
   assert.deepEqual(requests[1].url.searchParams.getAll("include[]"), ["term"]);
   assert.equal(result.courses[0].enrollments, undefined);
+});
+test("single-course responses without enrollment fields still verify against the student list", async () => {
+  for (const enrollments of [undefined, []]) {
+    const {result}=await run({course:{...course,enrollments}});assert.equal(result.ok,true);
+  }
+  const {result}=await run({course:{...course,enrollments:undefined},handle:url=>url.pathname==="/api/v1/courses"?response([]):null});
+  assert.equal(result.code,"NOT_STUDENT");
+});
+// DOM contract tests; real HTML parsing is additionally exercised in localhost
+// browser QA with tooltip, hidden, pending and What-If markup fixtures.
+function marksParser(rows,supported=true){return class {parseFromString(){return {
+  querySelector:()=>supported?{}:null,
+  querySelectorAll:()=>rows.map(r=>({id:`submission_${r.id}`,getAttribute:key=>key==="data-muted"?String(!!r.muted):String(!!r.pending),querySelector:()=>({
+    closest:()=>r.hidden?{}:null,querySelector:()=>r.icon?{}:null,
+    cloneNode:()=>({textContent:String(r.score),querySelectorAll:()=>[],querySelector:()=>null})
+  })}))
+};}};}
+test("Marks-visible numeric score confirms release without posted_at; hidden markup overrides stale posted API",async()=>{
+  const rows=[{id:1,score:7},{id:2,score:9,muted:true},{id:3,score:9,pending:true},{id:4,score:9,hidden:true},{id:5,score:9,icon:true},{id:6,score:0}];
+  const {result}=await run({DOMParser:marksParser(rows),assignments:rows.map(r=>({...assignment,id:r.id,submission:{...posted,assignment_id:r.id,score:99,posted_at:r.id===1||r.id===6?null:posted.posted_at}}))});
+  assert.equal(result.marksPageUnavailable,false);assert.deepEqual(result.assignments.map(a=>a.submission.score),[7,null,null,null,null,0]);
+  assert.equal(result.assignments[0].submission.releaseEvidence,"marks-page");
+});
+test("unsupported Marks layout reports limitation without inventing release",async()=>{
+  const {result}=await run({DOMParser:marksParser([],false),assignments:[{...assignment,submission:{...posted,posted_at:null}}]});
+  assert.equal(result.marksPageUnavailable,true);assert.equal(result.assignments[0].submission.score,null);
+});
+test("four independently selected courses use their own endpoints, not a fixed first course", async () => {
+  const list=[12,13,14,15].map(id=>({...course,id,enrollments:undefined}));
+  for(const c of list){
+    const {result}=await run({request:{operation:"course",courseId:String(c.id),expectedUserId:"91"},handle:url=>{
+      if(url.pathname==="/api/v1/courses")return response(list);
+      if(url.pathname===`/api/v1/courses/${c.id}`)return response(c);
+      if(url.pathname===`/api/v1/courses/${c.id}/assignments`)return response([{...assignment,course_id:c.id}]);
+    }});
+    assert.equal(result.ok,true);assert.equal(result.course.id,String(c.id));assert.equal(result.assignments[0].submission.score,14);
+  }
 });
 test("null/hidden/unposted/excused scores do not cross the reader boundary", async () => {
   const cases = [
@@ -144,7 +182,7 @@ test("wrong course or assignment data rejected", async () => {
 test("teacher/observer data is not read", async () => {
   const { result, requests } = await run({ course: { ...course, enrollments: [{ type: "teacher" }] } });
   assert.equal(result.code, "NOT_STUDENT");
-  assert.equal(requests.length, 2);
+  assert.equal(requests.length, 3);
 });
 test("missing group access is explicitly partial; login errors are fatal", async () => {
   for (const status of [403, 401]) {

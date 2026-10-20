@@ -46,6 +46,8 @@ import { registerSemesterTools } from "@/lib/browser-tools";
 import { UnitDetail } from "@/components/unit-detail";
 import { AssessmentList } from "@/components/assessment-list";
 import { saveGrade, saveGradePlan } from "@/lib/grades";
+import {CanvasImport} from "./canvas-import";
+import {planCanvasImport} from "@/lib/canvas-import";
 import { PersonalEditor } from "@/components/personal-editor";
 import { isPersonal,calendarOwns } from "@/lib/personal-items";
 import { MonthCalendar } from "@/components/month-calendar";
@@ -109,6 +111,7 @@ export default function SemesterBoard() {
     [url, setUrl] = useState(""),
     [busy, setBusy] = useState(false),
     [settings, setSettings] = useState(false),
+    [canvasImport,setCanvasImport] = useState(false),
     [detail, setDetail] = useState<Detail | null>(null),
     [subject, setSubject] = useState<{code:string;taskId?:string}|null>(null),
     [draft, setDraft] = useState<Task | null>(null),
@@ -208,7 +211,7 @@ export default function SemesterBoard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            syncVersion: 4,
+            syncVersion: 5,
             semester: snapshot,
             revision: revision.current,
           }),
@@ -704,6 +707,7 @@ export default function SemesterBoard() {
                   Export backup
                 </button>
                 <label className="restore-backup">Restore backup<input type="file" disabled={busy} accept=".json,application/json" onChange={e=>{void restoreBackup(e.target.files?.[0]);e.target.value="";}}/></label>
+                <button disabled={busy || saveStatus==="Saving…" || !!saveError || !!conflict} onClick={()=>setCanvasImport(true)}>Import from Semester Connect</button>
               </div>
             )}
             {!semester && loaded && <label className="restore-backup">Restore backup instead<input type="file" disabled={busy} accept=".json,application/json" onChange={e=>{void restoreBackup(e.target.files?.[0]);e.target.value="";}}/></label>}
@@ -1022,6 +1026,18 @@ export default function SemesterBoard() {
           </footer>}
         </>
       )}
+      <Sheet open={canvasImport} onOpenChange={setCanvasImport}>
+        <SheetContent className="detail-panel canvas-import-panel"><SheetHeader><SheetTitle>Review Canvas import</SheetTitle><SheetDescription>Choose what to add. Nothing is saved until you confirm.</SheetDescription></SheetHeader>
+          {semester&&<CanvasImport semester={semester} onClose={()=>setCanvasImport(false)} onApply={(bundle,choices,expected)=>{
+            const s=current.current;
+            if(!s||s!==expected||busy||saving.current||pending.current||saveError||conflict)throw new Error("The board changed or has unsaved edits. Finish saving, then review the import again.");
+            const result=planCanvasImport(s,bundle,choices);
+            if(!result.changed)throw new Error("No new changes to import.");
+            commit(result.semester);chooseView("assessments");setSettings(false);
+            setNotice(`${result.changed} Canvas changes added locally; check the save status. Existing data was kept. Imported individual grades need a calculation review before counting as final.`);
+          }}/>}
+        </SheetContent>
+      </Sheet>
       <Sheet open={!!transfer} onOpenChange={o=>{if(!o)setTransfer(null);}}>
         <SheetContent className="detail-panel"><SheetHeader><SheetTitle>{transfer?.kind === "backup" ? "Restore a complete board" : "A different timetable"}</SheetTitle><SheetDescription>Review before changing your saved board. Nothing changes until you confirm.</SheetDescription></SheetHeader>
           {transfer && <div className="detail-body">

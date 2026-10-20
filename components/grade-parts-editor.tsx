@@ -16,7 +16,7 @@ export function GradePartsEditor({semester,task,onSave,onCancel}:{semester:Semes
   function patch(index:number,values:Partial<typeof items[number]>) {setItems(all=>all.map((item,i)=>i===index?{...item,...values}:item));setError("");}
   function draft():GradePlan {
     return {mode,method,...(method==="best"?{bestCount:Number(best)}:{}),items:items.map(i=>({id:i.id,name:i.name.trim(),excluded:!!i.excluded,
-      grade:i.earned.trim()&&i.possible.trim()?{earned:Number(i.earned),possible:Number(i.possible)}:null,
+      grade:i.earned.trim()&&i.possible.trim()?{earned:Number(i.earned),possible:Number(i.possible)}:initial.items.find(before=>before.id===i.id)?.grade===undefined?undefined:null,
       ...(i.possible.trim()?{maximum:Number(i.possible)}:{}),...(i.partWeight.trim()?{weight:Number(i.partWeight)}:{})}))};
   }
   const invalid=items.some(i=>!i.name.trim() || (i.earned.trim()&&(!i.possible.trim()||!validGrade({earned:Number(i.earned),possible:Number(i.possible)}))) || (i.possible.trim()&&(!Number.isFinite(Number(i.possible))||Number(i.possible)<=0)) || (i.partWeight.trim()&&(!Number.isFinite(Number(i.partWeight))||Number(i.partWeight)<=0||Number(i.partWeight)>100)));
@@ -28,6 +28,7 @@ export function GradePartsEditor({semester,task,onSave,onCancel}:{semester:Semes
     try {onSave(draft(),task.gradePlan);}catch(e){setError(e instanceof Error?e.message:"Could not save individual grades.");setSaving(false);}
   }
   return <form className="grade-parts-editor" aria-label={`Individual grades for ${task.title}`} onSubmit={e=>{e.preventDefault();save();}}>
+    {initial.canvasPendingReview&&<p className="notice">Imported from Canvas · provisional. Check the calculation and add any future items missing from Canvas. Save grades to confirm this setup; until then it is not counted as a final assessment result.</p>}
     <div className="grade-parts-heading"><strong>{task.title} · Grades</strong><label htmlFor={`${id}-source`}>Grade source<select id={`${id}-source`} value={mode} onChange={e=>setMode(e.target.value as GradePlan["mode"])}><option value="parts">Calculate from individual grades</option><option value="overall">Use reported overall result</option></select></label></div>
     {mode==="overall"?<p className="grade-secondary">Individual entries will be kept but not counted. After saving, use the main row to enter the reported overall result. {task.grade?`Currently ${task.grade.earned} / ${task.grade.possible}.`:"No overall result recorded yet."}</p>:<>
       <div className="grade-parts-settings"><label htmlFor={`${id}-method`}>Calculation<select id={`${id}-method`} value={method} onChange={e=>setMethod(e.target.value as GradePlan["method"])}><option value="points">Add marks together</option><option value="equal">Equal weight per item</option><option value="weighted">Different part weights</option><option value="best">Best N percentages · equal weight</option></select></label>{method==="best"&&<label htmlFor={`${id}-best`}>Results to count<input id={`${id}-best`} type="number" min="1" max="200" step="1" value={best} onChange={e=>setBest(e.target.value)}/></label>}</div>

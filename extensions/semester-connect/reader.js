@@ -22,20 +22,26 @@ export async function readCanvas(request) {
         allowedPaths.add(`/api/v1/courses/${request.courseId}${suffix}`);
       }
     }
-    async function get(url) {
+    async function get(url, html = false) {
       if (Date.now() - started > 60000) fail("TIMEOUT");
       if (url.origin !== ORIGIN || !allowedPaths.has(url.pathname) || url.username || url.password || url.hash) fail("INVALID_REQUEST");
       let response;
       try {
         response = await fetch(url.href, {
           method: "GET", credentials: "same-origin", redirect: "error", cache: "no-store",
-          headers: { Accept: "application/json" }, signal: AbortSignal.timeout(15000),
+          headers: { Accept: html ? "text/html" : "application/json" }, signal: AbortSignal.timeout(15000),
         });
       } catch (error) { fail(error?.name === "TimeoutError" ? "TIMEOUT" : "NETWORK"); }
       if (response.status === 401) fail("LOGIN_REQUIRED");
       if (response.status === 403) fail("FORBIDDEN");
       if (response.status === 429) fail("RATE_LIMITED");
       if (!response.ok) fail("INVALID_RESPONSE");
+      if (html) {
+        if (!(response.headers.get("content-type") || "").includes("text/html")) fail("INVALID_RESPONSE");
+        const body = await response.text();
+        if (body.length > 4000000) fail("LIMIT");
+        return { data: body, link: "" };
+      }
       if (!(response.headers.get("content-type") || "").includes("application/json")) fail("LOGIN_REQUIRED");
       // Never forward HTML, error bodies, assignment descriptions or attachments.
       let data;
@@ -92,17 +98,21 @@ export async function readCanvas(request) {
       term: text(course.term?.name, 120), state: text(course.workflow_state, 60),
       weighted: typeof course.apply_assignment_group_weights === "boolean" ? course.apply_assignment_group_weights : null,
     });
+    const studentCourses = () => list(url("/api/v1/courses", { enrollment_type: "student", enrollment_state: "active", "include[]": "term", per_page: "100" }));
     let payload;
     if (request.operation === "courses") {
-      const courses = await list(url("/api/v1/courses", { enrollment_type: "student", enrollment_state: "active", "include[]": "term", per_page: "100" }));
+      const courses = await studentCourses();
       payload = { courses: courses.map(summarizeCourse) };
     } else {
       const { data: course } = await get(url(`/api/v1/courses/${request.courseId}`, { "include[]": "term" }));
       if (!course || String(course.id) !== String(request.courseId)) fail("INVALID_RESPONSE");
       // This preview is for a student's own grades, not teacher/observer views.
-      if (!Array.isArray(course.enrollments) || !course.enrollments.some((e) =>
-        ["student", "StudentEnrollment"].includes(e.type) &&
-        (e.user_id == null || String(e.user_id) === user.id))) fail("NOT_STUDENT");
+      // The single-course API does not guarantee an enrollments array. Verify
+      // membership against a fresh server-filtered list, never a caller-supplied flag.
+      const ownCourses = await studentCourses();
+      if (!ownCourses.some(c => String(c.id) === String(request.courseId))) fail("NOT_STUDENT");
+      if (Array.isArray(course.enrollments) && course.enrollments.length && !course.enrollments.some(e =>
+        ["student", "StudentEnrollment"].includes(e.type) && (e.user_id == null || String(e.user_id) === user.id))) fail("NOT_STUDENT");
       const assignments = await list(url(`/api/v1/courses/${request.courseId}/assignments`, { "include[]": "submission", override_assignment_dates: "true", per_page: "100" }));
       let groups = [], groupsUnavailable = false;
       try { groups = await list(url(`/api/v1/courses/${request.courseId}/assignment_groups`, { per_page: "100" })); }
@@ -112,8 +122,37 @@ export async function readCanvas(request) {
         if (!["FORBIDDEN", "INVALID_RESPONSE"].includes(error.message)) throw error;
         groupsUnavailable = true;
       }
+      // Independent confirmation from the freshly fetched student Marks page.
+      // Never execute page scripts, use hidden original/what-if values, or read
+      // another student's URL. Unsupported markup remains unavailable.
+      const visibleMarks = new Map(), withheldMarks = new Set();
+      let marksPageUnavailable = false;
+      const gradesPath = `/courses/${request.courseId}/grades`;
+      allowedPaths.add(gradesPath);
+      try {
+        const { data: html } = await get(url(gradesPath), true);
+        const doc = new DOMParser().parseFromString(html, "text/html");
+        if (!doc.querySelector("#grades_summary")) marksPageUnavailable = true;
+        for (const row of doc.querySelectorAll('#grades_summary tr[id^="submission_"]')) {
+          const assignmentId = row.id.replace(/^submission_/, "");
+          if (!id(assignmentId)) continue;
+          if (row.getAttribute("data-muted") !== "false" || row.getAttribute("data-pending_quiz") === "true") {withheldMarks.add(assignmentId);continue;}
+          const cell = row.querySelector(".assignment_score .grade");
+          if (!cell) continue;
+          if (cell.closest('[hidden], [aria-hidden="true"], [style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]') || cell.querySelector('.icon-off, [hidden], [aria-hidden="true"]')) {withheldMarks.add(assignmentId);continue;}
+          const copy = cell.cloneNode(true);
+          copy.querySelectorAll('.tooltip_wrap, .screenreader-only, .sr-only').forEach(n => n.remove());
+          if (copy.querySelector('[style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]')) continue;
+          const scoreText = copy.textContent.trim();
+          if (/^\d+(?:\.\d+)?$/.test(scoreText)) visibleMarks.set(assignmentId, Number(scoreText));
+        }
+      } catch (error) {
+        if (["LOGIN_REQUIRED", "ACCOUNT_CHANGED", "RATE_LIMITED", "TIMEOUT"].includes(error.message)) throw error;
+        visibleMarks.clear();
+        marksPageUnavailable = true;
+      }
       payload = {
-        course: summarizeCourse(course), groupsUnavailable,
+        course: summarizeCourse(course), groupsUnavailable, marksPageUnavailable,
         groups: groups.map((g) => ({ id: String(g.id), name: text(g.name), weight: number(g.group_weight),
           rules: { dropLowest: number(g.rules?.drop_lowest), dropHighest: number(g.rules?.drop_highest),
             neverDrop: Array.isArray(g.rules?.never_drop) ? g.rules.never_drop.filter(id).map(String) : [] } })),
@@ -123,18 +162,21 @@ export async function readCanvas(request) {
           if (s?.user_id != null && String(s.user_id) !== user.id) fail("ACCOUNT_CHANGED");
           if (s?.assignment_id != null && String(s.assignment_id) !== String(a.id)) fail("INVALID_RESPONSE");
           // Only an explicitly posted, non-hidden grade crosses the boundary.
-          const released = !!date(s?.posted_at) && s?.grade_hidden !== true && a.muted !== true;
+          const pageScore = visibleMarks.get(String(a.id));
+          const pageConfirmed = typeof pageScore === "number";
+          const released = (!!date(s?.posted_at) || pageConfirmed) && !withheldMarks.has(String(a.id)) && s?.grade_hidden !== true && a.muted !== true && s?.excused !== true;
           return { id: String(a.id), name: text(a.name), groupId: id(a.assignment_group_id) ? String(a.assignment_group_id) : null,
             dueAt: date(a.due_at), opensAt: date(a.unlock_at), closesAt: date(a.lock_at),
             pointsPossible: number(a.points_possible), gradingType: text(a.grading_type, 40),
             omitted: a.omit_from_final_grade === true, locked: a.locked_for_user === true,
-            submission: s ? {
-              state: text(s.workflow_state, 60), submittedAt: date(s.submitted_at),
-              postedAt: date(s.posted_at), released, excused: s.excused === true,
-              late: s.late === true, missing: s.missing === true,
-              currentAttemptGraded: typeof s.grade_matches_current_submission === "boolean" ? s.grade_matches_current_submission : null,
-              score: released && s.excused !== true ? number(s.score) : null,
-              grade: released && s.excused !== true ? text(s.grade, 80) : "",
+            submission: s || pageConfirmed ? {
+              state: text(s?.workflow_state, 60), submittedAt: date(s?.submitted_at),
+              postedAt: date(s?.posted_at), released, excused: s?.excused === true,
+              releaseEvidence: released ? pageConfirmed ? "marks-page" : "posted-api" : null,
+              late: s?.late === true, missing: s?.missing === true,
+              currentAttemptGraded: typeof s?.grade_matches_current_submission === "boolean" ? s.grade_matches_current_submission : null,
+              score: released ? pageConfirmed ? pageScore : number(s?.score) : null,
+              grade: released ? pageConfirmed ? String(pageScore) : text(s?.grade, 80) : "",
             } : null,
           };
         }),

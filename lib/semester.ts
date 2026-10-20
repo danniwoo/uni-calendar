@@ -28,6 +28,7 @@ export type AssessmentActivity = {
   time?: string;
 };
 export type GradePlan = {
+  canvasPendingReview?: boolean;
   mode: "parts" | "overall";
   method: "points" | "equal" | "weighted" | "best";
   bestCount?: number;
@@ -99,6 +100,8 @@ export type Unit = {
   topics: { week: number; activity: string; topic: string }[];
 };
 export type Semester = {
+  canvasAccountId?: string;
+  canvasImports?: {key:string;targetId:string;mode:"overall"|"part"}[];
   // A new generation marks an explicit snapshot replacement, including same-feed restores.
   boardGeneration?: string;
   year: number;
@@ -208,6 +211,8 @@ export function mergeSemester(
   if (!old || old.year !== fresh.year || old.session !== fresh.session || old.feedUrl !== fresh.feedUrl)
     return fresh;
   fresh.boardGeneration = old.boardGeneration;
+  fresh.canvasAccountId = old.canvasAccountId;
+  fresh.canvasImports = old.canvasImports;
   const map = new Map(old.tasks.map((t) => [t.id, t]));
   fresh.tasks = fresh.tasks.map((t) => {
     const prev = map.get(t.id);

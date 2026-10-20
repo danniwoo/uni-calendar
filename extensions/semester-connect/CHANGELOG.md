@@ -2,6 +2,15 @@
 
 Semester Connect uses Semantic Versioning independently of Semester Web. During 0.x, incompatible changes increment the minor version and are documented. Bug fixes increment patch. Published build numbers are not reused.
 
+## 0.2.0 — 2026-10-20
+
+- Read up to eight explicitly selected teaching courses, retain successful previews, retry failed courses and download a versioned private import file for Semester Web 0.3.0.
+- Verify student-course membership with the active student course list when single-course responses omit enrollment fields.
+- Cross-check released numeric scores against a freshly fetched student Marks page. Ignore hidden, pending-review and What-If values; unsupported layouts are clearly reported.
+- Canvas remains read-only with the same activeTab+scripting permissions. No automatic upload, background sync, cookies, token collection or extra host access.
+- Website import requires mapping and confirmation and never overwrites existing manual data. Refresh the unpacked extension and reopen its preview to update.
+- Synthetic tests cover four courses, failure/retry, release visibility, file export, import confirmation and existing-data protection. Live four-unit comparison remains required after reload.
+
 ## 0.1.0 — 2026-10-18
 
 First local-only, manual read-only preview; not a Chrome Web Store release.

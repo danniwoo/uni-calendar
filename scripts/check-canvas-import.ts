@@ -1,0 +1,47 @@
+import assert from "node:assert/strict";
+import {readCanvasBundle,planCanvasImport,validCanvasMetadata,type CanvasChoice} from "../lib/canvas-import";
+import {fixtureBoard as s,fixtureBundle as b,fixtureChoices as choices} from "./fixtures/canvas-connect";
+import {backupText,readBackup} from "../lib/backup";
+import {mergeSemester} from "../lib/semester";
+import {partGrade,saveGradePlan} from "../lib/grades";
+import {reconcile} from "../lib/sync";
+const before=JSON.stringify(s);
+assert.deepEqual(readCanvasBundle(JSON.stringify(b)),b);
+const applied=planCanvasImport(s,b,choices);
+assert.equal(applied.changed,3);assert.equal(JSON.stringify(s),before);
+assert.deepEqual(applied.semester.tasks[1].grade,{earned:8,possible:10},"manual grade protected");
+assert.deepEqual(applied.semester.completed,s.completed);
+for(let i=0;i<4;i++) {const {grade,...actual}=applied.semester.tasks[i];const {grade:_,...original}=s.tasks[i];assert.deepEqual(actual,original);}
+assert.equal(planCanvasImport(applied.semester,b,choices).changed,0,"repeat import idempotent");
+assert.throws(()=>planCanvasImport(applied.semester,{...b,accountId:"92"},choices),/different Canvas account/);
+assert.throws(()=>planCanvasImport(applied.semester,b,[{...choices[0],targetId:"new"}]),/already linked/);
+const cleared=structuredClone(s);cleared.tasks[0].grade=null;
+assert.equal(planCanvasImport(cleared,b,[choices[0]]).changed,0,"explicitly cleared grade protected");
+const noGrade=structuredClone(b);noGrade.courses[0].assignments[0].submission!.score=null;
+assert.equal(planCanvasImport(s,noGrade,[choices[0]]).changed,0);
+for(const variant of [{released:false},{excused:true},{currentAttemptGraded:false}]) {const x=structuredClone(b);Object.assign(x.courses[0].assignments[0].submission!,variant);assert.equal(planCanvasImport(s,x,[choices[0]]).changed,0);}
+const duplicate=[choices[0],{...choices[0],assignmentId:"2"}];assert.throws(()=>planCanvasImport(s,b,duplicate),/Several Canvas items/);
+const parts:CanvasChoice[]=["1","2"].map(assignmentId=>({...choices[0],assignmentId,mode:"part",method:"points"}));
+const grouped=planCanvasImport(s,b,parts).semester;assert.equal(grouped.tasks[0].grade,undefined);assert.equal(grouped.tasks[0].gradePlan?.items.length,2);
+assert.equal(grouped.tasks[0].gradePlan?.canvasPendingReview,true);assert.equal(partGrade(grouped.tasks[0].gradePlan!).finished,false);
+assert.equal(planCanvasImport(grouped,b,parts).changed,0);
+const published=structuredClone(b);Object.assign(published.courses[0].assignments[1].submission!,{released:true,score:9,releaseEvidence:"posted-api"});
+const newMark=planCanvasImport(grouped,published,parts);assert.equal(newMark.changed,1);assert.equal(partGrade(newMark.semester.tasks[0].gradePlan!).finished,false,"Canvas may omit future items; never imply final");
+const reviewed=saveGradePlan(newMark.semester,"root-0",newMark.semester.tasks[0].gradePlan!,newMark.semester.tasks[0].gradePlan);
+assert.equal(partGrade(reviewed.tasks[0].gradePlan!).finished,true);
+const manualPlan=structuredClone(s);manualPlan.tasks[0].gradePlan={mode:"parts",method:"points",items:[{id:"my-part",name:"My part"}]};
+assert.equal(planCanvasImport(manualPlan,b,parts).changed,0);
+const deleted=structuredClone(grouped);deleted.tasks[0].gradePlan!.items.pop();assert.equal(planCanvasImport(deleted,published,parts).changed,0,"deleted part never recreated");
+const manuallyCleared=structuredClone(grouped);manuallyCleared.tasks[0].gradePlan!.items[1].grade=null;assert.equal(planCanvasImport(manuallyCleared,published,parts).changed,0);
+const drops=structuredClone(b);drops.courses[0].groups[0].rules.dropLowest=1;assert.throws(()=>planCanvasImport(s,drops,parts),/drop rules/);
+const add=planCanvasImport(s,b,[{...choices[2],targetId:"new"}]);assert.equal(add.changed,1);assert.equal(add.semester.tasks.at(-1)?.weight,"");assert.equal(add.semester.tasks.at(-1)?.time,"23:59");assert.equal(planCanvasImport(add.semester,b,[{...choices[2],targetId:"new"}]).changed,0);
+const wrongTerm=structuredClone(b);wrongTerm.courses[2].assignments[0].dueAt="2027-10-25T12:59:00Z";assert.throws(()=>planCanvasImport(s,wrongTerm,[{...choices[2],targetId:"new"}]),/outside this board/);
+const badDates=structuredClone(b);badDates.courses[2].assignments[0].closesAt="2026-10-24T00:00:00Z";assert.throws(()=>planCanvasImport(s,badDates,[{...choices[2],targetId:"new"}]),/availability dates/);
+assert.throws(()=>planCanvasImport(s,b,[choices[0],{...choices[1],targetId:"missing"}]),/Choose an existing/);assert.equal(JSON.stringify(s),before,"all-or-nothing on invalid selection");
+for(const broken of [{...b,schemaVersion:2},{...b,source:"https://other.example"},{...b,courses:[b.courses[0],b.courses[0]]}])assert.throws(()=>readCanvasBundle(JSON.stringify(broken)));
+const hidden=structuredClone(b);hidden.courses[0].assignments[0].submission!.released=false;assert.throws(()=>readCanvasBundle(JSON.stringify(hidden)));
+for(const restored of [readBackup(backupText(grouped)),mergeSemester(grouped,structuredClone(s))]){assert.deepEqual(restored.canvasImports,grouped.canvasImports);assert.equal(restored.canvasAccountId,"91");assert.deepEqual(restored.tasks[0].gradePlan,grouped.tasks[0].gradePlan);}
+assert.equal(validCanvasMetadata({canvasAccountId:"92",canvasImports:grouped.canvasImports}),false);
+const independent=structuredClone(s);independent.tasks[2].description="Other tab note";const merged=reconcile(s,applied.semester,independent);assert.equal(merged.conflicts.length,0);assert.equal(merged.semester.tasks[2].description,"Other tab note");assert.deepEqual(merged.semester.canvasImports,applied.semester.canvasImports);
+const otherAccount={...applied.semester,canvasAccountId:"92"};assert(reconcile(s,applied.semester,otherAccount).conflicts.length);
+console.log("PASS: four-unit import, manual/cleared data protection, explicit mappings, repeat import, account isolation, partial grades, group review, atomic validation, backup/refresh and concurrent edits.");

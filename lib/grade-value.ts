@@ -12,6 +12,7 @@ export function validGradePlan(value: unknown): value is GradePlan {
   if (!value || typeof value!=="object") return false;
   const p=value as GradePlan;
   return ["parts","overall"].includes(p.mode) && ["points","equal","weighted","best"].includes(p.method)
+    && (p.canvasPendingReview===undefined||typeof p.canvasPendingReview==="boolean")
     && (p.bestCount===undefined || (Number.isInteger(p.bestCount)&&p.bestCount>0&&p.bestCount<=200))
     && Array.isArray(p.items) && p.items.length>0 && p.items.length<=200
     && new Set(p.items.map(i=>i?.id)).size===p.items.length

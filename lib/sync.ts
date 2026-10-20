@@ -26,7 +26,7 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
     return prefer === "local" ? l : r;
   }
   if (local.year !== remote.year || local.session !== remote.session || local.feedUrl !== remote.feedUrl
-    || local.boardGeneration !== remote.boardGeneration)
+    || local.boardGeneration !== remote.boardGeneration || (local.canvasAccountId&&remote.canvasAccountId&&local.canvasAccountId!==remote.canvasAccountId))
     return { semester: prefer === "local" ? local : remote, conflicts: ["Whole board changed — restore / timetable switch"] };
   const semester = merge(base,local,remote,"") as Semester;
   return { semester, conflicts };
