@@ -1,6 +1,7 @@
 import {addDays,type ClassEvent,type Task,type Semester} from "./semester";
 import {awaitingExamDate} from "./month-calendar";
 import {isPersonal,calendarOwns} from "./personal-items";
+import {activitiesInRange} from "./assessment-activity";
 
 export function mondayOf(date:string){return addDays(date,-((new Date(date+"T12:00:00Z").getUTCDay()+6)%7));}
 export function locationForDate(location:string,date?:string){
@@ -64,7 +65,8 @@ export function weekData(s:Semester,start:string,unit="all",showClasses=true){
   const unknown=tasks.filter(t=>!isPersonal(t)&&!t.date&&!t.week&&!awaitingExamDate(t));
   const unscheduled=tasks.filter(t=>isPersonal(t)&&!t.date);
   const awaitingExams=tasks.filter(awaitingExamDate);
-  return {classes,due,events,linked,weekOnly,unknown,unscheduled,awaitingExams};
+  const activities=activitiesInRange(s,s.tasks.filter(t=>calendarOwns(s,t)&&(unit==="all"||unit===t.unit)),start,end);
+  return {classes,due,events,linked,weekOnly,unknown,unscheduled,awaitingExams,activities};
 }
 export type PositionedClass={event:ClassEvent;start:number;end:number;lane:number;lanes:number};
 export function positionClasses(classes:ClassEvent[]):PositionedClass[]{

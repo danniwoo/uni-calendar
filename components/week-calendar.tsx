@@ -1,5 +1,6 @@
 "use client";
 import {AvailabilitySummary} from "@/components/assessment-availability";
+import {ActivityReminders} from "@/components/assessment-activity";
 import {useEffect,useRef,useState} from "react";
 import {addDays,COLORS,shortDate,type Semester,type Task,type ClassEvent} from "@/lib/semester";
 import {mondayOf,classRange,weekData,positionClasses,sydneyMinute,shortLocation} from "@/lib/week-calendar";
@@ -72,6 +73,7 @@ export function WeekCalendar({semester:s,focusItem,today,now,onTask,onPreparatio
       {mode==="collapse"&&completedCount>0&&<button onClick={()=>setCompletedOpen(true)}>✓ {completedCount} completed</button>}
       {exams.length>0&&<button onClick={()=>setExamsOpen(true)}>Exams · awaiting dates ({exams.length})</button>}
     </div>}
+    <ActivityReminders tasks={data.activities.filter(keep)} onOpen={onTask}/>
     <div className="week-grid">
       <div className="week-sticky"><div className="week-date-row"><div className="week-gutter" title={`${shortDate(start)} – ${shortDate(dates[6])} ${s.year} · Sydney time`}>{monthContext}</div>{dates.map((date,i)=><div key={date} title={date} className={"week-date "+(i>4?"weekend":"")}><span>{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"][i]}</span><b aria-current={date===today?"date":undefined}>{Number(date.slice(-2))}</b><button className="week-mobile-day-hit" aria-label={"Open day "+date} onClick={()=>setDay(date)}/></div>)}</div>
         {!!visibleDue.length&&<div className="week-mobile-due-row"><span>Due / all-day</span>{dates.map(date=>{const tasks=visibleDue.filter(t=>t.date===date);return <div key={date}>{tasks.length>0&&<button onClick={()=>setDay(date)} aria-label={`${shortDate(date)}: ${tasks.length} items, ${tasks.filter(t=>t.done).length} complete`}>{tasks.every(t=>t.done)?"✓ ":""}{tasks.length} {tasks.length===1?"item":"items"}</button>}</div>;})}</div>}

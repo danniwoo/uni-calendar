@@ -18,6 +18,15 @@ export type ClassEvent = {
   topic?: string;
 };
 export type Grade = { earned: number; possible: number };
+// Optional activity timing, independent of submission deadlines and marks.
+// A range is a window in which to arrange an activity, not a multi-day event.
+export type AssessmentActivity = {
+  label: string;
+  week?: number;
+  startDate?: string;
+  endDate?: string;
+  time?: string;
+};
 export type GradePlan = {
   mode: "parts" | "overall";
   method: "points" | "equal" | "weighted" | "best";
@@ -66,6 +75,7 @@ export type Task = {
   availableFromTime?: string;
   availableUntil?: string;
   availableUntilTime?: string;
+  activity?: AssessmentActivity | null;
 };
 export type AssessmentRules = {
   count?: number;

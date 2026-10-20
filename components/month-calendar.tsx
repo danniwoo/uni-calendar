@@ -11,6 +11,8 @@ import {isPersonal,calendarOwns,personalWhen} from "@/lib/personal-items";
 import {UnscheduledTasks} from "@/components/unscheduled-tasks";
 import {CalendarDays,ListTodo} from "lucide-react";
 import {AvailabilitySummary} from "@/components/assessment-availability";
+import {ActivityReminders} from "@/components/assessment-activity";
+import {activitiesInRange} from "@/lib/assessment-activity";
 
 type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
 function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEntry;color:string;onOpen:(e:MonthEntry)=>void;onToggle:(e:MonthEntry)=>void;full?:boolean}) {
@@ -71,7 +73,7 @@ export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onTog
       <div className="month-day-headings">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><strong key={d}>{d}</strong>)}</div>
       {weeks.map(row=>{
         const teaching=semester.weeks.find(w=>row[0]>=w.start && row[0]<=w.end);
-        return <div className="month-week" key={row[0]}>
+        return <div key={row[0]}><ActivityReminders tasks={activitiesInRange(semester,ownTasks.filter(t=>showCompleted||!t.done),row[0],row[6])} onOpen={onTask}/><div className="month-week">
           <div className={"month-week-label "+(teaching?.kind==="break"?"is-break":"")} title={teaching?.label || "Outside semester"}><span>{teaching?.number?"W"+teaching.number:teaching?.kind==="break"?"Break":teaching?.kind==="study"?"Study":teaching?.kind==="exam"?"Exam":"—"}</span></div>
           <div className="month-week-days">{row.map(date=>{
             const items=entries.filter(e=>e.date===date),preview=dayPreview(items,3,completedMode),mobile=dayPreview(items,3,completedMode),hiddenTasks=preview.overflow.filter(e=>e.task&&!e.done).length;
@@ -81,7 +83,7 @@ export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onTog
               {items.length>0 && <button className="month-mobile-summary" aria-label={shortDate(date)+": "+items.length+" items, "+items.filter(e=>e.done).length+" complete. Open day to view and tick."} onClick={()=>setDay(date)}>{mobile.visible.map(e=><span key={e.id} className={"month-mobile-item "+(e.task&&!isPersonal(e.task)&&(!e.task.routine||e.task.hurdle)?"mobile-deadline":"")+(e.task&&isPersonal(e.task)?" personal-"+e.task.kind:"")+(e.done?" mobile-entry-done":"")} style={{"--entry-color":color(e.unit)} as React.CSSProperties} title={e.unit+" · "+e.title}><span>{e.task?.kind==="event"?<CalendarDays className="item-type-icon" aria-hidden="true"/>:e.task?.kind==="task"&&!e.done?<ListTodo className="item-type-icon" aria-hidden="true"/>:null}{e.done?"✓ ":""}{shortEntryTitle(e,true)}</span>{e.task?.hurdle && <small>Hurdle</small>}</span>)}{mobile.overflow.length>0 && <span className="month-mobile-more">+{mobile.overflow.length} more</span>}{mobile.completed.length>0 && <span className="month-mobile-completed">✓ {mobile.completed.length}</span>}</button>}
             </div>;
           })}</div>
-        </div>;
+        </div></div>;
       })}
     </div></div>
     <Sheet open={!!day} onOpenChange={o=>{if(!o)setDay(null);}}><SheetContent className="detail-panel month-day-panel"><SheetHeader><SheetTitle>{dayTitle}</SheetTitle><SheetDescription>Tick to record completion · Open a title for details. Personal tasks and events appear only in Month & Week.</SheetDescription></SheetHeader><div className="month-agenda">{[{name:"Tasks, events & assessments",items:dayItems.filter(e=>e.task&&(completedMode==="show"||!e.done))},{name:"Classes",items:dayItems.filter(e=>e.event&&(completedMode==="show"||!e.done))},{name:"Completed ("+dayItems.filter(e=>e.done).length+")",items:completedMode==="collapse"?dayItems.filter(e=>e.done):[]}].filter(g=>g.items.length).map(group=><section key={group.name}><h3>{group.name}</h3>{group.items.map(e=>item(e,true))}</section>)}{!dayItems.length && <p>No items with these filters.</p>}</div></SheetContent></Sheet>

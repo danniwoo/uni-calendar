@@ -2,6 +2,7 @@ import { type Semester, type Task, shortDate, weightLabel, addDays } from "./sem
 import { subjectAssessments } from "./subject-view";
 import { isPersonal } from "./personal-items";
 import { assessmentTiming } from "./assessment-schedule";
+import {activityLabel} from "./assessment-activity";
 
 export type AssessmentStatus = "all" | "open" | "done";
 export type AssessmentDates = "all" | "upcoming" | "past" | "unknown" | "exams";
@@ -72,7 +73,7 @@ function overviewAnchor(row: AssessmentRow) {
 
 export function assessmentOverviewSchedule(s: Semester, row: AssessmentRow) {
   const recurring=isRecurringAssessment(row.task,row.children);
-  if (!row.grouped && !recurring) return {label:assessmentListDate(row.task),detail:""};
+  if (!row.grouped && !recurring) return {label:assessmentListDate(row.task),detail:activityLabel(row.task)};
   const label=recurring?"Recurring":row.total===1?"1 step":"Multiple dates";
   const dates=row.children.flatMap(t=>t.date?[t.date]:[]).sort();
   if (!dates.length) {

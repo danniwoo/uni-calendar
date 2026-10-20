@@ -1261,6 +1261,15 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .assessment-list-date { line-height:1.5; font-size:13px; }
 .assessment-list-date small { display:block; font-size:11px; color:#637085; }
 .assessment-list-date small:empty { display:none; }
+.assessment-list-date .assessment-activity-date { color:#2855a2; }
+.activity-summary { margin:12px 0; color:#2855a2; }
+.activity-summary small { display:block; margin-top:3px; color:#637085; }
+.activity-reminders { display:flex; flex-wrap:wrap; align-items:flex-start; gap:8px; padding:10px 14px; background:#f5f8ff; border-top:1px solid #e0e7f3; }
+.activity-reminders-label { font-size:11px; color:#637085; padding:7px 4px 0 0; }
+.activity-reminders button { display:flex; flex-direction:column; gap:3px; max-width:440px; text-align:left; padding:7px 10px; border:1px solid #cbd8f0; border-radius:7px; background:#fff; color:#284e93; }
+.activity-reminders button b { font-size:12px; font-weight:600; }
+.activity-reminders button span { font-size:11px; color:#637085; overflow-wrap:anywhere; }
+.activity-reminders .activity-recorded { opacity:.65; }
 .assessment-list-date .assessment-list-date-context { display:inline; margin-left:6px; white-space:nowrap; }
 .assessment-list .assessment-list-date-warning { display:block; border:0; padding:0; background:transparent; color:#8b5b15; font-size:11px; text-align:left; text-decoration:underline; text-underline-offset:2px; }
 .assessment-list .assessment-list-next { display:flex; align-items:baseline; flex-wrap:wrap; gap:4px 6px; border:0; padding:2px 0; background:transparent; color:#274e9b; font-size:12px; line-height:1.4; text-align:left; }

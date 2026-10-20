@@ -2,6 +2,7 @@ import { getChatGPTUser } from "../../chatgpt-auth";
 import { database } from "@/lib/storage";
 import { upgradeSemester } from "@/lib/importer";
 import { validGrade, validGradePlan } from "@/lib/grade-value";
+import {activityError} from "@/lib/assessment-activity";
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user)
@@ -73,6 +74,8 @@ export async function PUT(request: Request) {
       return Response.json({error:"Invalid grade. Check marks earned and maximum marks before saving."},{status:400});
     if ([...semester.tasks,...semester.units.flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{gradePlan?:unknown})=>t.gradePlan!=null&&!validGradePlan(t.gradePlan)))
       return Response.json({error:"Invalid individual grades. Check the item names, marks and calculation settings."},{status:400});
+    if ([...semester.tasks,...semester.units.flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{activity?:unknown})=>activityError(t.activity,semester)))
+      return Response.json({error:"Invalid activity timing. Check its week or date range."},{status:400});
     // Tabs running a pre-fix bundle must reload before editing a replaced board.
     // They do not understand replacement generations and could otherwise merge it back.
     const saved = await database().prepare("SELECT data, revision FROM semesters WHERE owner = ?").bind(user.userId).first<{data:string;revision:number}>();

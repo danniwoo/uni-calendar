@@ -56,6 +56,9 @@ import { AssessmentScope } from "@/components/assessment-scope";
 import { AssessmentConfirm } from "@/components/assessment-confirm";
 import { AssessmentAvailability, AvailabilitySummary } from "@/components/assessment-availability";
 import { availabilityError, dateInputPatch, assessmentTiming, assessmentMetadataError } from "@/lib/assessment-schedule";
+import {activityError} from "@/lib/assessment-activity";
+import {ActivityEditor,ActivitySummary} from "@/components/assessment-activity";
+import {version as appVersion} from "@/package.json";
 import { learningScope, withCoverage } from "@/lib/learning-scope";
 import { SEMESTER_LAYOUT_KEY, useFocusLayout, inNextSevenDays } from "@/lib/semester-display";
 
@@ -380,6 +383,8 @@ export default function SemesterBoard() {
     setEditError("");
     const availabilityIssue = availabilityError(draftGroup ? {...draft,date:undefined,time:undefined} : draft);
     if (availabilityIssue) { setEditError(availabilityIssue); return; }
+    const activityIssue = activityError(draft.activity,semester);
+    if (activityIssue) { setEditError(activityIssue); return; }
     const metadataIssue = assessmentMetadataError(semester,draft);
     if (metadataIssue) { setEditError(metadataIssue); return; }
     if (!draft.title.trim()) {
@@ -410,7 +415,7 @@ export default function SemesterBoard() {
     }
     const previous = semester.tasks.find(t=>t.id === draft.id) || semester.units.flatMap(u=>u.assessments).find(t=>t.id===draft.id);
     const edited = { ...draft, grade:previous?.grade, gradePlan:previous?.gradePlan, title: draft.title.trim(), week, dueWeek:preservedDueWeek, ...(draftGroup ? {splitCount:draftChildren.length||draft.splitCount,date:undefined,time:undefined,week:undefined,dueWeek:undefined} : {}) };
-    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime","splitCount"];
+    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime","splitCount","activity"];
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
       JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
@@ -1013,6 +1018,7 @@ export default function SemesterBoard() {
             </a>{" "}
             · Times are Australia/Sydney. Breaks pause teaching-week numbering.{" "}
             <button onClick={backup}>Export backup</button>
+            <span> · Semester v{appVersion}</span>
           </footer>}
         </>
       )}
@@ -1065,9 +1071,10 @@ export default function SemesterBoard() {
               {draft.sourceConflict && <p className="notice error">{draft.sourceConflict}</p>}
               {draft.warning && (!/individual occurrences|Recurring assessment/i.test(draft.warning) || needsPlacement(draft)) && <p className="notice">{draft.warning}</p>}
               {(semester.tasks.some(t=>t.id===draft.id)||semester.units.some(u=>u.assessments.some(t=>t.id===draft.id))) && !splittingTask && !editingTask && <section className="rule-card">
-                <p><strong>{draftGroup?`${draftChildren.length||draft.splitCount} steps · see schedule below`:draft.parentId?assessmentTiming(draft):timingLabel(draft)}</strong></p>
+                <p><strong>{draftGroup?`${draftChildren.length||draft.splitCount} steps · see schedule below`:draft.parentId||draft.activity?assessmentTiming(draft):timingLabel(draft)}</strong></p>
                 <strong>{weightLabel(draft)}</strong>
                 <AvailabilitySummary task={draft}/>
+                <ActivitySummary task={draft}/>
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
                 {(draft.series || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
@@ -1173,6 +1180,7 @@ export default function SemesterBoard() {
               </p></>}
               {!!draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class"&&<p className="hint">{assessmentTiming(draft)}. To change this appointment, cancel back to its summary and choose “Edit step schedule”. A submission deadline is a separate step.</p>}
               {draftGroup&&<p className="hint">Each step keeps its own schedule. Open an individual step to change its date. Editing these assessment details does not change your steps.</p>}
+              <ActivityEditor task={draft} semester={semester} onChange={t=>{setDraft(t);setEditError("");}}/>
               <AssessmentAvailability task={draft} onChange={t=>{setDraft(t);setEditError("");}}/>
               <details className="optional-task-fields"><summary>More options · notes & planned start</summary>
               <label>
