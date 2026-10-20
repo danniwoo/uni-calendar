@@ -139,7 +139,14 @@ export async function readCanvas(request) {
           if (row.getAttribute("data-muted") !== "false" || row.getAttribute("data-pending_quiz") === "true") {withheldMarks.add(assignmentId);continue;}
           const cell = row.querySelector(".assignment_score .grade");
           if (!cell) continue;
-          if (cell.closest('[hidden], [aria-hidden="true"], [style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]') || cell.querySelector('.icon-off, [hidden], [aria-hidden="true"]')) {withheldMarks.add(assignmentId);continue;}
+          const hiddenSelector='[hidden], [aria-hidden="true"], [style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]';
+          let hidden = cell.closest(hiddenSelector);
+          // Canvas ships the whole classic grade-summary-content wrapper with
+          // display:none until its JS mounts. This is NOT a grade-release flag.
+          // Exempt only that known bootstrap style, never hidden rows/cells,
+          // accessibility-hidden elements, icons, or any other hidden ancestor.
+          if(hidden?.id==="grade-summary-content"&&!hidden.hasAttribute("hidden")&&hidden.getAttribute("aria-hidden")!=="true"&&hidden.style.visibility!=="hidden") hidden=hidden.parentElement?.closest(hiddenSelector)||null;
+          if (hidden || cell.querySelector('.icon-off, [hidden], [aria-hidden="true"]')) {withheldMarks.add(assignmentId);continue;}
           const copy = cell.cloneNode(true);
           copy.querySelectorAll('.tooltip_wrap, .screenreader-only, .sr-only').forEach(n => n.remove());
           if (copy.querySelector('[style*="display: none"], [style*="display:none"], [style*="visibility: hidden"]')) continue;

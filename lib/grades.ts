@@ -41,7 +41,12 @@ export function saveGradePlan(s:Semester,id:string,plan:GradePlan,expected:Grade
   if (JSON.stringify(t.gradePlan??null)!==JSON.stringify(expected??null)) throw new Error("Individual grades changed elsewhere. Cancel and reopen to review the latest entries.");
   const {canvasPendingReview:_,...reviewed}=plan;
   const task={...t,gradePlan:reviewed};
-  return {...s,tasks:s.tasks.some(t=>t.id===id)?s.tasks.map(t=>t.id===id?task:t):[...s.tasks,task]};
+  const canvasImports=s.canvasImports?.map(r=>{
+    if(r.targetId!==id||r.mode!=="part")return r;
+    const before=t.gradePlan?.items.find(i=>i.id===`canvas:${r.key}`),after=plan.items.find(i=>i.id===`canvas:${r.key}`);
+    return JSON.stringify([before?.grade,before?.maximum,before?.excluded])!==JSON.stringify([after?.grade,after?.maximum,after?.excluded])||!after?{...r,manual:true}:r;
+  });
+  return {...s,...(canvasImports?{canvasImports}:{}),tasks:s.tasks.some(t=>t.id===id)?s.tasks.map(t=>t.id===id?task:t):[...s.tasks,task]};
 }
 
 // Never parse "3% each", ranges, bonus text or an orphan occurrence as a unit weight.
@@ -95,5 +100,6 @@ export function saveGrade(s:Semester, id:string, grade:Grade|null, expected:Grad
   if (JSON.stringify(task.grade??null)!==JSON.stringify(expected??null)) throw new Error("This grade changed elsewhere. Cancel and reopen to review the latest score before editing.");
   const existing=s.tasks.some(t=>t.id===id);
   // Store imported aggregate overrides by ID, without turning them into manual schedules.
-  return {...s,tasks:existing?s.tasks.map(t=>t.id===id?{...t,grade}:t):[...s.tasks,{...task,grade}]};
+  const canvasImports=s.canvasImports?.map(r=>r.targetId===id?{...r,manual:true}:r);
+  return {...s,...(canvasImports?{canvasImports}:{}),tasks:existing?s.tasks.map(t=>t.id===id?{...t,grade}:t):[...s.tasks,{...task,grade}]};
 }

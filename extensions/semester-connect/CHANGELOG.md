@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 — 2026-10-20
+
+- Fix zero released grades caused by treating Canvas's initially hidden `grade-summary-content` loading wrapper as an unpublished-score signal. Actual muted/pending/hidden cells and What-If values remain excluded.
+- Align course checkboxes horizontally with labels; add selected/focus states and larger clickable rows.
+- Reload the unpacked extension, close old preview tabs, and read/download again. An older exported file cannot recover scores that were omitted at read time.
+
 Semester Connect uses Semantic Versioning independently of Semester Web. During 0.x, incompatible changes increment the minor version and are documented. Bug fixes increment patch. Published build numbers are not reused.
 
 ## 0.2.0 — 2026-10-20

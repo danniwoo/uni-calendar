@@ -44,7 +44,7 @@ async function run(options = {}) {
 test("extension version and least-privilege manifest are consistent", async () => {
   const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url)));
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
-  assert.equal(manifest.version, "0.2.0");
+  assert.equal(manifest.version, "0.2.1");
   assert.equal(pkg.version, manifest.version);
   assert.equal(manifest.manifest_version, 3);
   assert.deepEqual(manifest.permissions, ["activeTab", "scripting"]);
@@ -81,7 +81,7 @@ test("single-course responses without enrollment fields still verify against the
 function marksParser(rows,supported=true){return class {parseFromString(){return {
   querySelector:()=>supported?{}:null,
   querySelectorAll:()=>rows.map(r=>({id:`submission_${r.id}`,getAttribute:key=>key==="data-muted"?String(!!r.muted):String(!!r.pending),querySelector:()=>({
-    closest:()=>r.hidden?{}:null,querySelector:()=>r.icon?{}:null,
+    closest:()=>r.hidden?{}:r.bootstrap?{id:"grade-summary-content",hasAttribute:()=>false,getAttribute:()=>null,style:{},parentElement:{closest:()=>r.outerHidden?{}:null}}:null,querySelector:()=>r.icon?{}:null,
     cloneNode:()=>({textContent:String(r.score),querySelectorAll:()=>[],querySelector:()=>null})
   })}))
 };}};}
@@ -94,6 +94,11 @@ test("Marks-visible numeric score confirms release without posted_at; hidden mar
 test("unsupported Marks layout reports limitation without inventing release",async()=>{
   const {result}=await run({DOMParser:marksParser([],false),assignments:[{...assignment,submission:{...posted,posted_at:null}}]});
   assert.equal(result.marksPageUnavailable,true);assert.equal(result.assignments[0].submission.score,null);
+});
+test("Canvas bootstrap-hidden wrapper is not withheld; hidden rows, outer ancestors and icons remain withheld",async()=>{
+  const rows=[{id:1,score:7,bootstrap:true},{id:2,score:8,bootstrap:true,muted:true},{id:3,score:8,bootstrap:true,hidden:true},{id:4,score:8,bootstrap:true,outerHidden:true},{id:5,score:8,bootstrap:true,icon:true}];
+  const {result}=await run({DOMParser:marksParser(rows),assignments:rows.map(r=>({...assignment,id:r.id,submission:{...posted,assignment_id:r.id,posted_at:null}}))});
+  assert.deepEqual(result.assignments.map(a=>a.submission.score),[7,null,null,null,null]);
 });
 test("four independently selected courses use their own endpoints, not a fixed first course", async () => {
   const list=[12,13,14,15].map(id=>({...course,id,enrollments:undefined}));

@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
-import {readCanvasBundle,planCanvasImport,validCanvasMetadata,type CanvasChoice} from "../lib/canvas-import";
+import {readCanvasBundle,planCanvasImport,validCanvasMetadata,suggestCanvasMatches,type CanvasChoice} from "../lib/canvas-import";
 import {fixtureBoard as s,fixtureBundle as b,fixtureChoices as choices} from "./fixtures/canvas-connect";
 import {backupText,readBackup} from "../lib/backup";
 import {mergeSemester} from "../lib/semester";
-import {partGrade,saveGradePlan} from "../lib/grades";
+import {partGrade,saveGradePlan,saveGrade} from "../lib/grades";
 import {reconcile} from "../lib/sync";
 const before=JSON.stringify(s);
 assert.deepEqual(readCanvasBundle(JSON.stringify(b)),b);
 const applied=planCanvasImport(s,b,choices);
-assert.equal(applied.changed,3);assert.equal(JSON.stringify(s),before);
+assert.equal(applied.changed,4);assert.equal(JSON.stringify(s),before);
 assert.deepEqual(applied.semester.tasks[1].grade,{earned:8,possible:10},"manual grade protected");
 assert.deepEqual(applied.semester.completed,s.completed);
 for(let i=0;i<4;i++) {const {grade,...actual}=applied.semester.tasks[i];const {grade:_,...original}=s.tasks[i];assert.deepEqual(actual,original);}
@@ -16,10 +16,10 @@ assert.equal(planCanvasImport(applied.semester,b,choices).changed,0,"repeat impo
 assert.throws(()=>planCanvasImport(applied.semester,{...b,accountId:"92"},choices),/different Canvas account/);
 assert.throws(()=>planCanvasImport(applied.semester,b,[{...choices[0],targetId:"new"}]),/already linked/);
 const cleared=structuredClone(s);cleared.tasks[0].grade=null;
-assert.equal(planCanvasImport(cleared,b,[choices[0]]).changed,0,"explicitly cleared grade protected");
+assert.equal(planCanvasImport(cleared,b,[choices[0]]).semester.tasks[0].grade,null,"explicitly cleared grade protected; mapping may be saved");
 const noGrade=structuredClone(b);noGrade.courses[0].assignments[0].submission!.score=null;
-assert.equal(planCanvasImport(s,noGrade,[choices[0]]).changed,0);
-for(const variant of [{released:false},{excused:true},{currentAttemptGraded:false}]) {const x=structuredClone(b);Object.assign(x.courses[0].assignments[0].submission!,variant);assert.equal(planCanvasImport(s,x,[choices[0]]).changed,0);}
+assert.equal(planCanvasImport(s,noGrade,[choices[0]]).changed,1,"ungraded mapping saved for later");
+for(const variant of [{released:false},{excused:true},{currentAttemptGraded:false}]) {const x=structuredClone(b);Object.assign(x.courses[0].assignments[0].submission!,variant);assert.equal(planCanvasImport(s,x,[choices[0]]).semester.tasks[0].grade,undefined);}
 const duplicate=[choices[0],{...choices[0],assignmentId:"2"}];assert.throws(()=>planCanvasImport(s,b,duplicate),/Several Canvas items/);
 const parts:CanvasChoice[]=["1","2"].map(assignmentId=>({...choices[0],assignmentId,mode:"part",method:"points"}));
 const grouped=planCanvasImport(s,b,parts).semester;assert.equal(grouped.tasks[0].grade,undefined);assert.equal(grouped.tasks[0].gradePlan?.items.length,2);
@@ -45,3 +45,29 @@ assert.equal(validCanvasMetadata({canvasAccountId:"92",canvasImports:grouped.can
 const independent=structuredClone(s);independent.tasks[2].description="Other tab note";const merged=reconcile(s,applied.semester,independent);assert.equal(merged.conflicts.length,0);assert.equal(merged.semester.tasks[2].description,"Other tab note");assert.deepEqual(merged.semester.canvasImports,applied.semester.canvasImports);
 const otherAccount={...applied.semester,canvasAccountId:"92"};assert(reconcile(s,applied.semester,otherAccount).conflicts.length);
 console.log("PASS: four-unit import, manual/cleared data protection, explicit mappings, repeat import, account isolation, partial grades, group review, atomic validation, backup/refresh and concurrent edits.");
+
+const newer=structuredClone(b);newer.courses[0].fetchedAt="2026-10-21T05:00:00Z";newer.courses[0].assignments[0].submission!.score=9;
+const updated=planCanvasImport(applied.semester,newer,[choices[0]]);
+assert.equal(updated.changed,1);assert.deepEqual(updated.semester.tasks[0].grade,{earned:9,possible:10});assert(updated.actions[0].text.includes("7/10 → 9/10"));
+assert.equal(planCanvasImport(updated.semester,b,[choices[0]]).changed,0,"older file cannot roll grade back");
+assert.equal(planCanvasImport(updated.semester,newer,[choices[0]]).changed,0,"repeat update is idempotent");
+const manuallyEdited=saveGrade(applied.semester,"root-0",{earned:7,possible:10},{earned:7,possible:10});
+assert.equal(planCanvasImport(manuallyEdited,newer,[choices[0]]).changed,0,"manual save even of same value protects provenance");
+const legacy=structuredClone(applied.semester);legacy.canvasImports=legacy.canvasImports!.map(({key,targetId,mode})=>({key,targetId,mode}));
+assert.equal(planCanvasImport(legacy,newer,[choices[0]]).changed,0,"legacy records without baseline cannot overwrite");
+const waiting=planCanvasImport(s,noGrade,[choices[0]]).semester;
+assert.equal(planCanvasImport(waiting,b,[choices[0]]).semester.tasks[0].grade?.earned,7,"saved ungraded link fills later");
+const newUngraded=planCanvasImport(s,noGrade,[{...choices[0],targetId:"new"}]).semester;
+assert.equal(planCanvasImport(newUngraded,newer,[{...choices[0],targetId:"new"}]).semester.tasks.at(-1)?.grade?.earned,9);
+const partUpdate=planCanvasImport(grouped,newer,parts);assert.equal(partUpdate.changed,1);assert.equal(partUpdate.semester.tasks[0].gradePlan?.items[0].grade?.earned,9);
+const editedPlan=structuredClone(grouped.tasks[0].gradePlan!);editedPlan.items[0].grade={earned:8,possible:10};
+const editedParts=saveGradePlan(grouped,"root-0",editedPlan,grouped.tasks[0].gradePlan);
+assert.equal(planCanvasImport(editedParts,newer,parts).semester.tasks[0].gradePlan?.items[0].grade?.earned,8);
+const suggested=suggestCanvasMatches(applied.semester,newer);assert.equal(Object.keys(suggested.choices).length,4);assert.equal(suggested.choices["101:1"].targetId,"root-0");
+assert.equal(Object.keys(suggestCanvasMatches(applied.semester,{...b,accountId:"92"}).choices).length,0);
+const exact=structuredClone(s);exact.tasks[0].title=b.courses[0].assignments[0].name;
+assert.equal(suggestCanvasMatches(exact,b).choices["101:1"].targetId,"root-0");
+const ambiguous=structuredClone(b);ambiguous.courses[0].assignments[1].name=ambiguous.courses[0].assignments[0].name;
+assert.equal(Object.keys(suggestCanvasMatches(exact,ambiguous).choices).length,0,"many-to-one exact title guesses all skipped");
+assert.equal(validCanvasMetadata({...updated.semester,canvasImports:[{...updated.semester.canvasImports![0],lastGrade:{earned:11,possible:10}}]}),false);
+console.log("PASS: remembered/exact matching, ambiguity, source-owned grade updates, stale files, legacy/manual protection and ungraded-to-released transitions.");

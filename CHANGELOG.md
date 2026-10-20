@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-20
+
+- Reuse confirmed Canvas unit/item mappings and suggest unique exact titles or assignment links. Ambiguous matches stay skipped; nothing saves before review.
+- Show old → new grades and update only unchanged Canvas-owned values. Manual edits/clears, legacy imports without a baseline, older reads and removed items remain protected. Ungraded links can be saved for later results.
+- Preserve source baselines through backups/refresh, mark manual grade edits explicitly, and guard older clients with sync v6.
+- Fix course selection and import confirmation checkbox alignment, focus states and click targets. Semester Connect 0.2.1 fixes the Canvas bootstrap-hidden Marks wrapper that incorrectly suppressed all released scores.
+
 ## 0.3.0 — 2026-10-20
 
 - Manage → Import from Semester Connect: local JSON review, explicit unit/item mapping and confirmation before account save.

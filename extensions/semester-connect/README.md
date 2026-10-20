@@ -1,19 +1,19 @@
-# Semester Connect 0.2.0
+# Semester Connect 0.2.1
 
 Local unpacked Chrome extension. Canvas stays read-only. Not a Chrome Web Store release.
-Compatible website: Semester Web 0.3.0 or later; import format version 1.
+Compatible website: Semester Web 0.4.0 or later for safe grade updates; import format version 1.
 
 ## 更新與測試
 
 1. 到 Chrome 的 `chrome://extensions`，對 **Semester Connect — Local Preview** 按重新載入。
-2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.2.0**。
+2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.2.1**。舊預覽可能仍記著舊版本；必須重新讀取、下載，不能只重傳舊 JSON。
 3. 按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。按 **Read selected courses**。
 4. 每科會分別顯示筆數與已公布成績。單科失敗不清掉其他成功資料；從 Course 選失敗那科，再按 **Read selected course** 重試。所有勾選科目成功才可匯出。
 5. 用 Course 選單檢查每科，與 **Compare in Canvas** 的 Marks 頁比對。未公布、隱藏、免計分不等於零分。
 6. 確認後按 **Download import file**。這是含成績的私人 JSON，請勿公開分享。
 7. 回到 Semester 網站 **Manage → Import from Semester Connect**，選剛下載的檔案。檔案先在瀏覽器本機解析，不立即上傳。
-8. 核對帳戶、學期及四科配對。每筆預設 **Skip**：
-   - 已有 assessment：選對應項目，只填空白成績。
+8. 核對帳戶、學期及四科配對。已確認的配對會帶回，唯一同名／相同 Canvas 連結會提供建議；不確定的項目保持 **Skip**：
+   - 已有 assessment：選對應項目，填空白成績或檢查既有 Canvas 成績的更新差異。
    - Recurring / multi-part：展開該區，把整個 Canvas group 配到既有 assessment，確認依總分或每項等權計算。
    - 真正沒有的項目才選 **Add new assessment**；新項目權重留空，避免把 group 權重誤當每次 quiz 權重。
 9. 查看 **Changes to confirm**。勾確認，再按 **Confirm**；等網站顯示 **Saved**。
@@ -27,8 +27,8 @@ Compatible website: Semester Web 0.3.0 or later; import format version 1.
 ## 不覆蓋的界線
 
 - 既有名稱、日期、活動時段、權重、筆記、完成狀態不變。
-- 已填成績、手動清空的成績、已有的手動 grade plan 均保留；Canvas 有不同分數會顯示 kept，不靜默更新。
-- 本版不是持續同步。再次匯入只補尚未填寫的 Connect 項目；已填／刪除的項目不重建、不覆蓋。
+- 手動成績、手動清空的成績、已有的手動 grade plan 均保留。只有仍等於上次 Canvas 匯入值且未手動修改的分數可在確認後更新，畫面顯示舊值 → 新值。
+- 本版不是持續同步。再次匯入重用配對；舊檔案、沒有更新基準的舊版紀錄、刪除的項目不覆蓋／重建。
 - 同一 Canvas item 透過 account/course/assignment ID 去重，不能默默改配到另一份作業。
 - 一個 board 首次有實際匯入時綁定 Canvas account ID。不同帳戶檔案停止匯入。
 - Group drop rules 不自動計算。不同計分方式、額外加分、非數字成績等請手動核對。
@@ -55,6 +55,7 @@ Clear／關頁清空記憶體，不刪除已下載檔案。原 Canvas 分頁導�
 - `LOGIN_REQUIRED`／`NETWORK`：確認 Canvas 正常登入後重開。
 - `NOT_STUDENT`：目前帳戶的 active student list 未確認這門課，不繞過權限。
 - `Marks-page cross-check unavailable`：該校頁面格式／存取尚未支援，請比對 Canvas。隱藏分數不會猜測。
+- 四科全部 `0 released grades` 但 Canvas 有分數：0.2.1 修正把 Canvas 載入畫面暫時隱藏誤判為「未公布」的問題。更新 extension、重開預覽、重新讀取並下載。真正未公布／待批改的成績仍不讀取。
 - Canvas 原本沒有的日期、活動週、未來 quiz 或還未公布的成績，不會憑空補齊。
 - 本版仍需用真實四科比對；開發驗證使用 synthetic data，未修改使用者紀錄。
 - 尚未提供背景偵測、Web Store 自動更新或原生 iOS 支援。

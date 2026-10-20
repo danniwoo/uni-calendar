@@ -101,7 +101,7 @@ export type Unit = {
 };
 export type Semester = {
   canvasAccountId?: string;
-  canvasImports?: {key:string;targetId:string;mode:"overall"|"part"}[];
+  canvasImports?: {key:string;targetId:string;mode:"overall"|"part";lastGrade?:Grade;readAt?:string;manual?:boolean}[];
   // A new generation marks an explicit snapshot replacement, including same-feed restores.
   boardGeneration?: string;
   year: number;
