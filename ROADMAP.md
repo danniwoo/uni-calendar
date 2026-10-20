@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-更新：2026-10-20 · Web **0.4.0** / Connect **0.2.1**
+更新：2026-10-20 · Web **0.4.1** / Connect **0.2.1**
 
 這是唯一的工作／測試狀態總表。產品用途見 [VISION](VISION.md)，工程細節見 [PROGRESS](PROGRESS.md)。**功能已寫好 ≠ 已發布 ≠ 你已測過 ≠ 流程順。**
 
@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | **現在主線** | M1：可靠地管理自己的學期；尚未完成整條使用者驗收 | 先完成 [CONNECT-01](#connect-01) 的真實四科比對 |
 | **等你測** | Connect 已修；assessment、準備、成績等改動仍缺完整試用結論 | [測試佇列](#test-queue)，優先 T01 → T02 |
+| **本次插入修正** | 手動新增 assignment 缺少刪除入口：FLOW-01-F1 | 程式與 synthetic QA 完成；接 T09 回測，不清掉原本 Connect 待測 |
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
 | **之後再決定** | 自動 Canvas 更新、iOS、Friends、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
@@ -70,6 +71,14 @@
 - 驗收：新增後仍能找到編輯／due；日期語意清楚；不同 view 是同一筆資料；取消不儲存；更新後可返回並續接。個人 event/task 不混進正式考核總表。
 - 證據：歷史實作／synthetic QA 見 archive；**使用者完整重測：待記錄**。
 
+#### FLOW-01-F1 · 手動新增 assessment 無法刪除
+
+- 2026-10-20 使用者回報；P1，Web 0.4.1 **已修、待使用者驗證**。
+- 原因：個人 Task/Event 有刪除入口，但 assessment detail/edit 沒有；`manual` 也可能代表匯入資料被編輯，不能單靠該旗標放行。
+- 已修：僅手動建立的 assessment root 可刪；確認範圍包含其 steps、grades、completion；提供立即 Undo、過期確認／衝突保護。保留 Canvas ledger 防止舊匯入復活。
+- 開發驗證：新增 deletion regression；全 web regression、storage 與 TypeScript；隔離假資料的完整 board UI 驗證入口、取消、刪除、Undo 還原分數／勾選、group 範圍與來源保護。未刪真實資料。
+- 下一步：T09，使用者以一份可丟棄的手動 assignment 測刪除／Undo。這不代表 FLOW-01 其他編輯流程已驗收。
+
 ### PREP-01
 
 **準備缺口 → Subject → 更新學習紀錄** · P1 · **待驗證** · Next
@@ -125,6 +134,7 @@
 | **T06 / GRADE-01** | 單科 Show grades → 14/20、權重 10% → 再測 recurring/parts 與一筆空白 | 能理解 70% 和總評貢獻 7 分的差別？空白不是零？隱藏 recurring 不改統計？ | 待驗證 |
 | **T07 / DATA-01** | 隔離 board 編輯 → Saved/reload → refresh → backup/restore → 切換帳戶 | 保護手動值／清空、還原差異、身份隔離；不拿正式資料冒險 | 待安排 |
 | **T08 / M2** | 新使用者自行設定自己的學期，完成找作業／更新，再使用一週 | 哪裡需要開發者解說？下次打開能續接嗎？不用抄錄私人對話 | 待 M1 核心問題解除 |
+| **T09 / FLOW-01-F1** | Web 0.4.1 → 開一份可丟棄的手動 assessment → Delete assessment → 取消，再確認 → Undo | 入口可見？取消不改資料？group 提示範圍？Undo 還原？確認 Saved 後才 reload；Undo 本身不跨 reload 保留 | 已通過 synthetic QA；待你回測 |
 
 ### 每次測完只補這張紀錄
 

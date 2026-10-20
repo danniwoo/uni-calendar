@@ -1,13 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.4.1 — 2026-10-20
+
+### Fixed
+
+- Add missing Delete assessment in saved, manually created assessment detail/edit panels, with confirmation and immediate Undo.
+- Explain when deletion includes child steps/occurrences and their grades/completion; preserve unrelated records and Canvas import ledgers.
+- Protect imported assessments even after manual edits, reject stale confirmation and prevent undo from overwriting newer changes or crossing board replacements.
 
 ### Documentation
 
 - Update README capabilities, Connect instructions, privacy boundaries and both local database migrations.
 - Add VISION and a resumable ROADMAP with MVP stages, workstream IDs, explicit user-test queue and acceptance criteria.
 - Condense PROGRESS into an engineering handoff; preserve historical context in an archive digest and Git history.
-- Documentation only: no Web/Connect version bump, application deployment or user-data change.
+- These documentation updates were committed separately before this bug fix. Connect remains 0.2.1; no user-data migration.
 
 ## 0.4.0 — 2026-10-20
 

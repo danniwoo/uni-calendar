@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.4.0** · **Semester Connect 0.2.1**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.4.1** · **Semester Connect 0.2.1**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -25,6 +25,7 @@ Current source versions: **Semester Web 0.4.0** · **Semester Connect 0.2.1**. C
 - **Subject** connects preparation gaps to learning records and unit requirements.
 - **Assessments** provides a searchable/filterable inventory, a clean Overview and a separate Steps & schedule mode.
 - Assessment editing supports multiple steps, demos/submissions, availability, and an activity week/date window separate from the submission deadline.
+- Manually created assessments can be deleted from their detail/edit panel, with scope confirmation and immediate Undo. Source-defined assessments are protected.
 - Grades support overall or individual-part results, single-unit summaries and conditional target estimates. Blank/hidden marks are not zero; completion and grades are independent.
 - Account-scoped D1 storage, backup export/restore, one previous-board recovery slot and guarded concurrent saves are implemented.
 - **Semester Connect** reads selected USYD Canvas courses using an existing browser login. A private JSON file is reviewed and mapped in Semester before import. Confirmed mappings can be reused; manual data is protected.

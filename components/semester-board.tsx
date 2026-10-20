@@ -56,6 +56,8 @@ import {locationForDate} from "@/lib/week-calendar";
 import { SplitAssessment } from "@/components/split-assessment";
 import { AssessmentScope } from "@/components/assessment-scope";
 import { AssessmentConfirm } from "@/components/assessment-confirm";
+import {AssessmentDelete} from "@/components/assessment-delete";
+import {deleteAssessment,undoAssessmentDeletion} from "@/lib/assessment-delete";
 import { AssessmentAvailability, AvailabilitySummary } from "@/components/assessment-availability";
 import { availabilityError, dateInputPatch, assessmentTiming, assessmentMetadataError } from "@/lib/assessment-schedule";
 import {activityError} from "@/lib/assessment-activity";
@@ -131,6 +133,7 @@ export default function SemesterBoard() {
     [taskFeedback,setTaskFeedback] = useState(""),
     [discardAssessment,setDiscardAssessment] = useState<"close"|"edit"|null>(null),
     [assessmentUndo,setAssessmentUndo] = useState<{before:Semester;after:Semester;taskId:string}|null>(null),
+    [deletedAssessment,setDeletedAssessment] = useState<{before:Semester;after:Semester;title:string}|null>(null),
     [newRecurring, setNewRecurring] = useState(false),
     [conflict, setConflict] = useState<{remote:Semester; revision:number; fields:string[]} | null>(null),
     [transfer, setTransfer] = useState<{board:Semester; kind:"backup"|"import"} | null>(null),
@@ -355,6 +358,22 @@ export default function SemesterBoard() {
     if(result.conflicts.length){setEditError("These steps changed again. Reopen Edit steps to review them; undo would overwrite newer changes.");return;}
     commit(result.semester);const parent=result.semester.tasks.find(t=>t.id===assessmentUndo.taskId)!;
     setDraft({...parent});setDetail({type:"task",task:parent});setAssessmentUndo(null);setTaskFeedback("Step changes undone.");
+  }
+  function removeAssessment(id:string,reviewed:Semester) {
+    const before=current.current;
+    if(!before||busy||conflict||saveError)throw new Error("Resolve the current save or board warning before deleting.");
+    const after=deleteAssessment(before,id,reviewed);
+    const title=before.tasks.find(t=>t.id===id)!.title;
+    commit(after);setDeletedAssessment({before,after,title});setAssessmentUndo(null);
+    setNotice("");setSubject(null);setEditingTask(false);setNewRecurring(false);finishCloseAssessment();
+  }
+  function undoDeletedAssessment() {
+    if(!deletedAssessment||!current.current)return;
+    try {
+      if(busy||conflict||saveError)throw new Error("Resolve the current save or board warning before undoing.");
+      commit(undoAssessmentDeletion(deletedAssessment.before,deletedAssessment.after,current.current));
+      setDeletedAssessment(null);setNotice("Assessment restored.");
+    } catch(e) {setNotice(e instanceof Error?e.message:"Could not undo deletion.");}
   }
   function openPreparation(t: Task) {
     setDetail(null);
@@ -717,6 +736,11 @@ export default function SemesterBoard() {
           </div>
         </section>
       )}
+      {deletedAssessment && <div className="notice" role="status">
+        Deleted “{deletedAssessment.title}” and any steps.{" "}
+        <button type="button" disabled={busy||!!conflict||!!saveError} onClick={undoDeletedAssessment}>Undo delete</button>{" "}
+        <button type="button" onClick={()=>setDeletedAssessment(null)}>Dismiss</button>
+      </div>}
       {notice && (
         <div className="notice" role="status">
           {notice}
@@ -1291,6 +1315,7 @@ export default function SemesterBoard() {
                 </button>
               )}
               </div>
+              <AssessmentDelete key={`delete-${draft.id}`} semester={semester} task={draft} disabled={busy||!!conflict||!!saveError} onDelete={reviewed=>removeAssessment(draft.id,reviewed)}/>
               </>}
               </>}
             </div>
