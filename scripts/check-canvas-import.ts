@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {readCanvasBundle,planCanvasImport,validCanvasMetadata,suggestCanvasMatches,type CanvasChoice} from "../lib/canvas-import";
+import {readCanvasBundle,planCanvasImport,validCanvasMetadata,suggestCanvasMatches,canvasCandidates,canvasGroupBlock,canvasResultLabel,isCanvasRetake,type CanvasChoice} from "../lib/canvas-import";
 import {fixtureBoard as s,fixtureBundle as b,fixtureChoices as choices} from "./fixtures/canvas-connect";
 import {backupText,readBackup} from "../lib/backup";
 import {mergeSemester} from "../lib/semester";
@@ -83,3 +83,30 @@ assert.equal(planCanvasImport(s,parsedText,[choices[0]]).semester.tasks[0].grade
 assert.deepEqual(planCanvasImport(applied.semester,parsedText,[choices[0]]).semester.tasks[0].grade,applied.semester.tasks[0].grade,"text-only result never clears an existing numeric grade");
 assert.deepEqual(planCanvasImport(s,parsedText,[choices[1]]).semester.tasks[1].grade,s.tasks[1].grade,"manual grade remains protected");
 console.log("PASS: Connect 0.2.2 text results accepted without invented marks or overwriting saved grades.");
+assert.equal(canvasResultLabel(parsedText.courses[0].assignments[0]),"Complete · text only");
+assert.equal(parsedText.courses[0].assignments[0].result,"complete");
+const hiddenText=structuredClone(textResult);hiddenText.courses[0].assignments[0].submission!.released=false;
+assert.equal(readCanvasBundle(JSON.stringify(hiddenText)).courses[0].assignments[0].result,undefined);
+
+const candidateBoard=structuredClone(s);
+candidateBoard.tasks[1].title="A1: Tools for agile development";
+const shortName={...b.courses[1].assignments[0],name:"A1"};
+const candidates=canvasCandidates(candidateBoard,"SOFT2412",shortName);
+assert.equal(candidates[0].target.id,"root-1");
+assert.equal(canvasCandidates(candidateBoard,"ELEC2302",shortName).length,0,"candidates cannot cross units");
+const shortBundle=structuredClone(b);shortBundle.courses[1].assignments[0]=shortName;
+assert.equal(suggestCanvasMatches(candidateBoard,shortBundle).choices["102:1"],undefined,"candidate labels are not automatic matches");
+for(const name of ["Quiz 1 - attempt 3","Quiz 2, attempt #2","Quiz 2 retake","Quiz re-attempt"]){
+  assert.equal(isCanvasRetake({...shortName,name}),true);
+}
+assert.equal(isCanvasRetake({...shortName,name:"Week 3 weekly quiz"}),false);
+const retakes=structuredClone(b);retakes.courses[0].assignments[1].name="Quiz 1 - attempt 2";
+assert.match(canvasGroupBlock(retakes.courses[0],"5"),/Retake/);
+assert.throws(()=>planCanvasImport(s,retakes,parts),/Retake/,"UI cannot bypass retake-group protection");
+assert.throws(()=>planCanvasImport(s,retakes,[parts[0]]),/Retake/,"skipping the named retake does not bypass group protection");
+const exactRetake=structuredClone(s);exactRetake.tasks[0].title=retakes.courses[0].assignments[1].name;
+assert.equal(suggestCanvasMatches(exactRetake,retakes).choices["101:2"],undefined,"do not preselect new retakes even on exact title");
+assert.equal(planCanvasImport(s,retakes,[choices[0]]).semester.tasks[0].grade?.earned,7,"explicit single overall result remains possible");
+assert.throws(()=>planCanvasImport(s,retakes,[choices[0],{...choices[0],assignmentId:"2"}]),/Several Canvas/);
+assert.throws(()=>planCanvasImport(s,b,[{...parts[0],method:undefined}]),/Confirm how/,"no implicit group averaging method");
+console.log("PASS: candidate suggestions are opt-in/unit-scoped, text labels stay non-numeric, retakes cannot be bulk averaged, and calculation rules require a choice.");

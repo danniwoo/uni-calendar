@@ -4,7 +4,7 @@ Updated: 2026-10-20. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
-- Web **0.4.1**, Connect **0.2.2**, import format **1**, web sync guard **v6**.
+- Web **0.5.0**, Connect **0.2.3**, import format **1**, web sync guard **v6**.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
 - Web release was published in the preceding release workflow. Connect remains an unpacked extension requiring Chrome reload and a fresh preview/read/download.
 - Safe updates reuse confirmed account/course/item mappings and compare source baselines. Manual edits/clears, stale files, legacy records without a baseline and removed items are protected.
@@ -46,7 +46,13 @@ Diagnosis used read-only live Marks pages and a focused API comparison: deprecat
 
 Installed-extension end-to-end QA is **not complete**: browser policy blocks `chrome-extension://` access. Do not circumvent it. The user subsequently reloaded and supplied a fresh 0.2.2 four-course export; released results were checked against earlier live evidence and passed the website parser. This does not validate every date, mapping or write. No real import, Canvas mutation or web publication occurred for this extension patch.
 
-Known follow-up: an unsubmitted pass/fail item with `posted_at` but no result can retain `released:true` with `score:null` and empty `grade`. Preview counts/calculation exclude it, and import does not turn it into zero. Normalize this metadata in a future patch with a regression test; submission state, result visibility and completion are separate concepts. The user confirmed that the affected work was not submitted.
+Resolved in Connect 0.2.3: an unsubmitted pass/fail item with `posted_at` but no result previously retained `released:true` with `score:null` and empty `grade`. Release now requires an actual result as well as visibility evidence. Submission state, result visibility and completion remain separate. 35 Node tests and 89 real-DOM synthetic assertions pass; no numeric fallback invents a pass/fail result.
+
+Web 0.5.0 import flow: `CanvasImport` separates match and review states, invalidates acknowledgment on changes/back-navigation and holds the exact reviewed Semester reference for the existing parent commit guard. Search/filter never clears choices; summaries count the entire selection, not just visible rows. Unit changes clear that course's choices. New assessments remain an explicit secondary option; no bulk creation.
+
+`canvasCandidates` supplies opt-in unit-scoped title/assignment-label candidates; it never feeds automatic choices. `canvasGroupBlock` enforces unknown/drop-rule and named-retake restrictions in both the UI and pure planner, including partial-group selections. Retakes are not auto-suggested on first import; confirmed saved mappings remain reusable. This heuristic cannot recognize every naming pattern and does not decide highest/latest/capped rules. Groups require explicit points/equal selection. Complete/Incomplete is sanitized for display only; numeric import calculations are unchanged.
+
+Synthetic UI evidence: candidate selection, no default group calculation, retake group blocking, duplicate overall-target error, text results, cancellation with zero writes, preserved manual grade, provisional parts without new tasks, remembered mappings and zero-change repeat import, and concurrent-data-change invalidation. Browser QA used a checkout-ignored localhost React harness with invented fixtures, not the signed-in website or Canvas. Keep actual user acceptance of mappings/import under T02; do not treat this as permission to import their file.
 
 For 0.4.1, all web regression scripts, storage checks and TypeScript passed. The temporary full-board browser harness intercepted account API calls with synthetic data only. It verified deletion from summary/edit, cancellation, Undo restoring grades/completion, group scope, imported-item protection, simulated reload persistence and removal from Week. The harness was removed before packaging. Production-build/publication verification is part of the release workflow; inspect deployment status when resuming.
 

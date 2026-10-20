@@ -2,10 +2,10 @@
  * Only fixed GET endpoints. No cookies are read, exported or copied. Browser
  * credentials stay on Canvas. Do not add generic URL or HTTP-method parameters.
  */
-export const READER_VERSION = "0.2.2";
+export const READER_VERSION = "0.2.3";
 export async function readCanvas(request) {
   // Keep inside the function too: Chrome serializes this function without imports.
-  const readerVersion = "0.2.2";
+  const readerVersion = "0.2.3";
   const ORIGIN = "https://canvas.sydney.edu.au";
   const started = Date.now();
   const id = (v) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0) ||
@@ -192,7 +192,11 @@ export async function readCanvas(request) {
           const withheld = withheldMarks.has(String(a.id)) || s?.grade_hidden === true;
           // Assignment.muted is a deprecated notification flag, NOT student
           // release visibility. Fresh Marks row data-muted IS a visibility flag.
-          const released = (!!date(s?.posted_at) || pageConfirmed) && !withheld && s?.excused !== true;
+          const apiGrade = text(s?.grade, 80).trim();
+          const hasResult = pageConfirmed || (a.grading_type === "pass_fail"
+            ? /^(complete|incomplete)$/i.test(apiGrade)
+            : number(s?.score) !== null || !!apiGrade);
+          const released = hasResult && (!!date(s?.posted_at) || pageConfirmed) && !withheld && s?.excused !== true;
           return { id: String(a.id), name: text(a.name), groupId: id(a.assignment_group_id) ? String(a.assignment_group_id) : null,
             dueAt: date(a.due_at), opensAt: date(a.unlock_at), closesAt: date(a.lock_at),
             pointsPossible: number(a.points_possible), gradingType: text(a.grading_type, 40),

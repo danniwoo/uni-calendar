@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.0 — 2026-10-20
+
+- Split Canvas import into **Match assessments → Review & confirm**, with explicit skipped/new-item counts, search and result filters, and separate changed/unchanged previews.
+- Show existing Semester grades beside Canvas results. Offer unit-scoped assignment-label/title candidates only on user selection; remembered/exact mappings remain reviewable. No automatic fuzzy matching or bulk "add everything".
+- Require an explicit calculation method for weekly/multi-part grade groups. Detect named retakes, warn on individual attempts and reject bulk averaging in both UI and import logic; no inferred highest/latest/capped-result policy.
+- Show Complete/Incomplete as text in import review, without converting them to marks or completion.
+- Invalidate confirmation if Semester data changes while reviewing. Preserve manual grades, dates, weights, notes, completion, existing import ownership and duplicate protection.
+- Verified using synthetic import UI, import/retake regression checks, extension checks and TypeScript. Real user mapping/confirmation remains an acceptance step; no real records were imported during development.
+
 ## 0.4.1 — 2026-10-20
 
 ### Fixed

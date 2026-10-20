@@ -1051,7 +1051,7 @@ export default function SemesterBoard() {
         </>
       )}
       <Sheet open={canvasImport} onOpenChange={setCanvasImport}>
-        <SheetContent className="detail-panel canvas-import-panel"><SheetHeader><SheetTitle>Review Canvas import</SheetTitle><SheetDescription>Choose what to add. Nothing is saved until you confirm.</SheetDescription></SheetHeader>
+        <SheetContent className="detail-panel canvas-import-panel"><SheetHeader><SheetTitle>Review Canvas import</SheetTitle><SheetDescription>Match existing assessments, review grade changes, then confirm. Nothing is saved before confirmation.</SheetDescription></SheetHeader>
           {semester&&<CanvasImport semester={semester} onClose={()=>setCanvasImport(false)} onApply={(bundle,choices,expected)=>{
             const s=current.current;
             if(!s||s!==expected||busy||saving.current||pending.current||saveError||conflict)throw new Error("The board changed or has unsaved edits. Finish saving, then review the import again.");

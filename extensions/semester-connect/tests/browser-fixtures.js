@@ -32,6 +32,8 @@ const cases = [
   { name: "API-only posted numeric", noRow: true, score: 14 },
   { name: "API-only unposted withheld", noRow: true, submission: { posted_at: null }, score: null },
   { name: "Excused is not zero", mark: "14", submission: { excused: true }, score: null },
+  { name: "Posted timestamp without numeric result", mark: "-", submission: { score: null, grade: "", workflow_state: "unsubmitted" }, score: null },
+  { name: "Posted timestamp without pass/fail result", mark: "-", type: "pass_fail", submission: { score: null, grade: "", workflow_state: "unsubmitted" }, score: null },
 ];
 export const fixtureAssignments = courseId => cases.map((c, i) => ({
   id: i + 1, course_id: courseId, name: c.name, muted: true, published: true,

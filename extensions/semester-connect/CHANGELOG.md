@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.3 — 2026-10-20
+
+- Require an actual numeric/text result as well as release evidence. A posted timestamp alone no longer marks an empty result as released.
+- Unsubmitted work remains unsubmitted; blank pass/fail results are never inferred from numeric fallback scores or turned into zero.
+- 35 Node tests and 89 browser DOMParser assertions pass, including posted-but-empty numeric/pass-fail cases.
+- Existing 0.2.2 downloads still work with Semester Web 0.5.0. Reload/read/download again only to refresh the corrected release metadata; no timetable restore is needed.
+
 ## 0.2.2 — 2026-10-20
 
 - Stop treating deprecated assignment-level `muted` as a student grade-release flag. Posted API grades and freshly confirmed Marks results can now be read even when that notification flag is true. Fresh Marks row visibility, pending-quiz, `grade_hidden` and excused checks still take priority.

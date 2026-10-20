@@ -1,4 +1,4 @@
-# Semester Connect 0.2.2
+# Semester Connect 0.2.3
 
 Local unpacked Chrome extension. Canvas stays read-only. Not a Chrome Web Store release.
 Compatible website: Semester Web 0.4.0 or later for safe grade updates; import format version 1.
@@ -6,17 +6,17 @@ Compatible website: Semester Web 0.4.0 or later for safe grade updates; import f
 ## 更新與測試
 
 1. 到 Chrome 的 `chrome://extensions`，對 **Semester Connect — Local Preview** 按重新載入。
-2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.2.2**。舊預覽可能仍記著舊版本；必須重新讀取、下載，不能只重傳舊 JSON。
+2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.2.3**。舊預覽可能仍記著舊版本；必須重新讀取、下載才能刷新資料，不能只重傳舊 JSON。已有 0.2.2 檔案仍可用在新版匯入配對；0.2.3 額外修正空結果的 release 標記。
 3. 按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。按 **Read selected courses**。
 4. 每科會分別顯示筆數與已公布成績。單科失敗不清掉其他成功資料；從 Course 選失敗那科，再按 **Read selected course** 重試。所有勾選科目成功才可匯出。
 5. 用 Course 選單檢查每科，與 **Compare in Canvas** 的 Marks 頁比對。未公布、隱藏、免計分不等於零分。
 6. 確認後按 **Download import file**。這是含成績的私人 JSON，請勿公開分享。
 7. 回到 Semester 網站 **Manage → Import from Semester Connect**，選剛下載的檔案。檔案先在瀏覽器本機解析，不立即上傳。
-8. 核對帳戶、學期及四科配對。已確認的配對會帶回，唯一同名／相同 Canvas 連結會提供建議；不確定的項目保持 **Skip**：
+8. **Match assessments**：核對帳戶、學期及四科配對。已確認的配對會帶回，唯一同名／相同 Canvas 連結會提供建議；相似名稱／A1 等標籤只列候選，點選才配對。不確定的項目保持 **Skip**：
    - 已有 assessment：選對應項目，填空白成績或檢查既有 Canvas 成績的更新差異。
-   - Recurring / multi-part：展開該區，把整個 Canvas group 配到既有 assessment，確認依總分或每項等權計算。
+   - Recurring / multi-part：展開該區，把 Canvas group 配到既有 assessment，明確選依總分或每項等權才會選入。含重考名稱或 drop rules 的群組禁止整組平均；按課程規則選適用結果，不自動假設最高／最近一次。
    - 真正沒有的項目才選 **Add new assessment**；新項目權重留空，避免把 group 權重誤當每次 quiz 權重。
-9. 查看 **Changes to confirm**。勾確認，再按 **Confirm**；等網站顯示 **Saved**。
+9. 按 **Review selected items →**，查看哪些變更會套用、哪些保留。可返回配對，返回後須重新確認。資料若被其他分頁修改，舊確認會失效。確認後按 **Confirm**，等網站顯示 **Saved**；取消不保存。
 10. 匯入的 individual grades 暫列 provisional。到 **Show grades → Edit individual grades** 檢查計算與完整項目清單（Canvas 可能還沒有未來項目），儲存後才作為已確認設定。
 
 首次安裝：Chrome → Extensions → Developer mode → Load unpacked，選：
@@ -69,7 +69,7 @@ Clear／關頁清空記憶體，不刪除已下載檔案。原 Canvas 分頁導�
 ## 開發驗證
 
 `npm test` 在此資料夾執行零依賴 Node 測試。網站另有 `node --import tsx scripts/check-canvas-import.ts`。
-0.2.2 可重現的瀏覽器解析測試：在此資料夾執行 `node scripts/qa-server.mjs`，開啟列出的 **Synthetic reader QA** URL，按 **Run browser checks**；81 項斷言使用真實 DOMParser 與原始 serialized reader，四科資料全為虛構。第二個 URL 測 preview；加上 `&stale=1` 可驗證版本不一致提示。伺服器僅監聽 localhost，不連 Canvas、不讀瀏覽器 profile。測完 Ctrl+C 停止。
+可重現的瀏覽器解析測試：在此資料夾執行 `node scripts/qa-server.mjs`，開啟列出的 **Synthetic reader QA** URL，按 **Run browser checks**；0.2.3 的 89 項斷言使用真實 DOMParser 與原始 serialized reader，四科資料全為虛構。第二個 URL 測 preview；加上 `&stale=1` 可驗證版本不一致提示。伺服器僅監聽 localhost，不連 Canvas、不讀瀏覽器 profile。測完 Ctrl+C 停止。
 本次通過 34 項 Node 測試、上述 81 項瀏覽器斷言、preview 四科勾選/讀取/篩選/舊版本阻擋與網站匯入保護測試。實際 Chrome extension 頁受工具限制，**不是四科 live acceptance 已通過**；T01 仍待更新後逐項核對。
 0.2.0 的既有驗證另在 localhost 用原始 reader/preview 與 synthetic Chrome adapter 測試四科、單科失敗重試、Marks HTML 可見／隱藏／待審核／What-If、下載、網站檔案選擇、明確配對、確認及重複匯入。該次測試不連真實 Canvas，也不寫帳戶資料庫；不是此次重新驗證所有上述 UI 流程。
 舊版可選 `test:browser`／`test:extension` 腳本保留為 0.1.0 整合測試起點；0.2.0 的完整新流程以上述測試為準，未重新驗證真實 Chrome unpacked integration。

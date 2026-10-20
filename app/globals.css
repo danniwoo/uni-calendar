@@ -390,8 +390,8 @@ footer {
 .canvas-import-table table {width:100%;border-collapse:collapse;table-layout:fixed;}
 .canvas-import-table th {text-align:left;font-size:12px;color:#64748b;padding:10px 8px;}
 .canvas-import-table td {vertical-align:top;border-top:1px solid #dce3ef;padding:12px 8px;overflow-wrap:anywhere;}
-.canvas-import-table th:first-child {width:40%;}
-.canvas-import-table th:nth-child(2) {width:20%;}
+.canvas-import-table th:first-child {width:44%;}
+.canvas-import-table th:nth-child(2) {width:56%;}
 .canvas-import-table small {display:block;color:#64748b;margin-top:6px;}
 .canvas-import-review .canvas-confirm {display:flex;flex-direction:row;align-items:flex-start;gap:12px;padding:14px;border:1px solid #dce3ef;border-radius:8px;cursor:pointer;line-height:1.5;}
 .canvas-import-review .canvas-confirm:has(input:checked) {background:#edf3ff;border-color:#8fa9f6;}
@@ -399,6 +399,17 @@ footer {
 .canvas-import-review .canvas-confirm:focus-within {outline:3px solid #8fa9f6;outline-offset:2px;}
 .canvas-match-summary {padding:12px 14px;background:#edf3ff;border-radius:8px;}
 .canvas-import-review ul {padding-left:20px;display:grid;gap:8px;}
+.canvas-import-stages {display:flex;align-items:center;gap:12px;color:#64748b;}
+.canvas-import-stages [aria-current=step] {color:#244dc2;background:#edf3ff;border-radius:8px;font-weight:650;padding:10px 14px;}
+.canvas-match-summary small {display:block;margin-top:5px;color:#51627b;line-height:1.5;}
+.canvas-source-result {display:block;margin-top:8px;font-size:14px;color:#253b60;}
+.canvas-retake-warning {font-size:12px;line-height:1.5;color:#895516;margin-top:8px;}
+.canvas-group-mapping {border:1px solid #dce3ef;border-radius:8px;padding:12px;}
+.canvas-group-row {border-top:1px solid #dce3ef;margin-top:12px;padding-top:12px;display:grid;gap:8px;}
+.canvas-candidates {display:grid;gap:6px;margin-top:10px;}
+.canvas-candidates button {text-align:left;background:#f6f8ff;font-size:13px;white-space:normal;padding:8px 10px;}
+.canvas-candidates button small {font-size:11px;margin-top:3px;}
+.canvas-import-footer {position:sticky;bottom:0;display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap;background:#f5f7fc;border-top:1px solid #dce3ef;padding:14px 0;z-index:2;}
 .detail-body {
   padding: 16px;
   display: grid;

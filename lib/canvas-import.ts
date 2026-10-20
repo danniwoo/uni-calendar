@@ -4,7 +4,7 @@ import {validGrade,validGradePlan} from "./grade-value";
 import {availabilityError} from "./assessment-schedule";
 
 export const CANVAS_SOURCE="https://canvas.sydney.edu.au";
-export type CanvasAssignment={id:string;name:string;groupId:string|null;dueAt:string|null;opensAt:string|null;closesAt:string|null;pointsPossible:number|null;omitted:boolean;submission:null|{released:boolean;excused:boolean;score:number|null;releaseEvidence:string|null;currentAttemptGraded:boolean|null}};
+export type CanvasAssignment={id:string;name:string;groupId:string|null;dueAt:string|null;opensAt:string|null;closesAt:string|null;pointsPossible:number|null;omitted:boolean;result?:"complete"|"incomplete";submission:null|{released:boolean;excused:boolean;score:number|null;releaseEvidence:string|null;currentAttemptGraded:boolean|null}};
 export type CanvasCourse={course:{id:string;name:string;code:string;term:string;weighted:boolean|null};fetchedAt:string;groupsUnavailable:boolean;marksPageUnavailable:boolean;assignments:CanvasAssignment[];groups:{id:string;name:string;weight:number|null;rules:{dropLowest:number|null;dropHighest:number|null;neverDrop:string[]}}[]};
 export type CanvasBundle={format:"semester-connect";schemaVersion:1;source:typeof CANVAS_SOURCE;accountId:string;exportedAt:string;courses:CanvasCourse[]};
 export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal"};
@@ -35,7 +35,9 @@ export function readCanvasBundle(raw:string):CanvasBundle{
         if(s.score!==null&&(!s.released||s.excused||!s.releaseEvidence))return bad();
         submission={released:s.released,excused:s.excused,score:s.score as number|null,releaseEvidence:s.releaseEvidence as string|null,currentAttemptGraded:s.currentAttemptGraded as boolean|null};
       }
-      return {id:a.id,name:a.name,groupId:a.groupId as string|null,dueAt:a.dueAt as string|null,opensAt:a.opensAt as string|null,closesAt:a.closesAt as string|null,pointsPossible:a.pointsPossible as number|null,omitted:a.omitted,submission};
+      const rawGrade=object(a.submission)&&typeof a.submission.grade==="string"?a.submission.grade.toLowerCase():"";
+      const result=a.gradingType==="pass_fail"&&submission?.released&&!submission.excused&&submission.releaseEvidence&&["complete","incomplete"].includes(rawGrade)?rawGrade as "complete"|"incomplete":undefined;
+      return {id:a.id,name:a.name,groupId:a.groupId as string|null,dueAt:a.dueAt as string|null,opensAt:a.opensAt as string|null,closesAt:a.closesAt as string|null,pointsPossible:a.pointsPossible as number|null,omitted:a.omitted,...(result?{result}:{}),submission};
     });
     const groups:CanvasCourse["groups"]=c.groups.map(g=>{if(!object(g)||!id(g.id)||!text(g.name)||!finite(g.weight)||!object(g.rules)||![g.rules.dropLowest,g.rules.dropHighest].every(finite)||!Array.isArray(g.rules.neverDrop)||!g.rules.neverDrop.every(id))return bad();return {id:g.id,name:g.name,weight:g.weight as number|null,rules:{dropLowest:g.rules.dropLowest as number|null,dropHighest:g.rules.dropHighest as number|null,neverDrop:g.rules.neverDrop as string[]}};});
     if(!unique(assignments.map(a=>a.id))||!unique(groups.map(g=>g.id)))return bad();
@@ -47,6 +49,36 @@ export function readCanvasBundle(raw:string):CanvasBundle{
 export const canvasKey=(b:CanvasBundle,c:string,a:string)=>`${b.accountId}:${c}:${a}`;
 export function canvasGrade(a:CanvasAssignment){const s=a.submission,g={earned:s?.score,possible:a.pointsPossible};return s?.released&&!s.excused&&s.currentAttemptGraded!==false&&!a.omitted&&validGrade(g)?g:null;}
 export function canvasTargets(s:Semester,unit:string){return subjectAssessments(s,unit).filter(t=>t.kind!=="task"&&t.kind!=="event");}
+// A warning, not an inferred grading rule. Unknown naming patterns still need
+// human review; never infer "highest", "latest" or an average for retakes.
+export function isCanvasRetake(a:CanvasAssignment){
+  return /\b(?:retake|re[\s-]?attempt|attempt\s*(?:#|no\.?\s*)?\s*\d+)\b/i.test(a.name);
+}
+export function canvasGroupBlock(c:CanvasCourse,groupId:string){
+  const g=c.groups.find(g=>g.id===groupId);
+  if(!g||c.groupsUnavailable)return "Group rules unavailable. Review items individually.";
+  if(c.assignments.some(a=>a.groupId===groupId&&isCanvasRetake(a)))return "Retake attempts found. Do not average this group. Check the unit rules and choose the applicable result for each assessment.";
+  if(g.rules.dropLowest||g.rules.dropHighest||g.rules.neverDrop.length)return "This group has drop rules. Review the unit rules; simple points/equal averaging is not supported here.";
+  return "";
+}
+export function canvasResultLabel(a:CanvasAssignment){
+  const g=canvasGrade(a);
+  return g?`${g.earned} / ${g.possible}`:a.submission?.excused?"Excused":a.omitted?"Excluded":a.submission?.currentAttemptGraded===false?"Earlier attempt — review":a.result==="complete"?"Complete · text only":a.result==="incomplete"?"Incomplete · text only":"No released numeric grade";
+}
+// Optional candidates only: selecting one is always a user action. Do not use
+// these heuristics in suggestCanvasMatches or save a fuzzy match automatically.
+export function canvasCandidates(s:Semester,unit:string,a:CanvasAssignment){
+  const normalize=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const label=(v:string)=>normalize(v).match(/\b(?:a|assignment)\s*(\d+)\b/)?.[1];
+  const tokens=(v:string)=>new Set(normalize(v).split(" ").filter(w=>w.length>2&&!["the","and","for","due","week","requires","respondus","lockdown","browser","submission"].includes(w)));
+  const sourceTokens=tokens(a.name),sourceLabel=label(a.name);
+  return canvasTargets(s,unit).map(t=>{
+    const sameLabel=!!sourceLabel&&sourceLabel===label(t.title);
+    const overlap=[...tokens(t.title)].filter(w=>sourceTokens.has(w)).length;
+    const exact=normalize(t.title)===normalize(a.name);
+    return {target:t,score:exact?100:sameLabel?50:overlap>=2?overlap:0,reason:exact?"Matching title · review":sameLabel?`Same assignment label A${sourceLabel} · check the full title`:"Similar words · check before selecting"};
+  }).filter(c=>c.score>0).sort((a,b)=>b.score-a.score||a.target.title.localeCompare(b.target.title)).slice(0,3);
+}
 
 // Suggestions never save data. Reuse confirmed IDs first; only unique, exact
 // names or assignment URLs are suggested. Similar titles remain a manual choice.
@@ -70,6 +102,7 @@ export function suggestCanvasMatches(s:Semester,b:CanvasBundle){
         }continue;
       }
       const available=targets.filter(t=>!t.gradePlan&&!s.canvasImports?.some(r=>r.targetId===t.id));
+      if(isCanvasRetake(a))continue;
       const source=available.filter(t=>t.source===`${CANVAS_SOURCE}/courses/${c.course.id}/assignments/${a.id}`);
       const exact=available.filter(t=>normalize(t.title)===normalize(a.name));
       const found=source.length===1?source:exact.length===1?exact:[];
@@ -118,20 +151,20 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       }
     }
     const t=canvasTargets(next,choice.unit).find(t=>t.id===targetId);if(!t)throw new Error("Choose an existing assessment in the selected unit.");
-    if([...records.values()].some(r=>r.targetId===t.id&&r.key!==key&&(choice.mode==="overall"||r.mode==="overall")))throw new Error("Several Canvas items target one overall grade. Use individual parts instead.");
+    if([...records.values()].some(r=>r.targetId===t.id&&r.key!==key&&(choice.mode==="overall"||r.mode==="overall")))throw new Error("Several Canvas items target one overall grade. Choose one applicable result. Only independent components—not retakes—belong in individual parts.");
     if(choice.mode==="overall"){
-      if(usedOverall.has(t.id)||partConfigs.has(t.id))throw new Error("Several Canvas items target one overall grade. Use individual parts instead.");usedOverall.add(t.id);
+      if(usedOverall.has(t.id)||partConfigs.has(t.id))throw new Error("Several Canvas items target one overall grade. Choose one applicable result. Only independent components—not retakes—belong in individual parts.");usedOverall.add(t.id);
       if(t.gradePlan!==undefined||(prior?!ownedGrade(t.grade):t.grade!==undefined)){keep(`${t.title}: manual / existing grade kept (${t.grade?`${t.grade.earned}/${t.grade.possible}`:"blank or individual grades"}); Canvas ${grade?`${grade.earned}/${grade.possible}`:"unavailable"} not applied`);continue;}
       if(stale){keep(`${a.name}: older Canvas read ignored`);continue;}
       if(!grade){if(!prior){record();actions.push({key,text:`${a.name}: link saved; waiting for a released grade`,changed:true});}else keep(`${a.name}: no released grade; existing value kept`);continue;}
       if(same(t.grade,grade)){keep(`${t.title}: ${grade.earned}/${grade.possible} unchanged`);continue;}
-      put({...t,grade});record();actions.push({key,text:`${t.title}: ${t.grade?`${t.grade.earned}/${t.grade.possible}`:"blank grade"} → ${grade.earned}/${grade.possible}; all details kept`,changed:true});
+      put({...t,grade});record();actions.push({key,text:`${a.name} → ${t.title}: ${t.grade?`${t.grade.earned}/${t.grade.possible}`:"blank grade"} → ${grade.earned}/${grade.possible}; all details kept`,changed:true});
     }else{
       if(!["points","equal"].includes(choice.method||""))throw new Error("Confirm how these individual results are combined (points or equal weighting).");
       const config=`${c.course.id}:${a.groupId}:${choice.method}`;
       if(usedOverall.has(t.id)||(partConfigs.has(t.id)&&partConfigs.get(t.id)!==config))throw new Error("Use one Canvas group and one calculation method per assessment.");partConfigs.set(t.id,config);
-      const group=c.groups.find(g=>g.id===a.groupId);
-      if(!group||c.groupsUnavailable||group.rules.dropLowest||group.rules.dropHighest||group.rules.neverDrop.length)throw new Error("This group has unknown or drop rules. Import individual items separately; do not assume a simple average.");
+      const blocked=canvasGroupBlock(c,a.groupId||"");
+      if(blocked)throw new Error(blocked);
       if(t.grade!==undefined){actions.push({key,text:`${t.title}: existing overall grade kept`,changed:false});continue;}
       const itemId=`canvas:${key}`,item=t.gradePlan?.items.find(i=>i.id===itemId);
       const owned=(next.canvasImports||[]).some(r=>r.targetId===t.id&&r.mode==="part")||[...records.values()].some(r=>r.targetId===t.id&&r.mode==="part");

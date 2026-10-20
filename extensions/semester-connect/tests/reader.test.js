@@ -44,7 +44,7 @@ async function run(options = {}) {
 test("extension version and least-privilege manifest are consistent", async () => {
   const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url)));
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
-  assert.equal(manifest.version, "0.2.2");
+  assert.equal(manifest.version, "0.2.3");
   assert.equal(pkg.version, manifest.version);
   assert.equal(READER_VERSION, manifest.version);
   assert.equal((await run()).result.readerVersion, manifest.version);
@@ -145,6 +145,18 @@ test("reader refuses mixed versions before accessing Canvas",async()=>{
   const {result,requests}=await run({request:{operation:"courses",expectedVersion:"0.1.0"}});
   assert.deepEqual(result,{ok:false,code:"VERSION_MISMATCH"});
   assert.equal(requests.length,0);
+});
+test("posted_at without a result is not a released grade or submission",async()=>{
+  for(const grading_type of ["pass_fail","points"]){
+    for(const grade of [null,"","  "]){
+      const {result}=await run({assignments:[{...assignment,grading_type,submission:{...posted,score:null,grade,workflow_state:"unsubmitted",submitted_at:null}}]});
+      const s=result.assignments[0].submission;
+      assert.equal(s.released,false);assert.equal(s.score,null);assert.equal(s.releaseEvidence,null);
+      assert.equal(s.submittedAt,null);assert.equal(s.state,"unsubmitted");
+    }
+  }
+  const {result}=await run({assignments:[{...assignment,grading_type:"pass_fail",submission:{...posted,score:0,grade:null}}]});
+  assert.equal(result.assignments[0].submission.released,false,"numeric fallback cannot invent a pass/fail result");
 });
 test("null/hidden/unposted/excused scores do not cross the reader boundary", async () => {
   const cases = [

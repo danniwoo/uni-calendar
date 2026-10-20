@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Semester Connect — Local Preview",
-  "version": "0.2.2",
-  "version_name": "0.2.2 · released marks & completion results",
+  "version": "0.2.3",
+  "version_name": "0.2.3 · empty result release check",
   "description": "Preview your USYD Canvas assignments and released marks. Manual, read-only, and local to this preview tab.",
   "permissions": ["activeTab", "scripting"],
   "action": { "default_title": "Open Semester Connect from USYD Canvas" },
