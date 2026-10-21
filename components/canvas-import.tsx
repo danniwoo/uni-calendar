@@ -1,6 +1,8 @@
 "use client";
 import {useMemo,useState} from "react";
 import type {Semester,Task} from "@/lib/semester";
+import {CanvasRuleMapping} from "./canvas-rule-mapping";
+import {ruleDescription} from "@/lib/canvas-rule-import";
 import {canvasCandidates,canvasGrade,canvasGroupBlock,canvasKey,canvasResultLabel,canvasTargets,isCanvasRetake,planCanvasImport,readCanvasBundle,suggestCanvasMatches,type CanvasBundle,type CanvasChoice} from "@/lib/canvas-import";
 
 const existingGrade=(t?:Task)=>!t?"":t.grade?`${t.grade.earned} / ${t.grade.possible}`:t.grade===null?"Manually cleared":t.gradePlan!==undefined?"Individual-grade setup":"No grade recorded";
@@ -43,7 +45,7 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
   }
   const selected=Object.values(choices),total=bundle?.courses.reduce((n,c)=>n+c.assignments.length,0)||0;
   const added=selected.filter(c=>c.targetId==="new").length;
-  const changedActions=preview?.actions.filter(a=>a.changed)||[],keptActions=preview?.actions.filter(a=>!a.changed)||[];
+  const changedActions=preview?.actions.filter(a=>a.changed)||[],keptActions=preview?.actions.filter(a=>!a.changed&&!a.key.startsWith("summary:"))||[],ruleSummaries=preview?.actions.filter(a=>a.key.startsWith("summary:"))||[];
   return <section className="canvas-import-review">
     <h2>Import from Semester Connect</h2>
     <nav className="canvas-import-stages" aria-label="Import steps">
@@ -77,10 +79,18 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
               setDrafts(old=>Object.fromEntries(Object.entries(old).filter(([k])=>!k.startsWith(`${cid}:`))));changed();
             }}><option value="">Choose unit…</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select></label>
             {unit&&<>
+              <CanvasRuleMapping key={`${cid}:${unit}`} course={c} unit={unit} targets={targets} onStage={items=>{
+                changed();setError("");setChoices(old=>{
+                  const next={...old};
+                  for(const [key,value] of Object.entries(next))if(value.targetId===items[0].targetId&&value.courseId===cid)delete next[key];
+                  for(const item of items)next[`${cid}:${item.assignmentId}`]=item;
+                  return next;
+                });
+              }}/>
               <details className="canvas-group-mapping"><summary>Weekly quizzes / multi-part assignments · combine individual results</summary>
                 <p className="hint">Choose the parent assessment and explicitly choose its calculation method. This creates grade entries, not duplicate calendar tasks. Review the full list later; Canvas may not contain future items yet.</p>
                 {c.groups.filter(g=>c.assignments.some(a=>a.groupId===g.id)).map(g=>{
-                  const groupChoices=c.assignments.filter(a=>a.groupId===g.id).map(a=>choices[`${cid}:${a.id}`]).filter(v=>v?.mode==="part");
+                  const groupChoices=c.assignments.filter(a=>a.groupId===g.id).map(a=>choices[`${cid}:${a.id}`]).filter(v=>v?.mode==="part"&&!v.rule);
                   const part=groupChoices[0],same=part&&groupChoices.every(v=>v.targetId===part.targetId&&v.method===part.method);
                   const draft=drafts[`${cid}:${g.id}`]||{targetId:same?part.targetId:"",method:same?part.method||"":""};
                   const blocked=canvasGroupBlock(c,g.id);
@@ -104,7 +114,7 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
                   <small>{a.dueAt?`Due ${new Date(a.dueAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})}`:"Due not provided"}</small>
                   {isCanvasRetake(a)&&<p className="canvas-retake-warning">Retake · check highest/latest/capped-result rules. Do not count every attempt.</p>}
                 </td><td>
-                  {sel?.mode==="part"?<><strong>Individual result → {target?.title}</strong><small>{sel.method==="points"?"Total points":"Equal weighting"} · no new calendar task</small><button onClick={()=>select(cid,a.id,"")}>Skip item</button></>:<label><span className="sr-only">Match {a.name}</span><select aria-label={`Import ${a.name}`} value={sel?.targetId||""} onChange={e=>select(cid,a.id,e.target.value)}>
+                  {sel?.mode==="part"?<><strong>Individual result → {target?.title}</strong><small>{sel.rule?ruleDescription(sel.rule):sel.method==="points"?"Total points":"Equal weighting"} · no new calendar task</small><button onClick={()=>select(cid,a.id,"")}>Skip item</button></>:<label><span className="sr-only">Match {a.name}</span><select aria-label={`Import ${a.name}`} value={sel?.targetId||""} onChange={e=>select(cid,a.id,e.target.value)}>
                     <option value="">Skip — no change</option>
                     <optgroup label="Match an existing assessment">{targets.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</optgroup>
                     <optgroup label="Only if missing from Semester"><option value="new">+ Add new assessment · weight needs review</option></optgroup>
@@ -128,8 +138,9 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
           {changedActions.length?<ul>{changedActions.map(a=><li key={a.key}>{a.text}</li>)}</ul>:<p>No changes needed. These items are already up to date or protected.</p>}
         </section>
         {keptActions.length>0&&<section className="rule-card"><h3>{keptActions.length} kept unchanged</h3><ul>{keptActions.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
+        {ruleSummaries.length>0&&<section className="rule-card"><h3>Calculated preview · after these changes</h3><ul>{ruleSummaries.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
         {added>0&&<p className="notice">New assessments have unknown weights. Set them after importing; Canvas group weight is not an individual item's weight.</p>}
-        {selected.some(c=>c.mode==="part")&&<p className="notice">Individual grade totals remain provisional. After import, review the full list and rule in Show grades → Edit individual grades. This does not mark your work complete.</p>}
+        {selected.some(c=>c.mode==="part")&&<p className="notice">Unknown results remain unresolved. See each rule summary for whether its result is settled or still in progress. Ordinary points/equal groups need a full-list review after import. Calendar completion is unchanged.</p>}
         <label className="canvas-confirm"><input type="checkbox" checked={confirmed&&!staleReview} disabled={staleReview||!!preview?.error} onChange={e=>setConfirmed(e.target.checked)}/>I checked the account, semester, unit and assessment matches, and any retake / individual-grade rules.</label>
         <div className="canvas-import-footer"><button onClick={()=>changed()}>← Back to matching</button><button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!confirmed||staleReview||!preview?.changed||!!preview?.error} onClick={()=>{try{onApply(bundle,Object.values(choices),reviewedSemester!);onClose();}catch(e){setError((e as Error).message);setConfirmed(false);}}}>Confirm {preview?.changed||0} changes</button>

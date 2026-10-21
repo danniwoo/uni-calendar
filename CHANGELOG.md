@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.7.0 — 2026-10-22
+
+- Connect existing assessments to selected Canvas items using confirmed highest-attempt or best-N completion rules, including attempts across Canvas groups. Configure counts, completion points and optional thresholds before staging the preview.
+- Show each proposed source result and the resulting aggregate before confirmation. Keep unknown/unlinked opportunities blank; only explicitly confirmed misses become zero. Do not alter calendar tasks, dates, weights or completion.
+- Remember source-ID rule mappings and per-entry baselines for subsequent JSON imports. Preserve manual grades, clears, renamed/removed/excluded entries and rule changes; stop updates when Canvas group rules or maximum marks change. No direct sync or polling in this release.
+- Protect new provenance from older clients with sync guard v8; retain backup support. Add synthetic rule-import regression and an isolated browser QA harness. No real pending grades are imported by this release.
+
 ## 0.6.0 — 2026-10-21
 
 - Add generic highest-attempt and binary best-N submission rules inside the existing assessment grade editor, including single quizzes.

@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.6.0** · **Semester Connect 0.2.3**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.7.0** · **Semester Connect 0.2.3**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -20,6 +20,8 @@ Current source versions: **Semester Web 0.6.0** · **Semester Connect 0.2.3**. C
 | [Full historical PROGRESS](docs/archive/PROGRESS-2026-10-20-full.md) | Verbatim detailed engineering log: decisions, fixes, limitations and test evidence. Historical context, not current instructions. |
 
 ## What works today
+
+- Canvas rule import: choose a file, expand **Retakes / completion rules**, select an existing assessment and its source items, confirm highest-attempt or best-N completion settings, then **Stage → Review → Confirm**. Complete converts only under the explicitly selected completion rule; missing/hidden results stay unknown. A confirmed missed submission is a manual decision, not inferred from an empty score. Unlinked opportunities remain blank; source IDs, not teaching-week order, identify grade entries. Saved mappings are reused on later file imports, while manual/cleared/removed entries and changed rules are protected. Automatic Canvas polling/direct sync is not implemented.
 
 - Timetable import discovers units and real class instances; matching public outlines supply assessment rules and weekly topics.
 - **Semester** shows the cross-unit teaching-week picture; **Week / Month** show dates, classes, deadlines and personal tasks/events.

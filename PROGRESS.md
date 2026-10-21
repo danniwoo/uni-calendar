@@ -1,10 +1,10 @@
 # Engineering handoff
 
-Updated: 2026-10-21. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-22. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
 
-- Web **0.6.0**, Connect **0.2.3**, import format **1**, web sync guard **v7**.
+- Web **0.7.0**, Connect **0.2.3**, import format **1**, web sync guard **v8**.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
 - Web release was published in the preceding release workflow. Connect remains an unpacked extension requiring Chrome reload and a fresh preview/read/download.
 - Safe updates reuse confirmed account/course/item mappings and compare source baselines. Manual edits/clears, stale files, legacy records without a baseline and removed items are protected.
@@ -39,6 +39,16 @@ Updated: 2026-10-21. **Priorities, resumable work and acceptance tests live only
 Check filenames without a directory prefix in the table are under `scripts/`. Commands and local database setup are in [README](README.md#local-development).
 
 ## Verification evidence and limits
+
+### Web 0.7.0 Canvas rule imports
+
+`CanvasChoice.rule` opts into a separate pure rule planner (`lib/canvas-rule-import.ts`). User selects one existing parent, explicit source IDs across groups, and highest/count/optional threshold or completion/count/bestCount/points. Source-number names are retained independently of calendar occurrence weeks. Untouched deterministic unknown placeholders reserve the remaining opportunities; a later explicitly linked source replaces only an untouched placeholder, never a user-edited slot. No automatic fuzzy rule selection, no inferred latest-attempt rule, no direct extension-to-app transport.
+
+Ledger records retain confirmed rule configuration, per-item baseline and Canvas group metadata. New imports only update identical source-owned entries under the same active rule; manual overall grades/clears, pre-existing manual plans, changed item content, deletions/exclusions, changed rule settings and changed Canvas group metadata are protected. Explicit missed-submission decisions are marked manual. Not-taken attempts can later receive a released numeric result. Complete converts to submitted only under the confirmed binary rule; Incomplete, hidden, blank or absent items do not infer zero. Reimported unknowns never erase existing results. Rule changes require manual review rather than silent recalculation. `saveGradePlan` also tracks outcome/name/config edits for provenance. Sync v8 prevents older writers from dropping this ledger.
+
+Tests: `check-canvas-rules.ts` covers cross-group attempts, best-N cap denominator, stable IDs, future placeholders, partial-to-settled results, safe source updates, repeated imports, changed source rules/maxima, manual/cleared/removed states, backup metadata, identity isolation and atomic invalid selections. Existing web regression scripts, TypeScript and SQL storage tests also run. `scripts/canvas-rules-qa/` serves invented data with in-memory writes only; browser verification covers explicit selection, not-taken/missed controls, staging without writes, aggregate preview, confirmation reset on Back, confirmation totals and remembered mappings. No user grades or exports are test fixtures; real special-rule import still requires user confirmation.
+
+The v0.6.0 notes below describe the preceding release; its importer restriction is superseded only by the explicit rule path above. Ordinary points/equal imports still reject drop-rule/retake groups.
 
 ### Web 0.6.0 grading rules
 

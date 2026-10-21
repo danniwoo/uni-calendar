@@ -214,7 +214,7 @@ export default function SemesterBoard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            syncVersion: 7,
+            syncVersion: 8,
             semester: snapshot,
             revision: revision.current,
           }),

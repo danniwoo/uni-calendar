@@ -69,7 +69,8 @@ export function saveGradePlan(s:Semester,id:string,plan:GradePlan,expected:Grade
   const canvasImports=s.canvasImports?.map(r=>{
     if(r.targetId!==id||r.mode!=="part")return r;
     const before=t.gradePlan?.items.find(i=>i.id===`canvas:${r.key}`),after=plan.items.find(i=>i.id===`canvas:${r.key}`);
-    return JSON.stringify([before?.grade,before?.maximum,before?.excluded])!==JSON.stringify([after?.grade,after?.maximum,after?.excluded])||!after?{...r,manual:true}:r;
+    const ruleChanged=r.rule&&JSON.stringify([t.gradePlan?.mode,t.gradePlan?.method,t.gradePlan?.bestCount,t.gradePlan?.completionPoints,t.gradePlan?.passMark,t.gradePlan?.attemptsClosed,t.gradePlan?.items.length])!==JSON.stringify([plan.mode,plan.method,plan.bestCount,plan.completionPoints,plan.passMark,plan.attemptsClosed,plan.items.length]);
+    return ruleChanged||JSON.stringify([before?.grade,before?.maximum,before?.excluded,before?.outcome,before?.name])!==JSON.stringify([after?.grade,after?.maximum,after?.excluded,after?.outcome,after?.name])||!after?{...r,manual:true}:r;
   });
   return {...s,...(canvasImports?{canvasImports}:{}),tasks:s.tasks.some(t=>t.id===id)?s.tasks.map(t=>t.id===id?task:t):[...s.tasks,task]};
 }

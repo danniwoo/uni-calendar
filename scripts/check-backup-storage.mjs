@@ -39,6 +39,7 @@ assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks
 grades.tasks[0].gradePlan={mode:"parts",method:"completion",bestCount:8,completionPoints:.5,items:[{id:"w1",name:"Week 1",outcome:"submitted"},{id:"w2",name:"Week 2",outcome:"not_due"}]};
 assert.equal(save.run("grades",JSON.stringify(grades),"now",2).changes,1);
 assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks[0].gradePlan,"Rules and unknown/future outcome states survive SQL JSON storage");
-assert.match(route,/syncVersion !== 7[\s\S]*requiresGradeRuleClient\(t.gradePlan\)/,"Old clients must reload before overwriting stored rules");
+assert.match(route,/\[7,8\]\.includes\(syncVersion\)[\s\S]*requiresGradeRuleClient\(t.gradePlan\)/,"Old clients must reload before overwriting stored rules");
+assert.match(route,/syncVersion !== 8[\s\S]*previous\?\.canvasImports/ ,"Old clients must preserve imported rule provenance");
 db.close();
 console.log("PASS: recovery SQL, account isolation, stale-revision safety, transaction rollback and one-step recovery rotation.");

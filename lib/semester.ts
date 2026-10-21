@@ -18,6 +18,7 @@ export type ClassEvent = {
   topic?: string;
 };
 export type Grade = { earned: number; possible: number };
+export type CanvasRule = {method:"highest"|"completion";count:number;bestCount?:number;completionPoints?:number;passMark?:Grade};
 // Optional activity timing, independent of submission deadlines and marks.
 // A range is a window in which to arrange an activity, not a multi-day event.
 export type AssessmentActivity = {
@@ -107,7 +108,8 @@ export type Unit = {
 };
 export type Semester = {
   canvasAccountId?: string;
-  canvasImports?: {key:string;targetId:string;mode:"overall"|"part";lastGrade?:Grade;readAt?:string;manual?:boolean}[];
+  canvasImports?: {key:string;targetId:string;mode:"overall"|"part";lastGrade?:Grade;readAt?:string;manual?:boolean;
+    rule?:CanvasRule;lastItem?:GradePlan["items"][number];sourceRules?:string}[];
   // A new generation marks an explicit snapshot replacement, including same-feed restores.
   boardGeneration?: string;
   year: number;
