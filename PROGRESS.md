@@ -1,10 +1,10 @@
 # Engineering handoff
 
-Updated: 2026-10-20. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-21. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
 
-- Web **0.5.0**, Connect **0.2.3**, import format **1**, web sync guard **v6**.
+- Web **0.6.0**, Connect **0.2.3**, import format **1**, web sync guard **v7**.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
 - Web release was published in the preceding release workflow. Connect remains an unpacked extension requiring Chrome reload and a fresh preview/read/download.
 - Safe updates reuse confirmed account/course/item mappings and compare source baselines. Manual edits/clears, stale files, legacy records without a baseline and removed items are protected.
@@ -39,6 +39,18 @@ Updated: 2026-10-20. **Priorities, resumable work and acceptance tests live only
 Check filenames without a directory prefix in the table are under `scripts/`. Commands and local database setup are in [README](README.md#local-development).
 
 ## Verification evidence and limits
+
+### Web 0.6.0 grading rules
+
+`GradePlan.method` adds `highest` and `completion`; optional `completionPoints`, `attemptsClosed`, `passMark` and per-item `outcome` are validated through the shared backup/API validator. No database migration: rules live in the existing per-account Semester JSON. Outcomes are separate from numeric grades and calendar completion. Changing rule/source keeps raw numeric grades; excluded entries are retained. Counts must be applied before saving a changed count. Do not infer missing/late/zero from a blank.
+
+Highest compares fractions, not raw points; all numeric attempts or an explicit closed set of scored/not-taken entries settles the result. Awaiting/unknown blanks do not settle it. Numerical threshold is independent of finality, assessment weight and official hurdle state. Binary completion uses `min(submitted, bestCount) × completionPoints` over the fixed best-N maximum. Confirmed missed contributes zero, unknown/future remains unresolved. All outcomes resolved or enough submissions to reach the cap settles the result without changing future entries. Partial completion is a lower bound: keep it out of the marked-work average; display its secured unit points separately and pause target estimates while partly resolved groups remain.
+
+Existing Canvas part updates only support points/equal plans and therefore preserve these user-configured methods. No new automatic retake mapping, text-to-binary import, or Canvas polling. Guard v7 checks both active and inactive new rule fields, including outline-root overrides, to reject older writers that would drop them. Conflict resolution still treats each gradePlan atomically.
+
+Checks: `check-grade-rules.ts` covers highest/threshold boundaries, future/awaiting/unknown/zero, best-N caps, other-unit configurations, stats, source switching, backups/refresh, stale edits and repeat-import protection; storage test checks rules survive SQL JSON storage. The full web check scripts and TypeScript were rerun. `scripts/grade-rules-qa/` is a reusable isolated React fixture with invented data and localhost-only persistence, no account/API connection. Browser QA covers entering three attempts, blank third attempt, exact threshold, best 8 of 10 × 0.5, distinct unknown/missed/future states, reaching the cap before the last opportunity, cancel and save/reload. No pending real ELEC marks were written. User acceptance remains T10; automated tests do not certify course-specific policy.
+
+Prior-turn acceptance update (no private scores retained): 17 user-approved mapped results were imported and verified after reload, with no new assessments; retake/prework remained pending. Track the remaining real repeat-import/update checks under T02.
 
 Connect 0.2.2: 34 Node tests and 81 real-browser DOMParser assertions passed, plus four-course synthetic preview selection/batch read, grade filters, mixed-manifest error UI and the website's complete import-protection regression script. Reproducible harness: `extensions/semester-connect/scripts/qa-server.mjs`. It serves only synthetic fixtures on localhost; production reader body is unchanged, with lexical origin/fetch doubles. No real grades are fixtures.
 

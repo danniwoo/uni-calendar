@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.6.0 — 2026-10-21
+
+- Add generic highest-attempt and binary best-N submission rules inside the existing assessment grade editor, including single quizzes.
+- Configure included counts, completion points and an optional numerical pass threshold; keep original attempt marks and independently track unknown, not-taken, awaiting, submitted, missed and future states.
+- Show secured completion points rather than treating unfinished completion tallies as marked-work averages. Stop double counting and keep threshold checks separate from calendar completion and official hurdles.
+- Keep excess entries when reducing counts, protect manual rules against Canvas reimports, and require older tabs to reload before saving rule-bearing boards (sync guard v7).
+- Add synthetic regression and isolated browser QA fixtures. No user's pending retake/prework results are automatically filled or imported. Connect remains 0.2.3; automatic special-rule mapping is not included.
+
 ## 0.5.0 — 2026-10-20
 
 - Split Canvas import into **Match assessments → Review & confirm**, with explicit skipped/new-item counts, search and result filters, and separate changed/unchanged previews.

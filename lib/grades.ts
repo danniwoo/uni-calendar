@@ -8,7 +8,19 @@ export function partGrade(plan:GradePlan) {
   const base={recorded:marked.length,total:items.length,finished:!plan.canvasPendingReview&&items.length>0&&marked.length===items.length};
   const invalid=!validGradePlan(plan)?"Check the individual grade entries.":!items.length?"Include at least one graded item.":
     plan.method==="weighted" && (items.some(i=>!i.weight)||Math.abs(items.reduce((s,i)=>s+(i.weight||0),0)-100)>0.01)?"Part weights must be filled in and total 100% of this assessment.":
-    plan.method==="best" && (!plan.bestCount||plan.bestCount>items.length)?"Choose how many results count (no more than the included items).":null;
+    ["best","completion"].includes(plan.method) && (!plan.bestCount||plan.bestCount>items.length)?"Choose how many results count (no more than the included items).":
+    plan.method==="completion"&&!plan.completionPoints?"Set the points awarded for each confirmed submission.":null;
+  if (!invalid && plan.method==="completion") {
+    const resolved=items.filter(i=>i.outcome==="submitted"||i.outcome==="missed"),submitted=resolved.filter(i=>i.outcome==="submitted").length;
+    const earned=Math.min(submitted,plan.bestCount!)*plan.completionPoints!,possible=plan.bestCount!*plan.completionPoints!;
+    return {...base,recorded:resolved.length,finished:!plan.canvasPendingReview&&(resolved.length===items.length||submitted>=plan.bestCount!),
+      ratio:resolved.length?earned/possible:null,error:null,earned:resolved.length?earned:null,possible};
+  }
+  if (!invalid && plan.method==="highest") {
+    const winner=[...marked].sort((a,b)=>b.grade!.earned/b.grade!.possible-a.grade!.earned/a.grade!.possible)[0]?.grade;
+    return {...base,finished:!plan.canvasPendingReview&&!!winner&&items.every(i=>validGrade(i.grade)||(plan.attemptsClosed&&i.outcome==="not_taken")),
+      ratio:winner?winner.earned/winner.possible:null,error:null,earned:winner?.earned??null,possible:winner?.possible??null};
+  }
   if (invalid || !marked.length) return {...base,ratio:null,error:invalid,earned:null,possible:null};
   let earned=0,possible=0;
   if (plan.method==="points") {
@@ -18,6 +30,19 @@ export function partGrade(plan:GradePlan) {
     for (const i of counted) {const w=plan.method==="weighted"?i.weight!:1;earned+=i.grade!.earned/i.grade!.possible*w;possible+=w;}
   }
   return {...base,ratio:earned/possible,error:null,earned,possible};
+}
+
+export function gradeRuleSummary(plan:GradePlan) {
+  if(plan.method==="highest") return "Highest attempt";
+  if(plan.method==="completion") return `Best ${plan.bestCount??"?"} of ${plan.items.filter(i=>!i.excluded).length} · completion`;
+  return null;
+}
+
+// This is a numerical threshold check, not a declaration that all unit hurdles passed.
+export function gradeThreshold(plan:GradePlan) {
+  if(plan.method!=="highest"||!plan.passMark||!validGrade(plan.passMark))return null;
+  const result=partGrade(plan);
+  return result.ratio===null?"No result to check":result.ratio+1e-10>=plan.passMark.earned/plan.passMark.possible?"Threshold met":result.finished?"Threshold not met":"Not yet at threshold";
 }
 
 export function assessmentGrade(t:Task) {
@@ -62,7 +87,7 @@ export function gradeWeight(t: Task): number | null {
 export function unitGrades(s: Semester, unit: string) {
   // All roots, including hidden recurring: never use the filtered display rows.
   const roots=subjectAssessments(s,unit).filter(t=>!isPersonal(t));
-  let earned=0,gradedWeight=0,totalWeight=0,gradedCount=0,currentPoints=0,currentWeight=0,currentCount=0,pendingGroups=0;
+  let earned=0,gradedWeight=0,totalWeight=0,gradedCount=0,currentPoints=0,currentWeight=0,currentCount=0,pendingGroups=0,securedCompletionPoints=0;
   const issues: {task:Task; reason:string}[]=[];
   for (const t of roots) {
     const weight=gradeWeight(t);
@@ -71,13 +96,17 @@ export function unitGrades(s: Semester, unit: string) {
     const result=assessmentGrade(t);
     if (result.error) {issues.push({task:t,reason:result.error});continue;}
     if (result.ratio!==null && weight>0) {
+      // A partial binary tally is a lower bound, not an average of marked work.
+      if(t.gradePlan?.mode==="parts"&&t.gradePlan.method==="completion"&&!result.finished) {
+        securedCompletionPoints+=result.ratio*weight;pendingGroups++;continue;
+      }
       currentPoints+=result.ratio*weight;currentWeight+=weight;currentCount++;
       if(result.finished) {gradedWeight+=weight;earned+=result.ratio*weight;gradedCount++;}
       else pendingGroups++;
     }
   }
   const complete=roots.length>0 && !issues.length && Math.abs(totalWeight-100)<0.01;
-  return {earned,gradedWeight,gradedCount,totalWeight,issues,complete,currentWeight,currentCount,pendingGroups,
+  return {earned,gradedWeight,gradedCount,totalWeight,issues,complete,currentWeight,currentCount,pendingGroups,securedCompletionPoints,
     average:currentWeight>0?currentPoints/currentWeight*100:null,
     remaining:Math.max(0,100-gradedWeight),hurdles:roots.filter(t=>t.hurdle)};
 }

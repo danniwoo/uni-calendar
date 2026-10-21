@@ -30,9 +30,15 @@ export type AssessmentActivity = {
 export type GradePlan = {
   canvasPendingReview?: boolean;
   mode: "parts" | "overall";
-  method: "points" | "equal" | "weighted" | "best";
+  method: "points" | "equal" | "weighted" | "best" | "highest" | "completion";
   bestCount?: number;
-  items: { id: string; name: string; grade?: Grade | null; maximum?: number; weight?: number; excluded?: boolean }[];
+  completionPoints?: number;
+  attemptsClosed?: boolean;
+  passMark?: Grade;
+  items: { id: string; name: string; grade?: Grade | null; maximum?: number; weight?: number; excluded?: boolean;
+    // Independent of calendar completion and retained numeric source marks.
+    outcome?: "unknown" | "not_taken" | "awaiting" | "submitted" | "missed" | "not_due";
+  }[];
 };
 export type Task = {
   id: string;

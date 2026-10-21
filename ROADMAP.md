@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-更新：2026-10-20 · Web **0.5.0** / Connect **0.2.3**
+更新：2026-10-21 · Web **0.6.0** / Connect **0.2.3**
 
 這是唯一的工作／測試狀態總表。產品用途見 [VISION](VISION.md)，工程細節見 [PROGRESS](PROGRESS.md)。**功能已寫好 ≠ 已發布 ≠ 你已測過 ≠ 流程順。**
 
@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | **現在主線** | M1：可靠地管理自己的學期；尚未完成整條使用者驗收 | 先完成 [CONNECT-01](#connect-01) 的真實四科比對 |
 | **等你測** | Connect 已修；assessment、準備、成績等改動仍缺完整試用結論 | [測試佇列](#test-queue)，優先 T01 → T02 |
-| **本次插入修正** | 手動新增 assignment 缺少刪除入口：FLOW-01-F1 | 程式與 synthetic QA 完成；接 T09 回測，不清掉原本 Connect 待測 |
+| **本次交付** | GRADE-01：重考取最高、完成制最佳 N 次 | 開發驗證完成；接 T10 試用。FLOW-01-F1 的 T09 仍保留 |
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
 | **之後再決定** | 自動 Canvas 更新、iOS、Friends、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
@@ -58,7 +58,8 @@
 - 已做：Connect 0.2.2 修正舊 API `muted` 誤擋已公布分數、支援 Complete/Incomplete 文字結果並檢查版本一致；Web 0.4.0 重用配對、顯示來源分數差異並保護手動內容。文字結果目前不轉成網站數字成績。
 - 停在哪：34 Node tests、81 真實 DOMParser synthetic 斷言與匯入保護測試通過。使用者已 reload 並提供新版四科匯出，數字／文字結果與先前 Canvas 可見資料一致，格式驗證通過；尚未驗收真實配對與保存。工具仍無法操作 extension URL。
 - 已補：Web 0.5.0 的配對／確認兩步流程、相似名稱候選、原有成績對照、重考群組防平均、明確選計算方式及審核失效保護；Connect 0.2.3 修正有 posted_at 卻沒有結果的標記。
-- 下一步：用既有 0.2.2 或新版檔案做 T02 的配對預覽，先核對、不自動確認匯入；補查日期與重考規則。使用者接受後才進真實保存測試。
+- 續接紀錄：使用者已授權匯入 17 筆確認配對，保存後 reload 核對通過；沒有新增 assessment。特殊重考／prework 仍未匯入，手動規則先由 GRADE-01 處理。此紀錄不代表所有日期、所有來源更新或重複匯入均已真人驗收。
+- 下一步：T02 回測再次匯入同檔的零重複與來源更新；特殊規則未支援自動配對／文字轉分數，不先全部選新增。
 - 驗收：四科成功或明確報錯；可見已公布分數吻合；隱藏不是零；配對無歧義；確認後才保存；手動資料不變；重複匯入不重複新增。
 - 證據：實作 `0374e9c`；synthetic reader/import QA；**真實驗收：待記錄**。
 
@@ -106,6 +107,7 @@
 
 - 已做：overall / individual grades、recurring/parts 合計、Show grades 與 Hide recurring 控制、單科統計及有條件的目標估算。
 - 停在哪：成績已不是「以後才做」；目前要驗證輸入與理解。Connect group 計算仍需明確確認，不能猜 drop rules。
+- Web 0.6.0 已加：現有作業內的 highest attempt、binary best-N，次數／取幾次／完成分數可設定；門檻獨立檢查。未知不當零、原始成績保留、partial completion 不混入目前平均。開發回歸與隔離 UI 測試通過，尚待使用者 T10；未代填真實 ELEC 資料。
 - 下一步：T06，用 synthetic 範例先驗證邏輯，再自願核對真實資料。
 - 驗收：不用手算每 part 總分；分母／權重／缺成績清楚；不重複計入 parent/child；篩選不改整科統計；hurdle 不因估算達標而自動通過。
 - 證據：grades / grade-parts regression；**使用者理解及完整試用：待記錄**。
@@ -128,7 +130,7 @@
 | ID / 工作 | 起點與任務 | 特別觀察 | 狀態 |
 | --- | --- | --- | --- |
 | **T01 / CONNECT-01** | Reload Connect 0.2.2 → 讀四科 → 逐科與 Canvas 比對名稱、due、已公布分數及 Complete 結果 | 漏項／漏分？單科失敗有無明確原因？不要以總數相同代替逐項核對 | 新版真實匯出成績核對通過；日期／特殊規則仍待確認 |
-| **T02 / CONNECT-01** | T01 通過 → 私人 JSON → app 配對預覽 → 使用者確認 → Saved → 再匯同檔 | 手動資料被保留？來源更新可辨認？無重複？先備份；可先用 synthetic board | 待 T01 |
+| **T02 / CONNECT-01** | 私人 JSON → app 配對預覽 → 使用者確認 → Saved → 再匯同檔 | 手動資料被保留？來源更新可辨認？無重複？先備份；可先用 synthetic board | 17 筆授權配對已保存並 reload 核對；重複匯入／來源更新仍待真人驗收 |
 | **T03 / FLOW-01** | Assessment → 新增／編輯 demo＋submission → Week/Month → 返回修改 | due 在哪？parent/step 編輯清楚嗎？活動範圍與提交日期混淆嗎？不必猜示範日期寫入真實資料 | 待驗證 |
 | **T04 / PREP-01** | Week 的一個 Quiz → 範圍 → 未記錄 lecture → 更新 → 返回 | 不知道點哪？未知是否被當成未完成？返回丟位置嗎？ | 待驗證 |
 | **T05 / PLAN-01** | 選一份真實作業 → 記「現在要做的下一步」→ 安排本週 → 隔天找回 | 要去別的 app 才記得住嗎？被迫建立正式 assessment step 嗎？ | 待觀察／方案未定 |
@@ -136,6 +138,7 @@
 | **T07 / DATA-01** | 隔離 board 編輯 → Saved/reload → refresh → backup/restore → 切換帳戶 | 保護手動值／清空、還原差異、身份隔離；不拿正式資料冒險 | 待安排 |
 | **T08 / M2** | 新使用者自行設定自己的學期，完成找作業／更新，再使用一週 | 哪裡需要開發者解說？下次打開能續接嗎？不用抄錄私人對話 | 待 M1 核心問題解除 |
 | **T09 / FLOW-01-F1** | Web 0.4.1 → 開一份可丟棄的手動 assessment → Delete assessment → 取消，再確認 → Undo | 入口可見？取消不改資料？group 提示範圍？Undo 還原？確認 Saved 後才 reload；Undo 本身不跨 reload 保留 | 已通過 synthetic QA；待你回測 |
+| **T10 / GRADE-01** | Show grades → 現有 Quiz 的 Individual grades / rules → 最高分與門檻；再測 10 次 prework 取最佳 8 | 未考不是 0？完成／未交／未確認容易分辨？2/4 secured 和平均分不同？Apply count、取消、保存重開是否清楚？ | Web 0.6.0 開發測試通過；待使用者試用。先手動確認，不自動匯入特殊規則 |
 
 ### 每次測完只補這張紀錄
 

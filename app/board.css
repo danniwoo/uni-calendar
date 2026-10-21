@@ -1344,7 +1344,7 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .grade-parts-heading { display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center; gap:12px; margin-bottom:12px; }
 .grade-parts-heading strong { font-size:15px; }
 .grade-parts-editor label { font-size:12px; font-weight:400; margin:0; display:grid; gap:4px; min-width:0; }
-.grade-parts-editor select { max-width:100%; }
+.grade-parts-editor select { max-width:100%; padding:7px 8px; background:white; border:1px solid #c8d4e8; border-radius:6px; }
 .grade-parts-editor input:not([type=checkbox]) { width:100%; min-width:0; font-size:14px; padding:7px 8px; }
 .grade-parts-settings { display:flex; flex-wrap:wrap; gap:12px; align-items:end; }
 .grade-parts-settings input { max-width:90px; }
@@ -1363,6 +1363,12 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .grade-parts-add button,.grade-parts-actions button { font-size:12px; }
 .grade-parts-preview { background:#edf2ff; border-radius:6px; padding:10px 12px; display:grid; gap:3px; font-size:12px; }
 .grade-parts-preview strong { font-size:17px; color:#244387; }
+.grade-rule-settings { border:1px solid #d6e0f2; border-radius:8px; padding:12px; margin:12px 0; background:white; }
+.grade-parts-editor .grade-rule-check { display:flex; align-items:center; gap:8px; margin:12px 0; }
+.grade-rule-check input { width:18px; height:18px; accent-color:#2855c8; }
+.grade-rule-item-note { grid-column:2/-1; color:#637085; font-size:12px; padding:3px 0; }
+.grade-rule-item-note select { max-width:280px; }
+.grade-part-inputs.grade-completion-inputs,.grade-parts-columns.grade-completion-columns:not(:has(span:nth-child(5))) { grid-template-columns:42px minmax(100px,1fr) 240px 65px; }
 .grade-warning { color:#a02f36; font-size:12px; }
 .grade-rule-note { color:#80531a; }
 @media(max-width:700px) {

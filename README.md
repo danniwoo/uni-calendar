@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.5.0** · **Semester Connect 0.2.3**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.6.0** · **Semester Connect 0.2.3**. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -28,6 +28,7 @@ Current source versions: **Semester Web 0.5.0** · **Semester Connect 0.2.3**. C
 - Assessment editing supports multiple steps, demos/submissions, availability, and an activity week/date window separate from the submission deadline.
 - Manually created assessments can be deleted from their detail/edit panel, with scope confirmation and immediate Undo. Source-defined assessments are protected.
 - Grades support overall or individual-part results, single-unit summaries and conditional target estimates. Blank/hidden marks are not zero; completion and grades are independent.
+- Existing assessments can use **Retakes · highest attempt** (optional score threshold) or **Completion · best N submissions** (configurable opportunity count and points). These are generic rules, not tied to a unit.
 - Account-scoped D1 storage, backup export/restore, one previous-board recovery slot and guarded concurrent saves are implemented.
 - **Semester Connect** reads selected USYD Canvas courses using an existing browser login. A private JSON file is reviewed and mapped in Semester before import. Confirmed mappings can be reused; manual data is protected.
 
@@ -43,6 +44,17 @@ Known limits and outstanding trials are in the [roadmap](ROADMAP.md). Canvas imp
 6. Wait for **Saved** before closing. Use **Manage → Refresh current timetable** after changing classes; inspect warnings and retain a backup before significant changes.
 
 Hosted and local-preview data are separate. JSON backups omit the private timetable URL. Restore reviews a full-board replacement; it is not a merge. Sharing site access does not share another person's account data.
+
+### Grading rules
+
+In **Assessments → Show grades**, choose **Individual grades / rules** on an assessment (or click its existing individual result). Select a calculation and review all included entries before saving.
+
+- **Highest attempt:** enter the allowed count, click **Apply count**, then enter each released score. Blank attempts can be not confirmed, not taken, or awaiting a result. Optional threshold marks are checked separately from unit weight and do not automatically mark a hurdle passed. If no further attempts are planned, explicitly close attempts and identify unused blanks as **Not taken**; unknown/awaiting entries still prevent finalization.
+- **Best N submissions:** for example, 10 opportunities, best 8, 0.5 points each. Select Submitted, Confirmed not submitted, Not due yet, or Not confirmed. The maximum is 8 × 0.5 = 4; four submissions secure 2/4 points, not a 100% average. The result settles when all included outcomes are known or the cap is already reached. An unresolved lower bound is shown separately from the unit's current average.
+- Changing counts excludes excess entries without deleting their history. Numeric grades are retained when using completion rules; they do not automatically imply submission. These entries do not create calendar events or change completion checkboxes.
+- Canvas import still requires review. It **does not automatically map retake attempts or turn text results into binary marks**, and will not overwrite these user-configured rules. Existing simple points/equal-weight imports keep their previous behavior.
+
+For isolated browser QA: `node node_modules/vite/bin/vite.js --config scripts/grade-rules-qa/vite.config.mjs --port 5191 --strictPort`. This fixture uses invented entries and localhost-only storage, not the account API. Reset synthetic data using its button. Stop the server when finished.
 
 ## Local development
 

@@ -1,7 +1,7 @@
 import { getChatGPTUser } from "../../chatgpt-auth";
 import { database } from "@/lib/storage";
 import { upgradeSemester } from "@/lib/importer";
-import { validGrade, validGradePlan } from "@/lib/grade-value";
+import { validGrade, validGradePlan, requiresGradeRuleClient } from "@/lib/grade-value";
 import {activityError} from "@/lib/assessment-activity";
 import {validCanvasMetadata} from "@/lib/canvas-import";
 export async function GET() {
@@ -82,14 +82,16 @@ export async function PUT(request: Request) {
     // They do not understand replacement generations and could otherwise merge it back.
     const saved = await database().prepare("SELECT data, revision FROM semesters WHERE owner = ?").bind(user.userId).first<{data:string;revision:number}>();
     const previous = saved ? JSON.parse(saved.data) : null;
-    if (![2,3,4,5,6].includes(syncVersion) && previous?.boardGeneration)
+    if (![2,3,4,5,6,7].includes(syncVersion) && previous?.boardGeneration)
         return Response.json({error:"This board was restored or switched. Export unsaved edits, then reload this tab before continuing."},{status:409});
-    if (![3,4,5,6].includes(syncVersion) && previous?.tasks?.some((t:{grade?:unknown})=>t.grade!==undefined))
+    if (![3,4,5,6,7].includes(syncVersion) && previous?.tasks?.some((t:{grade?:unknown})=>t.grade!==undefined))
       return Response.json({error:"This board now includes grades. Export unsaved edits, then reload this older tab before saving so grades are preserved."},{status:409});
-    if (![4,5,6].includes(syncVersion) && previous?.tasks?.some((t:{gradePlan?:unknown})=>t.gradePlan!==undefined))
+    if (![4,5,6,7].includes(syncVersion) && previous?.tasks?.some((t:{gradePlan?:unknown})=>t.gradePlan!==undefined))
       return Response.json({error:"This board now includes individual grades. Export unsaved edits, then reload this older tab before saving so individual grades are preserved."},{status:409});
-    if (syncVersion !== 6 && previous?.canvasAccountId)
+    if (![6,7].includes(syncVersion) && previous?.canvasAccountId)
       return Response.json({error:"This board includes Canvas imports. Export unsaved edits, then reload this older tab before saving so import links are preserved."},{status:409});
+    if (syncVersion !== 7 && [...(previous?.tasks||[]),...(previous?.units||[]).flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{gradePlan?:unknown})=>requiresGradeRuleClient(t.gradePlan)))
+      return Response.json({error:"This board includes grading rules. Export unsaved edits, then reload this older tab before saving so attempts and completion results are preserved."},{status:409});
     if ((saved?.revision || 0) !== revision)
       return Response.json({error:"The saved board changed. Reload or resolve the conflict before saving."},{status:409});
     const switched = previous && (previous.boardGeneration !== semester.boardGeneration || previous.feedUrl !== semester.feedUrl

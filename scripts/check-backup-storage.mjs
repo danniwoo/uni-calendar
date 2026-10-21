@@ -36,5 +36,9 @@ grades.tasks[0].gradePlan={mode:"parts",method:"points",items:[{id:"p1",name:"Pa
 assert.equal(save.run("grades",JSON.stringify(grades),"now",1).changes,1);
 assert.equal(JSON.parse(read("grades").data).tasks[0].grade,null,"Clearing a grade persists independently from zero");
 assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks[0].gradePlan,"Part scores, ungraded maxima and exclusions survive storage");
+grades.tasks[0].gradePlan={mode:"parts",method:"completion",bestCount:8,completionPoints:.5,items:[{id:"w1",name:"Week 1",outcome:"submitted"},{id:"w2",name:"Week 2",outcome:"not_due"}]};
+assert.equal(save.run("grades",JSON.stringify(grades),"now",2).changes,1);
+assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks[0].gradePlan,"Rules and unknown/future outcome states survive SQL JSON storage");
+assert.match(route,/syncVersion !== 7[\s\S]*requiresGradeRuleClient\(t.gradePlan\)/,"Old clients must reload before overwriting stored rules");
 db.close();
 console.log("PASS: recovery SQL, account isolation, stale-revision safety, transaction rollback and one-step recovery rotation.");
