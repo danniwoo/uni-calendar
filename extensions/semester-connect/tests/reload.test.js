@@ -19,7 +19,7 @@ function mock() {
   const store=data=>({get:async key=>({[key]:structuredClone(data[key])}),set:async obj=>Object.assign(data,structuredClone(obj)),remove:async key=>{delete data[key];}});
   const tabs=new Map([[1,{id:1,url:"https://canvas.sydney.edu.au/courses/12/grades"}],[2,{id:2,url:"https://canvas.sydney.edu.au/courses/13"}]]);
   const api={storage:{local:store(local),session:store(session)},runtime:{getManifest:()=>({version:READER_VERSION})},permissions:{contains:async value=>{assert.deepEqual(value.origins,ORIGINS);return allowed;}},
-    tabs:{get:async id=>tabs.get(id),query:async()=>[{id:9,url:SEMESTER}],sendMessage:async(...args)=>messages.push(args)},
+    tabs:{get:async id=>tabs.get(id),query:async ({url})=>url.startsWith(SEMESTER)?[{id:9,url:SEMESTER}]:[...tabs.values()],sendMessage:async(...args)=>messages.push(args)},
     scripting:{unregisterContentScripts:async()=>{},registerContentScripts:async args=>registrations.push(args),executeScript:async args=>{if(args.files)return;reads.push(args);return [{result:reader?await reader(args):structuredClone(result)}];}}};
   const controller=reloadController(api,()=>clock);
   return {controller,api,local,session,reads,registrations,messages,tabs,setResult:r=>result=r,setReader:r=>reader=r,advance:n=>clock+=n,setAllowed:a=>allowed=a,reload:(id=1)=>controller.updated(id,{status:"complete"},tabs.get(id))};
@@ -93,4 +93,51 @@ test("bridge registration failure leaves checks disabled, not half enabled",asyn
   const m=mock();m.api.scripting.registerContentScripts=async()=>{throw new Error("registration failure");};
   await assert.rejects(m.controller.enable(config),/remain off/);
   assert.equal((await m.controller.inbox()).enabled,false);assert.equal(m.local.reloadConfig,undefined);
+});
+test("one batch checks all four consented IDs via one Canvas tab, no partial delivery",async()=>{
+  const m=mock();await m.controller.enable({...config,courseIds:["12","13","14","15"]});
+  m.setReader(async args=>{assert.equal((await m.controller.inbox()).raw,null);return source(args.args[0].courseId);});
+  await m.controller.checkAll();const inbox=await m.controller.inbox();
+  assert.equal(inbox.checking,false);assert.equal(inbox.canCheckAll,true);assert.equal(inbox.courseCount,4);
+  assert.deepEqual(m.reads.map(r=>r.args[0].courseId),["12","13","14","15"]);
+  assert.ok(m.reads.every(r=>r.target.tabId===1));assert.equal(JSON.parse(inbox.raw).courses.length,4);
+  assert.match(inbox.message,/All 4 courses checked/);assert.deepEqual(Object.keys(m.local),["reloadConfig"]);
+  await m.controller.checkAll();assert.equal(m.reads.length,4,"batch rate limited");
+  const restarted=reloadController(m.api,()=>time+1000);await restarted.checkAll();assert.equal(m.reads.length,4,"throttle survives worker restart");
+});
+test("batch requires consent, grants and an open Canvas tab",async()=>{
+  const m=mock();await m.controller.checkAll();assert.equal(m.reads.length,0);
+  await m.controller.enable(config);m.tabs.clear();await m.controller.checkAll();assert.equal(m.reads.length,0);assert.match((await m.controller.inbox()).message,/Open one signed-in/);
+  m.setAllowed(false);await m.controller.checkAll();assert.equal((await m.controller.inbox()).enabled,false);
+});
+test("batch failure never publishes partial or stale snapshots",async()=>{
+  for(const failure of ["LOGIN_REQUIRED","FORBIDDEN","ACCOUNT_CHANGED","wrong-course","wrong-version"]){
+    const m=mock();await m.controller.enable(config);
+    m.setReader(async args=>args.args[0].courseId==="12"?source():failure==="wrong-course"?source("99"):failure==="wrong-version"?{...source("13"),readerVersion:"old"}:{ok:false,code:failure});
+    await m.controller.checkAll();const inbox=await m.controller.inbox();assert.equal(inbox.raw,null);assert.equal(Boolean(inbox.checking),false);
+    assert.equal(inbox.enabled,failure!=="ACCOUNT_CHANGED");
+  }
+});
+test("batch concurrent clicks coalesce; close/navigation/disable/revoke cancel safely",async()=>{
+  for(const mode of ["close","navigate","disable","revoke"]){
+    const m=mock();await m.controller.enable(config);let release,started;const began=new Promise(r=>started=r);
+    m.setReader(()=>{started();return new Promise(r=>release=r);});
+    const first=m.controller.checkAll();await began;const second=m.controller.checkAll();
+    assert.equal((await m.controller.inbox()).checking,true);
+    if(mode==="disable")await m.controller.disable();
+    else if(mode==="revoke")m.setAllowed(false);
+    else if(mode==="close")m.controller.removed(1);
+    else m.controller.updated(1,{status:"loading"},m.tabs.get(1));
+    release(source());await Promise.all([first,second]);
+    assert.equal(m.reads.length,1);assert.equal((await m.controller.inbox()).raw,null);
+  }
+});
+test("interrupted batch after worker restart is explicit; reload preserves batch throttle",async()=>{
+  const m=mock();await m.controller.enable(config);
+  m.session.reloadState={batchInProgress:true,lastBatchAttempt:time,snapshots:{}};
+  const restarted=reloadController(m.api,()=>time+1000);
+  assert.match((await restarted.inbox()).message,/interrupted/);
+  m.reload();await m.controller.idle();
+  await m.controller.checkAll();assert.equal(m.reads.length,1);
+  assert.match((await m.controller.inbox()).message,/once a minute/);
 });

@@ -1,6 +1,15 @@
 # Changelog
 
+## 0.9.0 — 2026-10-24
+
+- Add **Check all N courses** with Connect 0.4.0: one explicit batch checks the previously enabled courses using one existing signed-in Canvas tab. No automatic import.
+- Returning imports open a compact update summary: changed grades, unmatched items, and named protected entries. Unchanged records, source details and JSON fallback stay collapsed.
+- Replace the ambiguous “Show unmatched items” filter with **Resolve unmatched items**, focus the matching section, explain the next action, and offer existing confirmed retake/completion rules as explicit destinations. Appending an unknown prework preserves its unknown result and does not create a calendar task.
+- Preserve frozen reviews, concurrent-edit rejection, manual/cleared values and source-ID protection. Verification uses invented data; real four-course batch acceptance remains separate.
+
 ## 0.8.0 — 2026-10-24 (source checkpoint; deployment separate)
+
+- Subsequently deployed as Sites version 45, source `85498d9`; production UI confirmed Web 0.8.0. This records deployment, not four-course acceptance.
 
 - Make Canvas update review explicit: new/updated results with before → after values, never-linked/unmatched items that stay skipped, manual/cleared/removed entries protected, and rule/source changes requiring separate review. Collapse unchanged rows.
 - Receive opt-in Connect 0.3.0 pending snapshots in the same Chrome profile. Reuse the JSON parser, saved source-ID matching and pure import planner; no new write endpoint or automatic confirmation. Opening a review freezes its source snapshot, and concurrent board changes invalidate acknowledgement.

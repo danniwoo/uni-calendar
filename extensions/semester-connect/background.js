@@ -8,7 +8,8 @@ chrome.runtime.onMessage.addListener((message,sender,respond)=>{
   if (!access) return;
   const operation = message?.type;
   if (operation==="connect-inbox") {reload.inbox().then(respond,()=>respond({enabled:false,raw:null,message:"Connect unavailable. Use JSON or reopen Connect."}));return true;}
-  if (access!=="preview") return; // The website cannot configure permissions or trigger reads.
+  if (operation==="connect-check-all") {void reload.checkAll();respond({ok:true});return;}
+  if (access!=="preview") return; // Website cannot configure consent, course IDs or arbitrary read targets.
   if (operation==="connect-enable") {reload.enable(message.config).then(()=>respond({ok:true}),e=>respond({ok:false,error:e.message}));return true;}
   if (operation==="connect-disable") {reload.disable().then(()=>respond({ok:true}));return true;}
 });

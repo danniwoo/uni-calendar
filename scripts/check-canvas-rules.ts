@@ -4,6 +4,7 @@ import {planCanvasImport,suggestCanvasMatches,validCanvasMetadata,type CanvasCho
 import {partGrade,saveGradePlan} from "../lib/grades";
 import {backupText,readBackup} from "../lib/backup";
 import type {CanvasRule} from "../lib/semester";
+import {existingCanvasRuleChoices,defaultCanvasStage} from "../lib/canvas-update-status";
 
 // Invented scores and identifiers, not a student's export.
 const board=structuredClone(fixtureBoard),bundle=structuredClone(fixtureBundle),course=bundle.courses[2];
@@ -81,4 +82,18 @@ for(const bad of [{...completion,count:0},{...completion,bestCount:11},{...compl
 assert(validCanvasMetadata(cp.semester));assert.deepEqual(readBackup(backupText(cp.semester)).canvasImports,cp.semester.canvasImports);
 const invalid=structuredClone(cp.semester);invalid.canvasImports![0].lastItem!.id="wrong";assert.equal(validCanvasMetadata(invalid),false);
 assert.throws(()=>planCanvasImport(cp.semester,{...cb,accountId:"100"},compChoices),/different Canvas account/);
+// Explicitly append a newly discovered prework to its already-confirmed rule.
+const freshPrep=structuredClone(cb);freshPrep.courses[2].assignments.push({...structuredClone(cc.assignments[6]),id:"27",name:"Preparation 8"});
+const options=existingCanvasRuleChoices(cp.semester,freshPrep,cc.course.id,"ELEC2302");
+assert.equal(options.length,1);assert.deepEqual(options[0].rule,completion);
+assert.equal(defaultCanvasStage(cp.semester,freshPrep),"updates");assert.equal(defaultCanvasStage(board,freshPrep),"match");
+assert.equal(existingCanvasRuleChoices(cp.semester,{...freshPrep,accountId:"100"},cc.course.id,"ELEC2302").length,0);
+assert.equal(existingCanvasRuleChoices(cp.semester,freshPrep,cc.course.id,"SOFT2412").length,0);
+const auto=Object.values(suggestCanvasMatches(cp.semester,freshPrep).choices);
+assert(!auto.some(c=>c.assignmentId==="27"),"new prework is never auto selected");
+const appended=planCanvasImport(cp.semester,freshPrep,[...auto,{...compChoices[0],assignmentId:"27",outcome:undefined,rule:options[0].rule}]);
+assert.equal(appended.changed,1);assert.equal(appended.semester.tasks.length,cp.semester.tasks.length);
+assert.equal(appended.semester.tasks[2].gradePlan!.items[7].outcome,"unknown");
+assert.equal(appended.semester.tasks[2].gradePlan!.items[4].outcome,"missed","manual miss preserved during append");
+assert.equal(planCanvasImport(cp.semester,freshPrep,auto).changed,0,"leaving new item skipped changes nothing");
 console.log("PASS Canvas rules: cross-group highest, best-N completion, unknowns, explicit misses, stable IDs, placeholders, updates, idempotence, manual/cleared/removed/rule protection, changed source rules, backups and isolation.");

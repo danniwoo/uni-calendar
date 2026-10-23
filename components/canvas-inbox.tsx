@@ -4,7 +4,7 @@ import type {Semester} from "@/lib/semester";
 import {readCanvasBundle,suggestCanvasMatches,planCanvasImport} from "@/lib/canvas-import";
 import {canvasUpdateStatus} from "@/lib/canvas-update-status";
 
-type Inbox={enabled:boolean;raw:string|null;message:string};
+type Inbox={enabled:boolean;raw:string|null;message:string;canCheckAll:boolean;checking:boolean;courseCount:number};
 export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;onReview:(raw:string)=>void;reviewOpen:boolean}) {
   const [inbox,setInbox]=useState<Inbox|null>(null),[dismissed,setDismissed]=useState<string|null>(null);
   useEffect(()=>{
@@ -12,7 +12,7 @@ export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;on
       if(e.source!==window||e.origin!==location.origin||e.data?.type!=="semester-connect-inbox-v1")return;
       const value=e.data.inbox;
       if(!value||typeof value.enabled!=="boolean"||typeof value.message!=="string"||value.message.length>500||!(value.raw===null||typeof value.raw==="string"&&value.raw.length<=1500000))return;
-      setInbox({enabled:value.enabled,raw:value.raw,message:value.message});
+      setInbox({enabled:value.enabled,raw:value.raw,message:value.message,canCheckAll:value.canCheckAll===true,checking:value.checking===true,courseCount:Number.isInteger(value.courseCount)&&value.courseCount>0&&value.courseCount<=8?value.courseCount:0});
     };
     const request=()=>window.postMessage({type:"semester-connect-request-v1"},location.origin);
     window.addEventListener("message",receive);window.addEventListener("focus",request);request();
@@ -34,6 +34,6 @@ export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;on
         <small>Canvas account {preview.bundle.accountId} · {preview.bundle.courses.length} courses checked · each course’s read time is shown in review. Other courses are unchanged. Nothing saved.</small>
       </>:null}
     </div>
-    <div>{inbox.raw&&!preview?.error&&<button disabled={reviewOpen} onClick={()=>onReview(inbox.raw!)}>Review Canvas updates</button>}<button onClick={()=>setDismissed(inbox.raw||inbox.message)}>Dismiss</button></div>
+    <div>{inbox.enabled&&inbox.canCheckAll&&inbox.courseCount>0&&<button disabled={inbox.checking} onClick={()=>{setInbox({...inbox,checking:true,message:"Starting all-course check… Keep your signed-in Canvas tab open."});window.postMessage({type:"semester-connect-check-all-v1"},location.origin);}}>{inbox.checking?"Checking courses…":`Check all ${inbox.courseCount} courses`}</button>}{inbox.raw&&!preview?.error&&<button disabled={reviewOpen||inbox.checking} onClick={()=>onReview(inbox.raw!)}>Review Canvas updates</button>}<button onClick={()=>setDismissed(inbox.raw||inbox.message)}>Dismiss</button></div>
   </section>;
 }

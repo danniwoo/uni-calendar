@@ -4,6 +4,22 @@ import {canvasKey,type CanvasBundle,type CanvasChoice} from "./canvas-import";
 export type CanvasActionKind="grade"|"protected"|"attention"|"mapping"|"added"|"unchanged"|"summary";
 export type CanvasAction={key:string;text:string;changed:boolean;kind?:CanvasActionKind};
 
+// Offer already-confirmed rules as explicit choices, never as automatic matches.
+// The planner still checks manual edits, slot capacity and source rule changes.
+export function existingCanvasRuleChoices(s:Semester,b:CanvasBundle,courseId:string,unit:string) {
+  if(s.canvasAccountId!==b.accountId)return [];
+  const prefix=`${b.accountId}:${courseId}:`;
+  const records=(s.canvasImports||[]).filter(r=>r.key.startsWith(prefix)&&r.rule);
+  return [...new Set(records.map(r=>r.targetId))].flatMap(targetId=>{
+    const t=s.tasks.find(t=>t.id===targetId&&t.unit===unit),r=records.find(r=>r.targetId===targetId)!;
+    if(!t?.gradePlan||t.grade!==undefined||records.some(x=>x.targetId===targetId&&JSON.stringify(x.rule)!==JSON.stringify(r.rule)))return [];
+    const plan=t.gradePlan,rule=r.rule!;
+    if(plan.method!==rule.method||plan.items.length!==rule.count||plan.bestCount!==rule.bestCount||plan.completionPoints!==rule.completionPoints||JSON.stringify(plan.passMark)!==JSON.stringify(rule.passMark)||plan.attemptsClosed)return [];
+    return [{target:t,rule:r.rule!}];
+  });
+}
+export const defaultCanvasStage=(s:Semester,b:CanvasBundle)=>s.canvasAccountId===b.accountId&&!!s.canvasImports?.length?"updates" as const:"match" as const;
+
 // Status comes from the planner, never from matching English warning strings.
 export function canvasUpdateStatus(s:Semester,b:CanvasBundle,choices:CanvasChoice[],actions:CanvasAction[]) {
   const selected=new Set(choices.map(c=>`${c.courseId}:${c.assignmentId}`));

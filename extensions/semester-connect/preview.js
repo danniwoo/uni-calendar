@@ -31,6 +31,7 @@ function controls() {
   $("read-many").disabled = busy || !user || !selected.length;
   $("export").disabled = busy || !selected.length || selected.length>8 || selected.some(id => !snapshots.has(id));
   $("enable-reload").disabled = busy || !user || !selected.length || selected.length>8;
+  $("enable-hint").textContent=busy?"Wait for the current read to finish.":!user?"First click Read my courses below, then select your teaching courses.":!selected.length?"Select at least one course in the checklist below to enable.":selected.length>8?"Choose no more than eight courses.":`Enable checks for these ${selected.length} courses, then use Check all in Semester. Nothing imports automatically.`;
   document.querySelectorAll('#course-checks input').forEach(el => {el.disabled = busy;});
 }
 function discardResults() {

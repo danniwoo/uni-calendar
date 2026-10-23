@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.0 — 2026-10-24 (unpacked; live batch acceptance pending)
+
+- Accept the fixed Semester website's **Check all N courses** request, restricted to the account/course IDs already explicitly enabled in Connect. One existing Canvas course tab is enough; no new tabs, arbitrary URLs, new permissions or automatic confirmation.
+- Serialize the batch, coalesce concurrent requests, persist a one-minute batch throttle and publish a snapshot only when all selected courses succeed. Failure, interruption, account/permission changes or closing/navigating the source tab abort the batch without offering partial results.
+- Keep single-course reload checks and JSON downloads. Explain why Enable is disabled. Queue bridge refreshes so a busy delivery cannot swallow the completion notification.
+- Reader, lifecycle/security and four-course batch tests pass using synthetic inputs. Real installed-extension testing still requires reload and a fresh read; no live grades were imported in development.
+
 ## 0.3.0 — 2026-10-24 (unpacked; live acceptance pending)
 
 - Add explicit opt-in reload checks for 1–8 selected USYD courses. Opening/reloading a selected course checks only that course; serialized reads and a one-minute/course throttle bound requests. No timers or Canvas writes.

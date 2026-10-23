@@ -1,16 +1,16 @@
-# Semester Connect 0.3.0
+# Semester Connect 0.4.0
 
 Local unpacked Chrome extension. Canvas stays read-only. Not a Chrome Web Store release.
-Compatible website: Semester Web 0.4.0 or later for JSON; **Web 0.8.0 for reload-check delivery**. Import format stays version 1. Git push does not deploy the website.
+Compatible website: Semester Web 0.4.0 or later for JSON; **Web 0.9.0 for Check all and compact updates** (Web 0.8.0 supports single-course delivery). Import format stays version 1. Git push does not deploy the website.
 
 <a id="reload-checks"></a>
 ## Reload 更新檢查（可選，先預覽）
 
-1. 網站先部署 Web 0.8.0；Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.3.0**。
+1. 網站先部署 Web 0.9.0；Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.4.0**，並 reload Semester 網頁以載入新 bridge。
 2. **Read my courses** → 核對帳戶及學期 → 勾四科 → **Enable for selected courses**。Chrome 會要求 Canvas 與 Semester 兩個固定網站權限；不授權仍可用 JSON。
 3. 在**同一個 Chrome profile** 開 Semester 網站。Codex 內建瀏覽器不會自動取得 Chrome 的 extension 連線。
-4. 打開或 reload 一科 Canvas `/courses/<id>/…`，只重新讀該科（每科最多每分鐘一次）。要檢查四科，就逐科打開／reload；不是一科 reload 就宣稱四科都是最新。慢速網路時請保持分頁不變直到讀完。
-5. Semester 出現 **Review Canvas updates**：看新結果、待配對項目與手動資料保護。點開後仍要 **Review → 勾核對 → Confirm**；目前試用請先停在 preview，不確認真實資料。
+4. 保持一個已登入 Canvas `/courses/<id>/…` 分頁開著，在 Semester 按 **Check all 4 courses**（數字依已啟用科目數）。自動依序讀完四科，只在全部成功後提供預覽；中途失敗會清 pending、提示重試，不冒充完整四科。批次最多每分鐘一次。也可只 reload 某科檢查該科；兩者都不需再次打開 extension。
+5. 按 **Review Canvas updates**：日常更新先顯示新結果、待配對與逐筆手動保護，未變更及 JSON 入口收起。**Resolve unmatched items** 會打開並聚焦配對區；選對現有 assessment／已確認規則後，按 **Review → 勾核對 → Confirm**。未知 prework 不變成 0，也不建重複作業。目前試用先停在 preview，不確認真實資料。
 6. 驗收：同樣結果再次讀取不重複新增；新項目仍為 Skip；手動值/清空不變；開著 review 收到新 snapshot 不替換它；帳戶不同停止、登入失效清掉 pending 並提示；關閉後 reload 不再讀取。
 7. **Turn off & clear pending previews** 停止檢查、移除選課設定、清 session preview 並撤回兩個 optional host grants。不影響已確認的網站資料或已下載 JSON。
 
@@ -21,7 +21,7 @@ Compatible website: Semester Web 0.4.0 or later for JSON; **Web 0.8.0 for reload
 ## 更新與測試
 
 1. 到 Chrome 的 `chrome://extensions`，對 **Semester Connect — Local Preview** 按重新載入。
-2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.3.0**。舊預覽可能仍記著舊版本；必須重新讀取、下載才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
+2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.4.0**。舊預覽可能仍記著舊版本；必須重新讀取、下載才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
 3. 按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。按 **Read selected courses**。
 4. 每科會分別顯示筆數與已公布成績。單科失敗不清掉其他成功資料；從 Course 選失敗那科，再按 **Read selected course** 重試。所有勾選科目成功才可匯出。
 5. 用 Course 選單檢查每科，與 **Compare in Canvas** 的 Marks 頁比對。未公布、隱藏、免計分不等於零分。

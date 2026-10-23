@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-更新：2026-10-24 · Web **0.8.0** / Connect **0.3.0**（source checkpoint，未自動部署）
+更新：2026-10-24 · Web **0.9.0** / Connect **0.4.0**（批次檢查 source；部署與實機驗收分開記錄）
 
 這是唯一的工作／測試狀態總表。產品用途見 [VISION](VISION.md)，工程細節見 [PROGRESS](PROGRESS.md)。**功能已寫好 ≠ 已發布 ≠ 你已測過 ≠ 流程順。**
 
@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | **現在主線** | M1：可靠地管理自己的學期；尚未完成整條使用者驗收 | 先完成 [CONNECT-01](#connect-01) 的真實四科比對 |
 | **等你測** | Connect 已修；assessment、準備、成績等改動仍缺完整試用結論 | [測試佇列](#test-queue)，優先 T01 → T02 |
-| **本次交付** | CONNECT-02：清楚的更新預覽＋可選 Canvas reload 檢查 | 開發驗證完成；部署與真實 Chrome 授權／四科回測仍待做。T09／T10 等舊測試保留 |
+| **本次交付** | CONNECT-02：Check all＋精簡更新摘要＋待配對入口 | 0.8.0 已部署並看到單科 pending；0.9.0/0.4.0 批次開發驗證完成，四科實機回測仍待做。T09／T10 等舊測試保留 |
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
 | **之後再決定** | 自動 Canvas 更新、iOS、Friends、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
@@ -89,7 +89,8 @@
 - 已做：Web 0.8.0 分清新結果、未配對、手動資料保護、規則需核對；Connect 0.3.0 加入固定兩站 optional permission、選科/account 綁定、單科 reload checks、session pending preview、固定站點 bridge。JSON 入口保留。
 - 邊界：每科每分鐘最多一次，只在選定課程頁完整載入時檢查，沒有 timer polling。權限撤回／關閉／帳戶錯誤清理 preview；登入失效與失敗有提示。未配對不新增，未知不是零，絕不自動確認或回寫 Canvas。
 - 證據：reader／mocked lifecycle/security tests、TypeScript、web regression、production build；synthetic web UI 驗證 JSON 和 pending banner 共用 preview、並行更新不替換已開預覽、stale review 停用、取消零寫入、只確認一項假成績時手動值／清空保留。
-- 下一步／T11：取得部署授權 → 發布 Web 0.8.0 → Chrome reload Connect 0.3.0 → 使用者授權兩站並選四科 → **同一 Chrome profile** 開 Semester → 四科逐科 reload → 只核對 pending preview，暫不確認真實匯入。Codex 內建瀏覽器不代表已安裝 Chrome extension。
+- 新增：Web 0.9.0 / Connect 0.4.0 的 **Check all N courses** 只讀已授權科目，單一 Canvas 分頁即可；一次全部成功才提供預覽。日常更新預設摘要，未變更項目收起；未配對可明確沿用既有規則，未知仍不是零。
+- 下一步／T11：發布 Web 0.9.0 → Chrome reload Connect 0.4.0、關舊 preview 並 reload Semester → 確認已授權四科 → **同一 Chrome profile** 保持一個登入的 Canvas 課程頁 → Check all 4 courses → 核對四科讀取時間、成績及手動保護，暫不確認真實匯入。0.8.0 的部署及單科傳送已觀察到，不等於四科批次驗收。
 - 待核對：真實 Chrome 事件/權限/worker 重啟、四科逐項結果與失敗提示、關閉檢查後不再讀取。工具限制仍不允許操控 extension URL；mock 測試不是實機驗收。
 
 ### FLOW-01
@@ -168,7 +169,7 @@
 | **T08 / M2** | 新使用者自行設定自己的學期，完成找作業／更新，再使用一週 | 哪裡需要開發者解說？下次打開能續接嗎？不用抄錄私人對話 | 待 M1 核心問題解除 |
 | **T09 / FLOW-01-F1** | Web 0.4.1 → 開一份可丟棄的手動 assessment → Delete assessment → 取消，再確認 → Undo | 入口可見？取消不改資料？group 提示範圍？Undo 還原？確認 Saved 後才 reload；Undo 本身不跨 reload 保留 | 已通過 synthetic QA；待你回測 |
 | **T10 / GRADE-01** | Show grades → 現有 Quiz 的 Individual grades / rules → 最高分與門檻；再測 10 次 prework 取最佳 8 | 未考不是 0？完成／未交／未確認容易分辨？2/4 secured 和平均分不同？Apply count、取消、保存重開是否清楚？ | Web 0.6.0 開發測試通過；待使用者試用。先手動確認，不自動匯入特殊規則 |
-| **T11 / CONNECT-02** | 發布 Web 0.8.0、reload Connect 0.3.0 → 使用者啟用兩站權限與選科 → 同一 Chrome 逐科 reload → pending preview | 不自動保存；新項目 Skip；手動值保護；課程讀取時間不同有標示；關閉／權限撤回與換帳戶清理；JSON 可用 | 本機開發驗證完成；部署、實機權限與真實資料只讀預覽待驗證 |
+| **T11 / CONNECT-02** | Web 0.9.0、reload Connect 0.4.0 → 已授權四科 → 同一 Chrome 保持一個 Canvas 課程頁 → Check all 4 → pending preview | 不自動保存；新項目 Skip；手動值保護；一次四科時間清楚；失敗不提供半批預覽；單科 reload／JSON 保留 | 開發回測通過；前版單科傳送已觀察到；本版四科實機與取消零寫入待驗證 |
 
 ### 每次測完只補這張紀錄
 
