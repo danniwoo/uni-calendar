@@ -5,6 +5,7 @@ Updated: 2026-10-24. **Priorities, resumable work and acceptance tests live only
 ## Current source checkpoint
 
 - Web **0.9.0**, Connect **0.4.0**, import format **1**, web sync guard **v8**. Git push is separate from publication. Preceding Web 0.8.0 was deployed as Sites version 45 (`85498d9`); the production footer and saved four-unit board were verified, with no import confirmation.
+- Web 0.9.0 deployed successfully as Sites version 46, source `dd534e4`, deployment `appgdep_6adb7ce0ba6881918879a98522cfa549`, at the existing Semester URL. 50 extension tests, all web regression scripts, TypeScript and production build passed. Connect 0.4.0 still requires user Chrome reload; real four-course batch/preview T11 is not marked passed.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
 - Web release was published in the preceding release workflow. Connect remains an unpacked extension requiring Chrome reload and a fresh preview/read/download.
 - Safe updates reuse confirmed account/course/item mappings and compare source baselines. Manual edits/clears, stale files, legacy records without a baseline and removed items are protected.

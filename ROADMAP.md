@@ -90,7 +90,7 @@
 - 邊界：每科每分鐘最多一次，只在選定課程頁完整載入時檢查，沒有 timer polling。權限撤回／關閉／帳戶錯誤清理 preview；登入失效與失敗有提示。未配對不新增，未知不是零，絕不自動確認或回寫 Canvas。
 - 證據：reader／mocked lifecycle/security tests、TypeScript、web regression、production build；synthetic web UI 驗證 JSON 和 pending banner 共用 preview、並行更新不替換已開預覽、stale review 停用、取消零寫入、只確認一項假成績時手動值／清空保留。
 - 新增：Web 0.9.0 / Connect 0.4.0 的 **Check all N courses** 只讀已授權科目，單一 Canvas 分頁即可；一次全部成功才提供預覽。日常更新預設摘要，未變更項目收起；未配對可明確沿用既有規則，未知仍不是零。
-- 下一步／T11：發布 Web 0.9.0 → Chrome reload Connect 0.4.0、關舊 preview 並 reload Semester → 確認已授權四科 → **同一 Chrome profile** 保持一個登入的 Canvas 課程頁 → Check all 4 courses → 核對四科讀取時間、成績及手動保護，暫不確認真實匯入。0.8.0 的部署及單科傳送已觀察到，不等於四科批次驗收。
+- Web 0.9.0 已發布（Sites v46 / `dd534e4`）。下一步／T11：Chrome reload Connect 0.4.0、關舊 preview 並 reload Semester → 確認已授權四科 → **同一 Chrome profile** 保持一個登入的 Canvas 課程頁 → Check all 4 courses → 核對四科讀取時間、成績及手動保護，暫不確認真實匯入。前版單科傳送已觀察到，不等於四科批次驗收。
 - 待核對：真實 Chrome 事件/權限/worker 重啟、四科逐項結果與失敗提示、關閉檢查後不再讀取。工具限制仍不允許操控 extension URL；mock 測試不是實機驗收。
 
 ### FLOW-01
