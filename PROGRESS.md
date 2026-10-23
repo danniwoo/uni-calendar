@@ -1,6 +1,6 @@
 # Engineering handoff
 
-Updated: 2026-10-22. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-23. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
 
@@ -41,6 +41,8 @@ Check filenames without a directory prefix in the table are under `scripts/`. Co
 ## Verification evidence and limits
 
 ### Web 0.7.0 Canvas rule imports
+
+Live acceptance follow-up (recorded 2026-10-23): the user confirmed the 13 special-rule mappings. Read-only inspection showed Saved; after reload, both highest-attempt rules and the best-N completion rule retained their entries/configuration. Unknown and not-taken entries remained unresolved. Reopening the same four-course export reused all 30 confirmed mappings (17 earlier + 13 special-rule mappings), with 32 skipped, zero new assessments, zero changes and a disabled confirmation button. The explicit manual missing-submission decision remained protected. No confirmation or data edits were made during this repeat-import check. This verifies persistence and same-file idempotence, not fresh-source update acceptance; that still needs a new user-generated export. Preserve JSON export/import as a supported testing/fallback path even after direct transport is added, sharing the same matching, rules and preview logic. Private exports and scores are not retained in this repository.
 
 `CanvasChoice.rule` opts into a separate pure rule planner (`lib/canvas-rule-import.ts`). User selects one existing parent, explicit source IDs across groups, and highest/count/optional threshold or completion/count/bestCount/points. Source-number names are retained independently of calendar occurrence weeks. Untouched deterministic unknown placeholders reserve the remaining opportunities; a later explicitly linked source replaces only an untouched placeholder, never a user-edited slot. No automatic fuzzy rule selection, no inferred latest-attempt rule, no direct extension-to-app transport.
 
