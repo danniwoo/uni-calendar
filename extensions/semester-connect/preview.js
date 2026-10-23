@@ -1,5 +1,6 @@
 import { readCanvas, READER_VERSION } from "./reader.js";
 import { CANVAS_ORIGIN, ERRORS, dateLabel, gradeView, releasedSummary, submissionLabel, visibleAssignments } from "./model.js";
+import {ORIGINS} from "./reload-check.js";
 
 const $ = (id) => document.getElementById(id);
 const params = new URL(location.href).searchParams;
@@ -29,6 +30,7 @@ function controls() {
   const selected = selectedCourses();
   $("read-many").disabled = busy || !user || !selected.length;
   $("export").disabled = busy || !selected.length || selected.length>8 || selected.some(id => !snapshots.has(id));
+  $("enable-reload").disabled = busy || !user || !selected.length || selected.length>8;
   document.querySelectorAll('#course-checks input').forEach(el => {el.disabled = busy;});
 }
 function discardResults() {
@@ -134,7 +136,7 @@ function render() {
   $("group-count").textContent = groupsUnavailable ? "· unavailable" : `· ${groups.length}`;
   $("groups").replaceChildren(element("p", groupsUnavailable ? "Canvas did not return the assignment groups. Weights are unavailable, not zero. The assignment list was read successfully." : course.weighted === true ? "Canvas reports weighted assignment groups. These are group totals, not each assignment’s weight. Rules are shown, not calculated here." : course.weighted === false ? "Canvas reports that group weighting is OFF. The configured weights below are not applied weights." : "Canvas did not confirm whether group weighting is enabled. Do not assume the percentages below are applied."));
   $("read-warning").textContent = snapshot.marksPageUnavailable ? "Marks-page cross-check unavailable. Posted API grades are shown; other scores remain unavailable. Compare in Canvas before importing." : "Grades checked against the student Marks page where supported. Hidden marks and What-If values are not imported.";
-  $("read-warning").textContent += ` ${releasedSummary(assignments)}. Complete/Incomplete stays text in this preview and download; Semester’s current grade calculator imports numeric marks only.`;
+  $("read-warning").textContent += ` ${releasedSummary(assignments)}. Complete/Incomplete stays text; Semester applies completion points only through an explicitly confirmed completion rule.`;
   const grid = element("div", null, "group-list");
   for (const g of groups) {
     const item = element("div", null, "group-item");
@@ -243,3 +245,25 @@ if (sourceTab === null) {
   message("Open this preview from the extension icon on a USYD Canvas tab.");
 }
 controls();
+async function reloadStatus() {
+  try {const state=await chrome.runtime.sendMessage({type:"connect-inbox"});$("reload-status").textContent=`${state.enabled?`On · account ${state.accountId} · ${state.courseCount} selected courses. `:"Off. "}${state.message}`;}
+  catch {$("reload-status").textContent="Reload Connect and reopen this preview to use reload checks. JSON export is still available.";}
+}
+$("enable-reload").addEventListener("click",async()=>{
+  if(busy||!user||!selectedCourses().length||selectedCourses().length>8)return;
+  const config={enabled:true,accountId:user.id,courseIds:selectedCourses()};
+  try {
+    // Request only from this deliberate user gesture, never on page load.
+    if(!await chrome.permissions.request({origins:ORIGINS})){$("reload-status").textContent="Not enabled. You can keep using JSON without granting site access.";return;}
+    const result=await chrome.runtime.sendMessage({type:"connect-enable",config});
+    if(!result?.ok)throw new Error(result?.error||"Could not enable reload checks.");
+    await reloadStatus();
+  }catch(error){$("reload-status").textContent=error.message;}
+});
+$("disable-reload").addEventListener("click",async()=>{
+  await chrome.runtime.sendMessage({type:"connect-disable"});
+  await chrome.permissions.remove({origins:ORIGINS});
+  await reloadStatus();
+});
+void reloadStatus();
+chrome.storage?.onChanged?.addListener((changes,area)=>{if(area==="session"&&changes.reloadState)void reloadStatus();});

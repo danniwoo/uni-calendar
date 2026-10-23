@@ -11,7 +11,8 @@
   <header class="topbar"><div class="brand"><span class="brandmark" aria-hidden="true">S</span><strong>semester <span>connect</span></strong><span id="version" class="version">0.2.0</span></div><span class="readonly">Read-only local preview</span></header>
   <main>
     <section class="intro"><div><p class="eyebrow">CANVAS → REVIEW → SEMESTER</p><h1>Check your Canvas data.</h1><p class="lead">Read your selected courses. Review first, then import into Semester.</p></div><button id="clear" class="secondary">Clear preview</button></section>
-    <div class="privacy"><span aria-hidden="true">✓</span><p><strong>Canvas is read-only.</strong> Reads happen only when you click. Previews stay in this tab until you download an import file. The file contains grades: keep it private. Nothing is sent to Semester until you upload and confirm there.</p></div>
+    <div class="privacy"><span aria-hidden="true">✓</span><p><strong>Canvas is read-only.</strong> Manual reads and JSON export remain available. Optional reload checks share a pending preview with Semester in this Chrome profile. Nothing is saved to your Semester account until you review and confirm.</p></div>
+    <section class="panel"><h2>Canvas reload checks · optional</h2><p>After reading your course list, select up to eight courses and enable below. Opening or reloading one of those Canvas courses checks that course (at most once a minute). No timer polling or closed-browser syncing. Pending grades use browser-session storage and expire after 24 hours (cleared on next access); only account/course IDs are remembered between browser sessions.</p><p>Enabling requests access to USYD Canvas and the Semester website so it can show a pending preview. Open Semester in this same Chrome profile. It never writes to Canvas or automatically saves grades to Semester.</p><div class="batch-actions"><button id="enable-reload" disabled>Enable for selected courses</button><button id="disable-reload">Turn off &amp; clear pending previews</button></div><p id="reload-status" role="status"></p></section>
     <section id="start" class="panel start">
       <div><h2>Start with your Canvas account</h2><p id="start-copy">Keep your signed-in USYD Canvas tab open. We’ll read your name and active student course list first; you choose which course’s assignments to read.</p></div>
       <button id="courses" class="primary">Read my courses</button>
@@ -32,7 +33,7 @@
         <p class="footnote">Open “Dates &amp; source details” for separate opening/closing dates and source IDs. Due dates use Canvas’s student-specific assignment response. Missing records or dates need checking in Canvas; they do not mean there is no work.</p>
       </section>
     </section>
-    <footer><span>Semester Connect · <span id="footer-version">0.2.0</span> · Manual read &amp; review</span><span>Clear closes the in-memory preview, not files you downloaded. No background sync.</span></footer>
+    <footer><span>Semester Connect · <span id="footer-version">0.3.0</span> · Read → review → confirm</span><span>Clear preview clears this tab only. Turn off reload checks above to clear session previews. Downloaded files are not deleted.</span></footer>
   </main>
 </body>
 </html>

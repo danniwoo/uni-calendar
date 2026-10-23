@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-10-24 (unpacked; live acceptance pending)
+
+- Add explicit opt-in reload checks for 1–8 selected USYD courses. Opening/reloading a selected course checks only that course; serialized reads and a one-minute/course throttle bound requests. No timers or Canvas writes.
+- Request optional access only to USYD Canvas and the fixed Semester origin. Store consent/account/course IDs locally and pending source snapshots in session storage; expire snapshots after 24 hours, clear on disable/permission loss/account mismatch/read failure, and ignore in-flight results after navigation or disabling.
+- Use a fixed-origin, top-frame bridge to Web 0.8.0's pending review. No credentials transferred, external messaging, generic URLs, automatic import or cloud grade writes. JSON export remains available without optional site access.
+- Developer verification: reader and mocked lifecycle/security tests, synthetic web UI checks. Actual Chrome permission prompts and four-live-course reload delivery must still be tested by the user after deploying Web 0.8.0 and reloading Connect.
+
 ## 0.2.3 — 2026-10-20
 
 - Require an actual numeric/text result as well as release evidence. A posted timestamp alone no longer marks an empty result as released.

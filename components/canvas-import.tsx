@@ -3,14 +3,18 @@ import {useMemo,useState} from "react";
 import type {Semester,Task} from "@/lib/semester";
 import {CanvasRuleMapping} from "./canvas-rule-mapping";
 import {ruleDescription} from "@/lib/canvas-rule-import";
+import {canvasUpdateStatus} from "@/lib/canvas-update-status";
 import {canvasCandidates,canvasGrade,canvasGroupBlock,canvasKey,canvasResultLabel,canvasTargets,isCanvasRetake,planCanvasImport,readCanvasBundle,suggestCanvasMatches,type CanvasBundle,type CanvasChoice} from "@/lib/canvas-import";
 
 const existingGrade=(t?:Task)=>!t?"":t.grade?`${t.grade.earned} / ${t.grade.possible}`:t.grade===null?"Manually cleared":t.gradePlan!==undefined?"Individual-grade setup":"No grade recorded";
 type GroupDraft={targetId:string;method:""|"points"|"equal"};
 
-export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApply:(b:CanvasBundle,c:CanvasChoice[],expected:Semester)=>void;onClose:()=>void}){
-  const [bundle,setBundle]=useState<CanvasBundle|null>(null),[units,setUnits]=useState<Record<string,string>>({}),[choices,setChoices]=useState<Record<string,CanvasChoice>>({}),[confirmed,setConfirmed]=useState(false),[error,setError]=useState("");
-  const [reasons,setReasons]=useState<Record<string,string>>({}),[stage,setStage]=useState<"match"|"review">("match");
+export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Semester;onApply:(b:CanvasBundle,c:CanvasChoice[],expected:Semester)=>void;onClose:()=>void;initialRaw?:string}){
+  // Freeze the incoming snapshot for this review. Later checks never replace an
+  // open review or tick its confirmation box. JSON and Connect use one parser.
+  const [initial]=useState(()=>{try{const b=initialRaw?readCanvasBundle(initialRaw):null;return {bundle:b,suggestions:b?suggestCanvasMatches(semester,b):null,error:""};}catch(e){return {bundle:null,suggestions:null,error:(e as Error).message};}});
+  const [bundle,setBundle]=useState<CanvasBundle|null>(initial.bundle),[units,setUnits]=useState<Record<string,string>>(initial.suggestions?.units||{}),[choices,setChoices]=useState<Record<string,CanvasChoice>>(initial.suggestions?.choices||{}),[confirmed,setConfirmed]=useState(false),[error,setError]=useState(initial.error);
+  const [reasons,setReasons]=useState<Record<string,string>>(initial.suggestions?.reasons||{}),[stage,setStage]=useState<"match"|"review">("match");
   const [query,setQuery]=useState(""),[filter,setFilter]=useState("all"),[drafts,setDrafts]=useState<Record<string,GroupDraft>>({});
   const [reviewedSemester,setReviewedSemester]=useState<Semester|null>(null);
   const preview=useMemo(()=>{if(!bundle)return null;try{return {...planCanvasImport(semester,bundle,Object.values(choices)),error:""};}catch(e){return {actions:[],changed:0,error:(e as Error).message};}},[semester,bundle,choices]);
@@ -45,7 +49,8 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
   }
   const selected=Object.values(choices),total=bundle?.courses.reduce((n,c)=>n+c.assignments.length,0)||0;
   const added=selected.filter(c=>c.targetId==="new").length;
-  const changedActions=preview?.actions.filter(a=>a.changed)||[],keptActions=preview?.actions.filter(a=>!a.changed&&!a.key.startsWith("summary:"))||[],ruleSummaries=preview?.actions.filter(a=>a.key.startsWith("summary:"))||[];
+  const updates=bundle?canvasUpdateStatus(semester,bundle,selected,preview?.actions||[]):null;
+  const ruleSummaries=preview?.actions.filter(a=>a.kind==="summary")||[];
   return <section className="canvas-import-review">
     <h2>Import from Semester Connect</h2>
     <nav className="canvas-import-stages" aria-label="Import steps">
@@ -55,10 +60,19 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
     </nav>
     <p>Match a Canvas item to an assessment you already have. Nothing is saved until you confirm the changes in step 2.</p>
     <p className="notice">Existing names, dates, weights, notes and completion stay unchanged. Manual or cleared grades are protected. Only unchanged Canvas-imported grades can update.</p>
-    {stage==="match"&&<label className="restore-backup">Choose Connect import file<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label>}
+    {stage==="match"&&<label className="restore-backup">JSON import · testing / manual fallback<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label>}
     {error&&<p className="notice error" role="alert">{error}</p>}
     {bundle&&<>
       <p className="hint"><strong>Canvas account {bundle.accountId}</strong> · {bundle.courses.length} courses · exported {new Date(bundle.exportedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney. File contents stay local until confirmation saves selected changes to your Semester account.</p>
+      {updates&&!preview?.error&&<>
+        <div className="canvas-update-summary" aria-label="Canvas update summary">
+          <div><strong>{updates.grades.length}</strong><span>New / updated results</span><small>Preview only · not saved</small></div>
+          <div><strong>{updates.unmatched.length}</strong><span>Items not matched</span><small>{updates.unmatched.filter(a=>a.isNew).length} never linked · not added automatically</small></div>
+          <div><strong>{updates.protected.length}</strong><span>Manual data protected</span><small>Grades, rules or removed entries kept</small></div>
+        </div>
+        {updates.unmatched.length>0&&<details className="rule-card" open={stage==="match"}><summary>Needs your decision · {updates.unmatched.length} unmatched items · skipped</summary><p>Match only after checking the assessment and rule. Leaving these skipped is safe; no result is assumed to be zero.</p><ul>{updates.unmatched.map(a=><li key={a.key}><strong>{a.course} · {a.name}</strong> — {a.isNew?"Not previously linked":"Saved link not selected"}</li>)}</ul>{stage==="match"?<button onClick={()=>{setFilter("unmatched");setQuery("");}}>Show unmatched items</button>:<button onClick={()=>{changed();setFilter("unmatched");setQuery("");}}>Back to match these items</button>}</details>}
+        {updates.attention.length>0&&<section className="rule-card"><h3>Rules / source changes need review</h3><ul>{updates.attention.map(a=><li key={a.key}>{a.text}</li>)}</ul><p>These changes will not be applied.</p></section>}
+      </>}
       {stage==="match"?<>
         <div className="canvas-match-summary"><strong>{selected.length} matched</strong> · {total-selected.length} skipped · {added} to add
           <small>Skipped means no change. “Match existing” updates or links a grade; it does not create another assignment.</small>
@@ -72,7 +86,7 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
           const cid=c.course.id,unit=units[cid]||"",targets=unit?canvasTargets(semester,unit):[];
           const rows=c.assignments.filter(a=>(`${a.name} ${c.course.code}`.toLowerCase().includes(query.trim().toLowerCase()))&&(filter==="all"||filter==="grades"&&!!canvasGrade(a)||filter==="unmatched"&&!choices[`${cid}:${a.id}`]||filter==="selected"&&!!choices[`${cid}:${a.id}`]));
           return <details key={cid} className="rule-card" open><summary className="canvas-course-heading">{unit||c.course.code} · {Object.values(choices).filter(v=>v.courseId===cid).length} / {c.assignments.length} matched</summary>
-            <p className="hint">{c.course.name} · {c.course.term||"Term not provided"}</p>
+            <p className="hint">{c.course.name} · {c.course.term||"Term not provided"} · checked {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney</p>
             {c.marksPageUnavailable&&<p className="notice">Marks-page check unavailable. Compare this course with Canvas before selecting grades.</p>}
             <label>Canvas course → your unit<select aria-label={`Unit for ${c.course.code}`} value={unit} onChange={e=>{
               setUnits({...units,[cid]:e.target.value});setChoices(old=>Object.fromEntries(Object.entries(old).filter(([,v])=>v.courseId!==cid)));
@@ -134,12 +148,14 @@ export function CanvasImport({semester,onApply,onClose}:{semester:Semester;onApp
         <p>{selected.length} selected · {total-selected.length} skipped · {added} new assessments requested. Skipped items and unrelated data stay unchanged.</p>
         {staleReview&&<p className="notice error" role="alert">Your Semester data changed while this review was open. Go back and review the updated plan before confirming.</p>}
         {preview?.error&&<p role="alert" className="notice error">{preview.error}</p>}
-        <section className="rule-card"><h3>{changedActions.length} changes to apply</h3>
-          {changedActions.length?<ul>{changedActions.map(a=><li key={a.key}>{a.text}</li>)}</ul>:<p>No changes needed. These items are already up to date or protected.</p>}
+        <section className="rule-card"><h3>{updates?.grades.length||0} new / updated results</h3>
+          {updates?.grades.length?<ul>{updates.grades.map(a=><li key={a.key}>{a.text}</li>)}</ul>:<p>No new applicable result. Unknown or hidden results are not zero.</p>}
         </section>
-        {keptActions.length>0&&<section className="rule-card"><h3>{keptActions.length} kept unchanged</h3><ul>{keptActions.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
+        {!!updates?.protected.length&&<section className="rule-card"><h3>{updates.protected.length} manual entries protected</h3><p>These values will not be overwritten. A first-time source link may be saved without changing the grade.</p><ul>{updates.protected.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
+        {!!updates?.otherChanges.length&&<section className="rule-card"><h3>{updates.otherChanges.length} other changes · links / new items</h3><ul>{updates.otherChanges.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
+        {!!updates?.unchanged.length&&<details className="rule-card"><summary>{updates.unchanged.length} unchanged / no new result</summary><ul>{updates.unchanged.map(a=><li key={a.key}>{a.text}</li>)}</ul></details>}
         {ruleSummaries.length>0&&<section className="rule-card"><h3>Calculated preview · after these changes</h3><ul>{ruleSummaries.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
-        {added>0&&<p className="notice">New assessments have unknown weights. Set them after importing; Canvas group weight is not an individual item's weight.</p>}
+        {added>0&&<p className="notice">New assessments have unknown weights. Set them after importing; Canvas group weight is not an individual item’s weight.</p>}
         {selected.some(c=>c.mode==="part")&&<p className="notice">Unknown results remain unresolved. See each rule summary for whether its result is settled or still in progress. Ordinary points/equal groups need a full-list review after import. Calendar completion is unchanged.</p>}
         <label className="canvas-confirm"><input type="checkbox" checked={confirmed&&!staleReview} disabled={staleReview||!!preview?.error} onChange={e=>setConfirmed(e.target.checked)}/>I checked the account, semester, unit and assessment matches, and any retake / individual-grade rules.</label>
         <div className="canvas-import-footer"><button onClick={()=>changed()}>← Back to matching</button><button onClick={onClose}>Cancel</button>

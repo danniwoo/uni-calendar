@@ -1,10 +1,10 @@
 # Engineering handoff
 
-Updated: 2026-10-23. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-24. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
 
-- Web **0.7.0**, Connect **0.2.3**, import format **1**, web sync guard **v8**.
+- Web **0.8.0**, Connect **0.3.0**, import format **1**, web sync guard **v8**. This checkpoint has not been deployed; Git push is separate from publication.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
 - Web release was published in the preceding release workflow. Connect remains an unpacked extension requiring Chrome reload and a fresh preview/read/download.
 - Safe updates reuse confirmed account/course/item mappings and compare source baselines. Manual edits/clears, stale files, legacy records without a baseline and removed items are protected.
@@ -23,6 +23,17 @@ Updated: 2026-10-23. **Priorities, resumable work and acceptance tests live only
 6. Preserve detailed implementation reasoning, failed approaches, edge cases and test evidence. Before shortening this handoff, move the full prior text into a dated archive with a historical-status warning and link it here; a summary or Git history alone is not a replacement.
 
 ## Code map
+
+### 2026-10-24 update-review / reload-check handoff
+
+- `lib/canvas-update-status.ts` uses explicit planner action kinds, not English substring checks. Results, protected entries, rule/source attention, new links/items and unchanged results remain distinct. Unmatched means not selected; “not previously linked” deliberately does not claim Canvas just created it.
+- `components/canvas-inbox.tsx` accepts a size-bounded same-window/same-origin pending message, parses with `readCanvasBundle`, and runs the pure planner against the current board. It cannot save. `CanvasImport.initialRaw` freezes one snapshot per mounted review; JSON retains the same parser/matcher/planner. The board still checks exact reviewed object identity and unsaved/conflict state at explicit confirmation.
+- Extension `reload-check.js` owns optional consent/account/course IDs (`storage.local`), raw source snapshots (`storage.session`, unavailable to arbitrary content scripts by default), serial reload reads, throttle, version/account checks, age/size limits and in-flight invalidation. No grades in persistent local storage. Raw snapshots preserve pass/fail fields so the parser runs once; don't reparse a normalized `CanvasBundle` and lose text evidence.
+- `semester-bridge.js` is dynamically registered only after two fixed-origin grants. Only top-level Semester receives pending snapshots. `background.js` validates runtime sender, extension-preview URL or exact website/frame before servicing requests; website only gets inbox, not enable/read/configure privileges. No cookies/tokens, externally-connectable listener, server write endpoint or auto-confirm.
+- Failure policy: clear all pending snapshots on read failure to avoid offering stale marks after login/permission problems; mismatch disables the configuration. Failed/cancelled checks may require waiting one minute before reload. Unvisited courses aren't refreshed; each checked course has its own timestamp. Session expiry is enforced on delivery and pruned on the next access/read, not by a timer.
+- Storage/session and dynamic script design checked against official [Chrome storage](https://developer.chrome.com/docs/extensions/reference/api/storage) and [scripting](https://developer.chrome.com/docs/extensions/reference/api/scripting) documentation. The browser policy still blocks extension URLs; no alternative browser/debug protocol used to bypass it.
+- Verification: all `scripts/check-*.ts`, TypeScript and production build passed; Connect reader plus mocked permission/queue/account/login/navigation/security cases passed. Synthetic `scripts/canvas-rules-qa/?updates` UI verifies frozen review, stale-board acknowledgement invalidation, cancel/no writes, JSON file input and explicit one-change test save preserving manual grades/clears. These checks do **not** establish actual Chrome optional-permission/worker lifecycle behavior; user acceptance remains T11. No live board or Canvas records changed.
+- Standalone QA: `npx vite --config scripts/canvas-rules-qa/vite.config.mjs --port 5184`, then `http://127.0.0.1:5184/?updates`. It only has invented fixture data/in-memory writes and is not a substitute extension page. Do not use private snapshots in committed fixtures.
 
 | Area | Main entry points | Checks |
 | --- | --- | --- |

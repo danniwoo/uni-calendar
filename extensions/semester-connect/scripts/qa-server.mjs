@@ -3,7 +3,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 const root = new URL("../", import.meta.url);
-const allowed = new Set(["preview.html", "preview.js", "preview.css", "reader.js", "model.js",
+const allowed = new Set(["preview.html", "preview.js", "preview.css", "reader.js", "model.js", "reload-check.js",
   "tests/browser-qa.html", "tests/browser-fixtures.js"]);
 const server = createServer(async (req, res) => {
   const name = new URL(req.url, "http://localhost").pathname.slice(1);

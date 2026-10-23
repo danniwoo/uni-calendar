@@ -27,7 +27,7 @@ const placeholder=(id:string,n:number)=>({id:`canvas-rule-empty:${id}:${n}`,name
 
 // Runs against a cloned board. Stable source IDs, never occurrence order, own
 // entries. Rule changes and user edits stop updates rather than guessing intent.
-export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[],records:Map<string,CanvasImportRecord>,actions:{key:string;text:string;changed:boolean}[]) {
+export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[],records:Map<string,CanvasImportRecord>,actions:import("./canvas-update-status").CanvasAction[]) {
   for(const targetId of new Set(choices.map(c=>c.targetId))) {
     const selected=choices.filter(c=>c.targetId===targetId),first=selected[0],rule=first.rule!;
     if(!validCanvasRule(rule)||selected.some(c=>!same(c.rule,rule)||c.unit!==first.unit||c.courseId!==first.courseId))throw new Error("Use one course, unit and confirmed rule per assessment.");
@@ -37,28 +37,28 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
     const ledger=[...records.values()].filter(r=>r.targetId===targetId);
     const blocked=target.grade!==undefined||target.gradePlan!==undefined&&(!target.gradePlan||!configured(target.gradePlan,rule)||!ledger.length||ledger.some(r=>!same(r.rule,rule)))
       ||ledger.some(r=>!same(r.rule,rule));
-    let plan:GradePlan=target.gradePlan?structuredClone(target.gradePlan):{mode:"parts",method:rule.method,
+    const plan:GradePlan=target.gradePlan?structuredClone(target.gradePlan):{mode:"parts",method:rule.method,
       ...(rule.bestCount?{bestCount:rule.bestCount}:{}),...(rule.completionPoints?{completionPoints:rule.completionPoints}:{}),...(rule.passMark?{passMark:rule.passMark}:{}),
       items:Array.from({length:rule.count},(_,i)=>placeholder(targetId,i+1))};
     let updated=false;
     for(const choice of selected) {
       const a=course.assignments.find(a=>a.id===choice.assignmentId);if(!a)throw new Error("Canvas item no longer exists in this file. Review again.");
       const key=canvasKey(b,course.course.id,a.id),prior=records.get(key),itemId=`canvas:${key}`;
-      const keep=(reason:string)=>actions.push({key,text:`${target.title} → ${a.name}: ${reason}; unchanged`,changed:false});
+      const keep=(reason:string,kind:import("./canvas-update-status").CanvasActionKind="unchanged")=>actions.push({key,text:`${target.title} → ${a.name}: ${reason}; unchanged`,changed:false,kind});
       if(prior&&(prior.targetId!==targetId||prior.mode!=="part"||!same(prior.rule,rule)))throw new Error("This Canvas item is already linked with a different target or rule. Existing mapping preserved.");
-      if(blocked){keep("manual / existing grade or rule setup protected");continue;}
+      if(blocked){keep("manual / existing grade or rule setup protected","protected");continue;}
       const sourceRules=JSON.stringify({unavailable:course.groupsUnavailable,group:course.groups.find(g=>g.id===a.groupId)||null});
-      if(prior?.sourceRules!==undefined&&prior.sourceRules!==sourceRules){keep("Canvas group rules changed — review required");continue;}
+      if(prior?.sourceRules!==undefined&&prior.sourceRules!==sourceRules){keep("Canvas group rules changed — review required","attention");continue;}
       if(prior?.readAt&&Date.parse(course.fetchedAt)<Date.parse(prior.readAt)){keep("older source ignored");continue;}
       const current=plan.items.find(i=>i.id===itemId);
-      if(prior&&(!prior.readAt||prior.manual||!current||!same(current,prior.lastItem))){keep("manual / removed entry protected");continue;}
-      if(current&&!prior){keep("existing entry has no source baseline");continue;}
+      if(prior&&(!prior.readAt||prior.manual||!current||!same(current,prior.lastItem))){keep("manual / removed entry protected","protected");continue;}
+      if(current&&!prior){keep("existing entry has no source baseline","protected");continue;}
       const grade=canvasGrade(a);
       const complete=a.result==="complete"&&a.submission?.released&&!a.submission.excused&&a.submission.currentAttemptGraded!==false&&!a.omitted;
       if(choice.outcome&&!["missed","not_taken"].includes(choice.outcome))throw new Error("Invalid explicit outcome.");
       if(choice.outcome&&(grade||complete||choice.outcome==="missed"&&rule.method!=="completion"||choice.outcome==="not_taken"&&rule.method!=="highest"))throw new Error("Explicit outcome conflicts with the source result or grading rule.");
-      if(a.omitted||a.submission?.excused){keep("excluded / excused source needs separate review");continue;}
-      if(current?.maximum!==undefined&&a.pointsPossible!==null&&current.maximum!==a.pointsPossible){keep("source maximum changed — review required");continue;}
+      if(a.omitted||a.submission?.excused){keep("excluded / excused source needs separate review","attention");continue;}
+      if(current?.maximum!==undefined&&a.pointsPossible!==null&&current.maximum!==a.pointsPossible){keep("source maximum changed — review required","attention");continue;}
       // Hidden/unavailable results never clear an existing result or become zero.
       const item:GradePlan["items"][number]=current?{...current}:{id:itemId,name:a.name.slice(0,300),...(a.pointsPossible&&a.pointsPossible>0?{maximum:a.pointsPossible}:{}),outcome:"unknown"};
       if(rule.method==="highest"&&grade)item.grade=grade;
@@ -67,20 +67,21 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       if(current&&same(current,item)){keep("no new applicable result");continue;}
       if(!current) {
         const index=plan.items.findIndex(i=>i.id.startsWith(`canvas-rule-empty:${targetId}:`)&&same(i,placeholder(targetId,Number(i.id.split(":").at(-1)))));
-        if(index<0){keep("no untouched slot available — review the count / entries");continue;}
+        if(index<0){keep("no untouched slot available — review the count / entries","attention");continue;}
         plan.items[index]=item;
       }else plan.items=plan.items.map(i=>i.id===itemId?item:i);
       records.set(key,{key,targetId,mode:"part",rule:structuredClone(rule),readAt:course.fetchedAt,lastItem:structuredClone(item),sourceRules,
         ...(item.grade?{lastGrade:item.grade}:{}),...(choice.outcome==="missed"?{manual:true}:{})});
       const label=rule.method==="highest"&&item.grade?`${item.grade.earned}/${item.grade.possible}`:item.outcome==="submitted"?`Complete → ${rule.completionPoints}`:item.outcome==="missed"?"Confirmed by you: missed → 0":item.outcome==="not_taken"?"Not taken · no zero":"Unconfirmed · no zero";
-      actions.push({key,text:`${target.title} → ${a.name}: ${label} · ${ruleDescription(rule)}; dates, weight and calendar completion kept`,changed:true});updated=true;
+      const previous=current?.grade?`${current.grade.earned}/${current.grade.possible}`:current?.outcome==="submitted"?"Complete":"No recorded result";
+      actions.push({key,text:`${target.title} → ${a.name}: ${previous} → ${label} · ${ruleDescription(rule)}; dates, weight and calendar completion kept`,changed:true,kind:grade||complete||choice.outcome?"grade":"mapping"});updated=true;
     }
     if(updated) {
       if(!validGradePlan(plan))throw new Error("Invalid rule import. Nothing saved.");
       const next={...target,gradePlan:plan},index=s.tasks.findIndex(t=>t.id===targetId);
       if(index>=0)s.tasks[index]=next;else s.tasks.push(next);
       const result=partGrade(plan);
-      actions.push({key:`summary:${targetId}`,text:`${first.unit} · ${target.title}: ${result.earned===null?"No result":`${result.earned}/${result.possible}`} · ${result.finished?"settled result":"in progress, not final"} · ${plan.items.filter(i=>i.id.startsWith("canvas-rule-empty:")).length} opportunities not linked to Canvas`,changed:false});
+      actions.push({key:`summary:${targetId}`,text:`${first.unit} · ${target.title}: ${result.earned===null?"No result":`${result.earned}/${result.possible}`} · ${result.finished?"settled result":"in progress, not final"} · ${plan.items.filter(i=>i.id.startsWith("canvas-rule-empty:")).length} opportunities not linked to Canvas`,changed:false,kind:"summary"});
     }
   }
 }

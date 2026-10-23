@@ -47,7 +47,7 @@ try {
     ];
     window.fixture = { calls: [], pending: false, nextError: null, release: null, removed: null, updated: null };
     window.chrome = {
-      runtime: { getManifest: () => ({ version: "0.2.3" }) },
+      runtime: { getManifest: () => ({ version: "0.3.0" }), sendMessage: async () => ({enabled:false,raw:null,message:"Synthetic fixture: reload checks off."}) },
       tabs: { get: async () => ({ url: "https://canvas.sydney.edu.au/courses/12/grades" }),
         onRemoved: { addListener: (fn) => { window.fixture.removed = fn; } },
         onUpdated: { addListener: (fn) => { window.fixture.updated = fn; } },
@@ -57,7 +57,7 @@ try {
         window.fixture.calls.push(request);
         if (window.fixture.pending) await new Promise((resolve) => { window.fixture.release = resolve; });
         if (window.fixture.nextError) { const code = window.fixture.nextError; window.fixture.nextError = null; return [{ result: { ok: false, code } }]; }
-        const common = { ok: true, readerVersion: "0.2.3", user: profile, source: "https://canvas.sydney.edu.au", fetchedAt: "2026-10-18T05:00:00Z" };
+        const common = { ok: true, readerVersion: "0.3.0", user: profile, source: "https://canvas.sydney.edu.au", fetchedAt: "2026-10-18T05:00:00Z" };
         return [{ result: request.operation === "courses" ? { ...common, courses: [course, other] } : { ...common,
           course: request.courseId === "12" ? course : other, assignments,
           groups: [{ id: "3", name: "Weekly quizzes", weight: 21, rules: { dropLowest: 1, dropHighest: 0, neverDrop: ["1"] } }], groupsUnavailable: false } }];

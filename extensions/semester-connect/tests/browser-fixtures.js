@@ -83,7 +83,7 @@ export async function runChecks(report) {
 export function installPreviewFixture() {
   // Test-only adapter loaded solely by qa-server.mjs, never by the extension.
   window.chrome = {
-    runtime: { getManifest: () => ({ version: new URL(location.href).searchParams.has("stale") ? "0.1.0" : READER_VERSION }) },
+    runtime: { getManifest: () => ({ version: new URL(location.href).searchParams.has("stale") ? "0.1.0" : READER_VERSION }), sendMessage: async () => ({enabled:false,raw:null,message:"Synthetic fixture: reload checks off."}) },
     tabs: { get: async () => ({ url: "https://canvas.sydney.edu.au/courses/12/grades" }),
       onRemoved: { addListener() {} }, onUpdated: { addListener() {} } },
     scripting: { executeScript: async ({ args }) => [{ result: await readFixture(args[0]) }] },

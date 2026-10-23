@@ -44,12 +44,13 @@ async function run(options = {}) {
 test("extension version and least-privilege manifest are consistent", async () => {
   const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url)));
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
-  assert.equal(manifest.version, "0.2.3");
+  assert.equal(manifest.version, "0.3.0");
   assert.equal(pkg.version, manifest.version);
   assert.equal(READER_VERSION, manifest.version);
   assert.equal((await run()).result.readerVersion, manifest.version);
   assert.equal(manifest.manifest_version, 3);
-  assert.deepEqual(manifest.permissions, ["activeTab", "scripting"]);
+  assert.deepEqual(manifest.permissions, ["activeTab", "scripting", "storage"]);
+  assert.deepEqual(manifest.optional_host_permissions, ["https://canvas.sydney.edu.au/*", "https://usyd-semester-board.earthy-trout-5263.chatgpt.site/*"]);
   for (const key of ["host_permissions", "externally_connectable", "content_scripts", "web_accessible_resources"]) assert.equal(manifest[key], undefined);
 });
 test("fixed course read returns sanitized source facts and independent dates", async () => {

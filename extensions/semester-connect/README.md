@@ -1,12 +1,27 @@
-# Semester Connect 0.2.3
+# Semester Connect 0.3.0
 
 Local unpacked Chrome extension. Canvas stays read-only. Not a Chrome Web Store release.
-Compatible website: Semester Web 0.4.0 or later for safe grade updates; import format version 1.
+Compatible website: Semester Web 0.4.0 or later for JSON; **Web 0.8.0 for reload-check delivery**. Import format stays version 1. Git push does not deploy the website.
+
+<a id="reload-checks"></a>
+## Reload 更新檢查（可選，先預覽）
+
+1. 網站先部署 Web 0.8.0；Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.3.0**。
+2. **Read my courses** → 核對帳戶及學期 → 勾四科 → **Enable for selected courses**。Chrome 會要求 Canvas 與 Semester 兩個固定網站權限；不授權仍可用 JSON。
+3. 在**同一個 Chrome profile** 開 Semester 網站。Codex 內建瀏覽器不會自動取得 Chrome 的 extension 連線。
+4. 打開或 reload 一科 Canvas `/courses/<id>/…`，只重新讀該科（每科最多每分鐘一次）。要檢查四科，就逐科打開／reload；不是一科 reload 就宣稱四科都是最新。慢速網路時請保持分頁不變直到讀完。
+5. Semester 出現 **Review Canvas updates**：看新結果、待配對項目與手動資料保護。點開後仍要 **Review → 勾核對 → Confirm**；目前試用請先停在 preview，不確認真實資料。
+6. 驗收：同樣結果再次讀取不重複新增；新項目仍為 Skip；手動值/清空不變；開著 review 收到新 snapshot 不替換它；帳戶不同停止、登入失效清掉 pending 並提示；關閉後 reload 不再讀取。
+7. **Turn off & clear pending previews** 停止檢查、移除選課設定、清 session preview 並撤回兩個 optional host grants。不影響已確認的網站資料或已下載 JSON。
+
+只記住啟用設定與 account/course IDs；來源成績在 extension session storage，關閉瀏覽器、extension reload/disable 會清除。超過 24 小時的 snapshot 不再提供，於下次讀取/存取清理；無定時背景工作。失敗後重新登入並等一分鐘再 reload，或使用 JSON。不是推播、不是關閉瀏覽器後繼續同步，也不會回寫 Canvas。
+
+現在的測試證據是 mocked Chrome lifecycle + synthetic web UI；**尚未驗證真實 Chrome 安裝版的端到端授權與四科傳送**。部署與正式資料確認分開，不因測試通過自動執行。
 
 ## 更新與測試
 
 1. 到 Chrome 的 `chrome://extensions`，對 **Semester Connect — Local Preview** 按重新載入。
-2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.2.3**。舊預覽可能仍記著舊版本；必須重新讀取、下載才能刷新資料，不能只重傳舊 JSON。已有 0.2.2 檔案仍可用在新版匯入配對；0.2.3 額外修正空結果的 release 標記。
+2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.3.0**。舊預覽可能仍記著舊版本；必須重新讀取、下載才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
 3. 按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。按 **Read selected courses**。
 4. 每科會分別顯示筆數與已公布成績。單科失敗不清掉其他成功資料；從 Course 選失敗那科，再按 **Read selected course** 重試。所有勾選科目成功才可匯出。
 5. 用 Course 選單檢查每科，與 **Compare in Canvas** 的 Marks 頁比對。未公布、隱藏、免計分不等於零分。
@@ -30,7 +45,7 @@ Compatible website: Semester Web 0.4.0 or later for safe grade updates; import f
 
 - 既有名稱、日期、活動時段、權重、筆記、完成狀態不變。
 - 手動成績、手動清空的成績、已有的手動 grade plan 均保留。只有仍等於上次 Canvas 匯入值且未手動修改的分數可在確認後更新，畫面顯示舊值 → 新值。
-- 本版不是持續同步。再次匯入重用配對；舊檔案、沒有更新基準的舊版紀錄、刪除的項目不覆蓋／重建。
+- 本版不自動保存更新。JSON 或 reload snapshot 都重用配對；舊檔案、沒有更新基準的舊版紀錄、刪除的項目不覆蓋／重建。
 - 同一 Canvas item 透過 account/course/assignment ID 去重，不能默默改配到另一份作業。
 - 一個 board 首次有實際匯入時綁定 Canvas account ID。不同帳戶檔案停止匯入。
 - Group drop rules 不自動計算。不同計分方式、額外加分、非數字成績等請手動核對。
@@ -38,16 +53,16 @@ Compatible website: Semester Web 0.4.0 or later for safe grade updates; import f
 
 ## 讀取與安全
 
-只有 `activeTab`、`scripting`，無永久 host access、cookies、storage、downloads 或 externally-connectable 權限。不收密碼／token。
+基本權限為 `activeTab`、`scripting`、`storage`。沒有必需的 host permission；只有明確啟用 reload 檢查時要求 Canvas 與 Semester 的 optional host grants，直到關閉或撤回。不使用 cookies、downloads、externally-connectable 權限，不收密碼／token。Session 成績不開放給任意 content script；bridge 僅在固定 Semester origin、top frame 啟用，網站不能發命令讓 reader 讀任意網址或修改選課設定。
 固定 USYD 同來源 GET：自己 profile、active student courses、指定課程、assignments（自己的 submission）、assignment_groups，以及該課程的 student Marks HTML。
-請求在 Canvas isolated world 執行，使用現有登入狀態，開始／結束核對帳戶。沒有寫入 Canvas、analytics、背景輪詢或自動上傳。
+請求在 Canvas isolated world 執行，使用現有登入狀態，開始／結束核對帳戶。沒有寫入 Canvas、analytics、背景輪詢或自動保存。啟用 reload 後，已選課程來源資料可傳到固定 Semester 網頁的記憶體做預覽；使用者確認之前不保存到網站帳戶。
 
 單科 API 缺少 enrollments 欄位時，用 server-filtered active student course list 核對，而不是直接拒絕。老師／observer-only 課程不支援。
 
 成績需有 API 公布證據或新讀取的 Marks 頁可見分數。讀取不執行該 HTML 的 script，忽略隱藏 original/What-If 欄位。Marks 的 hidden/pending 狀態優先，不能用 stale API 分數繞過。React/new-layout 等不支援格式會警告，僅保留可確認公布的 API 結果。這不是 Canvas 總分或最終成績的重算。
 
 API 的 assignment `muted` 是舊通知欄位，不代表學生看不到分數；不要與 Marks 頁每列的 `data-muted` 混淆。後者與 submission `grade_hidden` 仍阻止輸出分數。
-Complete／Incomplete 以文字結果顯示及匯出，`score` 保持 null，不推算成 100%／0%。批次摘要分開顯示 numeric grades 與 text results。目前網站成績計算只接收數字分數，不會把文字結果轉成成績或自動勾完成。
+Complete／Incomplete 以文字結果顯示及匯出，`score` 保持 null，不推算成 100%／0%。批次摘要分開顯示 numeric grades 與 text results。Web 0.7.0 起，Complete 只在明確確認的 completion rule 下轉換得分，不自動勾 calendar completion。
 
 描述 HTML、email、附件及其他學生資料不傳到 preview。匯入檔僅含選定課程資料和 account ID，不含姓名、cookie 或登入憑證。
 每科請求受 timeout、固定路徑、分頁和大小限制。檔案最多 1.5 MB／2,500 items；選課最多八科。

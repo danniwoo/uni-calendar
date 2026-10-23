@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.8.0 — 2026-10-24 (source checkpoint; deployment separate)
+
+- Make Canvas update review explicit: new/updated results with before → after values, never-linked/unmatched items that stay skipped, manual/cleared/removed entries protected, and rule/source changes requiring separate review. Collapse unchanged rows.
+- Receive opt-in Connect 0.3.0 pending snapshots in the same Chrome profile. Reuse the JSON parser, saved source-ID matching and pure import planner; no new write endpoint or automatic confirmation. Opening a review freezes its source snapshot, and concurrent board changes invalidate acknowledgement.
+- Retain **Manage → Import from Semester Connect → JSON import** as a testing/fallback path. Show per-course read timestamps; unvisited courses are not claimed to be fresh.
+- Synthetic UI checks cover banner → review, frozen source, stale-board rejection, cancellation, JSON upload, explicit test-only confirmation and preservation of manual grades/clears. TypeScript, web regression scripts and production build pass. No live grades imported; real Chrome permission/reload acceptance and deployment remain separate steps.
+
 ## 0.7.0 — 2026-10-22
 
 - Connect existing assessments to selected Canvas items using confirmed highest-attempt or best-N completion rules, including attempts across Canvas groups. Configure counts, completion points and optional thresholds before staging the preview.
