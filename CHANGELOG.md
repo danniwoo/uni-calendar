@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.12.0 — 2026-10-26
+## 0.12.0 — 2026-10-27
 
 - Separate daily grade updates from optional connection maintenance. Ungraded/unlinked backlog is no longer presented as an update count; available unconnected results have their own destination action.
 - Show one course at a time with compact Canvas-style rows. Connect opens an assessment-first comparison; whole results versus individual entries are explicit, and calculation rules appear only when relevant. Suggestions include weights but still need confirmation.

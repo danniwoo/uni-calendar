@@ -1,12 +1,14 @@
 # Engineering handoff
 
-Updated: 2026-10-26. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
 
 - Web **0.12.0**: update-first daily flow and assessment-first connection editor replace 0.11.0's overwhelming group-map UI. Connect 0.4.0 / sync v9 unchanged. Web regression scripts, storage checks and 50 extension tests passed; production packaging/deployment recorded separately. Synthetic UI: changed/no-change/new-result entry points, stable staging and Undo, target-first weekly setup, drop-rule block, zero writes. No live imports or manual records changed. T11 remains user acceptance, not marked complete.
 
 ### 0.12.0 implementation / continuation
+
+- Published on 2026-10-27 Sydney as Sites version 49, source `f6b948cd533be12f5f77408218f5b10e376a32e2`, deployment `appgdep_6adf651aefe88191a1a6722965fe7f20` (succeeded). TypeScript, all Web regression scripts, storage checks, 50 extension tests and production build passed. Synthetic four-course switching, saved-rule reuse, stable staging/Undo and concurrent-edit rejection passed with zero test writes. Real T11 usability acceptance remains pending; no live imports confirmed.
 
 - `canvasUpdateStatus` separates available never-linked results from optional ungraded/saved-skipped items. No claim that never-linked means newly created. Banner hides the ungraded backlog count; update review has an optional management entry.
 - `CanvasImport` renders one selected course, retains staged choices across courses and touched rows in filters. `CanvasCourseMatching` uses an explicit assessment-first editor with Canvas/current-value comparison, whole-versus-part placement and contextual rules. Saved confirmed highest/completion rules need no re-entry. Planner validates a proposal before staging; staging is still not saving.
