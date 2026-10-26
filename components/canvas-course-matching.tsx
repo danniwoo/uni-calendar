@@ -2,18 +2,19 @@
 import {useEffect,useRef,useState} from "react";
 import type {Semester,Task} from "@/lib/semester";
 import {canvasCandidates,canvasGroupBlock,canvasKey,canvasResultLabel,planCanvasImport,type CanvasBundle,type CanvasChoice,type CanvasCourse,type CanvasAssignment} from "@/lib/canvas-import";
-import {canvasMatchSections,canvasMatchStatus,canvasTargetLabel} from "@/lib/canvas-match-view";
+import {canvasMatchSections,canvasMatchStatus,canvasTargetLabel,simpleCanvasDestination} from "@/lib/canvas-match-view";
 import {existingCanvasRuleChoices,type CanvasAction} from "@/lib/canvas-update-status";
 import {CanvasRuleMapping} from "./canvas-rule-mapping";
 import {ruleDescription} from "@/lib/canvas-rule-import";
 
 const result=(t?:Task)=>t?.grade?`${t.grade.earned} / ${t.grade.possible}`:t?.grade===null?"Manually cleared":t?.gradePlan?"Individual results recorded":"No recorded grade";
 
-export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,choices,actions,touched,onSelect,onStage}:{
+export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,choices,actions,touched,onSelect,onStage,inlineSourceId,onCancel}:{
   semester:Semester;bundle:CanvasBundle;course:CanvasCourse;unit:string;rows:CanvasAssignment[];targets:Task[];choices:Record<string,CanvasChoice>;actions:CanvasAction[];touched:Record<string,CanvasChoice|undefined>;
   onSelect:(id:string,target:string)=>void;onStage:(items:CanvasChoice[])=>void;
+  inlineSourceId?:string;onCancel?:()=>void;
 }){
-  const [checked,setChecked]=useState<string[]>([]),[editing,setEditing]=useState(false),[batch,setBatch]=useState(false),[target,setTarget]=useState(""),[placement,setPlacement]=useState(""),[method,setMethod]=useState("");
+  const [checked,setChecked]=useState<string[]>(inlineSourceId?[inlineSourceId]:[]),[editing,setEditing]=useState(!!inlineSourceId),[batch,setBatch]=useState(false),[target,setTarget]=useState(""),[placement,setPlacement]=useState(""),[method,setMethod]=useState("");
   const editorRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(editing)editorRef.current?.focus();},[editing]);
   const records=semester.canvasAccountId===bundle.accountId?semester.canvasImports||[]:[];
@@ -24,8 +25,8 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
   const targetRecords=records.filter(r=>r.targetId===target);
   const sameGroup=sources.length>0&&sources.every(a=>a.groupId===sources[0].groupId);
   const block=sameGroup?canvasGroupBlock(course,sources[0].groupId||""):"These items belong to different Canvas groups. Check their rules before combining marks.";
-  function reset(){setChecked([]);setEditing(false);setBatch(false);setTarget("");setPlacement("");setMethod("");}
-  function chooseTarget(id:string){setTarget(id);setPlacement(sources.length>1?"parts":"");setMethod("");}
+  function reset(){setChecked([]);setEditing(false);setBatch(false);setTarget("");setPlacement("");setMethod("");onCancel?.();}
+  function chooseTarget(id:string){const t=targets.find(t=>t.id===id);setTarget(id);setPlacement(sources.length>1?"parts":t&&simpleCanvasDestination(t,semester.tasks)?"overall":"");setMethod("");}
   function open(ids:string[]){setChecked(ids);setTarget("");setPlacement("");setMethod("");setEditing(true);}
   function stage(items:CanvasChoice[]){onStage(items);reset();}
   const eligible=course.assignments.filter(a=>!records.some(r=>r.key===canvasKey(bundle,course.course.id,a.id))&&!choices[`${course.course.id}:${a.id}`]&&!a.omitted&&!a.submission?.excused);
@@ -36,10 +37,10 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
   const noApplicableChange=proposedActions.length>0&&!proposedActions.some(a=>a.changed);
   const sections=canvasMatchSections(course,rows,choices,targets,records);
   return <div className="canvas-matching-workspace">
-    <div className="canvas-link-tools"><p className="hint">Connect once. Later checks reuse confirmed links. Your dates, weights and notes stay yours.</p>{eligible.length>1&&<button onClick={()=>{reset();setBatch(!batch);}}>{batch?"Cancel selection":"Connect several items…"}</button>}</div>
+    {!inlineSourceId&&<div className="canvas-link-tools"><p className="hint">Connect once. Later checks reuse confirmed links. Your dates, weights and notes stay yours.</p>{eligible.length>1&&<button onClick={()=>{reset();setBatch(!batch);}}>{batch?"Cancel selection":"Connect several items…"}</button>}</div>}
     {batch&&!editing&&<div className="canvas-selection-bar"><span>Select the weeks or attempts that belong to one assessment.</span><button disabled={!checked.length} onClick={()=>setEditing(true)}>Choose assessment for {checked.length} items →</button><button onClick={reset}>Cancel</button></div>}
     {editing&&<div ref={editorRef} tabIndex={-1} className="canvas-connection-editor" aria-label="Review connection">
-      <header><h3>{sources.length===1?`Connect ${sources[0].name}`:`Connect ${sources.length} items`}</h3><button onClick={reset}>Cancel connection</button></header>
+      <header><h3>{sources.length===1?`Choose where ${sources[0].name} belongs`:`Connect ${sources.length} items`}</h3><button onClick={reset}>Cancel connection</button></header>
       {sources.length>1&&<details><summary>Selected Canvas items ({sources.length})</summary><ul>{sources.map(a=><li key={a.id}>{a.name} · {canvasResultLabel(a)}</li>)}</ul></details>}
       <label>Which Semester assessment do these belong to?<select aria-label={`Destination assessment ${course.course.code}`} value={target} onChange={e=>chooseTarget(e.target.value)}><option value="">Choose assessment…</option>{targets.map(t=><option key={t.id} value={t.id}>{canvasTargetLabel(t)}</option>)}{sources.length===1&&<option value="new">Create a missing assessment…</option>}</select></label>
       {!target&&candidates.length>0&&<div className="canvas-candidates"><small>Suggested assessments · confirm the full name and weight</small>{candidates.map(c=><button key={c.target.id} onClick={()=>chooseTarget(c.target.id)}>{canvasTargetLabel(c.target)}<small>{c.reason}</small></button>)}</div>}
@@ -47,7 +48,7 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
         <div className="canvas-value-comparison"><div><small>Canvas</small>{sources.map(a=><p key={a.id}>{a.name}<strong>{canvasResultLabel(a)}</strong></p>)}</div><div><small>Semester · {destination.weight||"weight unknown"}</small><p>{destination.title}<strong>{result(destination)}</strong></p>{destination.date&&<small>Your due date: {destination.date} · kept unchanged</small>}{destination.gradePlan&&<details><summary>Existing individual records ({destination.gradePlan.items.length})</summary><ul>{destination.gradePlan.items.map(i=><li key={i.id}>{i.name} · {i.grade?`${i.grade.earned}/${i.grade.possible}`:"No numeric result"}</li>)}</ul></details>}</div></div>
         {targetRecords.length>0&&<details><summary>{targetRecords.length} existing Canvas links to this assessment</summary><ul>{targetRecords.map(r=><li key={r.key}>{course.assignments.find(a=>canvasKey(bundle,course.course.id,a.id)===r.key)?.name||"Previously linked Canvas item"} · {r.mode==="part"?"individual record":"whole-assessment result"}</li>)}</ul></details>}
         {savedRule?<p className="notice">Use your confirmed rule: {ruleDescription(savedRule.rule)}. Blank results stay unknown. Existing manual records are protected.</p>:<>
-          {sources.length===1?<fieldset className="canvas-placement"><legend>What does this Canvas result represent?</legend>
+          {sources.length===1&&simpleCanvasDestination(destination,semester.tasks)&&placement==="overall"?<p className="notice">Use as this assessment’s overall grade. <button className="canvas-text-button" onClick={()=>setPlacement("parts")}>It is only one part…</button></p>:sources.length===1?<fieldset className="canvas-placement"><legend>What does this Canvas result represent?</legend>
             {sources.length===1&&<label><input type="radio" name={`placement-${course.course.id}`} checked={placement==="overall"} onChange={()=>setPlacement("overall")}/>The result for this whole assessment</label>}
             <label><input type="radio" name={`placement-${course.course.id}`} checked={placement==="parts"} onChange={()=>setPlacement("parts")}/>{sources.length===1?"One week, attempt or part within this assessment":"Separate weeks, attempts or parts within this assessment"}</label>
           </fieldset>:<p>Each selected Canvas item becomes a separate record inside this assessment. Review how those records are counted below.</p>}
@@ -60,23 +61,23 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
         {validation&&<p role="alert" className="notice error">{validation}</p>}
         {proposedActions.some(a=>a.kind==="protected")&&<p className="notice">Your existing value is kept. This does not accept or replace it with Canvas.</p>}
         {noApplicableChange&&<p className="notice">No link or result can be changed with this selection. Existing records are protected.</p>}
-        {method!=="special"&&<button className="primary" disabled={!proposed.length||!!validation||noApplicableChange} onClick={()=>stage(proposed)}>Use this connection · review before saving</button>}
+        {method!=="special"&&<button className="primary" disabled={!proposed.length||!!validation||noApplicableChange} onClick={()=>stage(proposed)}>Add to review · not saved yet</button>}
       </>}
     </div>}
-    {sections.map(section=><section className="canvas-source-group" key={section.id} aria-label={`Canvas group ${section.name}`}>
+    {!inlineSourceId&&sections.map(section=><section className="canvas-source-group" key={section.id} aria-label={`Canvas group ${section.name}`}>
       <header className="canvas-compact-group"><h4>{section.name}</h4><details><summary>Source details & existing links{section.linked.length?` (${section.linked.length})`:""}</summary><p>Canvas category only; items keep separate results. {course.course.weighted===true&&section.weight!=null?`Canvas configured group weight: ${section.weight}%.` :"Canvas group weight is not used here to set your assessment weights."}</p>{section.linked.length?<ul>{section.linked.map(l=><li key={l.record.key}>{l.source.name} → {l.target?canvasTargetLabel(l.target):"Saved destination unavailable"}</li>)}</ul>:<p>No confirmed links in this category yet.</p>}</details></header>
       <div className="canvas-import-table"><table><thead><tr><th>Canvas assessment</th><th>Result</th><th>In Semester</th></tr></thead><tbody>{section.items.map(a=>{
         const key=`${course.course.id}:${a.id}`,choice=choices[key],prior=records.find(r=>r.key===canvasKey(bundle,course.course.id,a.id)),effectiveTarget=targets.find(t=>t.id===(choice?.targetId||prior?.targetId)),action=actions.find(v=>v.key===canvasKey(bundle,course.course.id,a.id));
         const canSelect=eligible.some(s=>s.id===a.id);
         return <tr key={a.id} data-canvas-item={a.id}><td><div className="canvas-source-title">{batch&&canSelect&&<input aria-label={`Select ${a.name}`} type="checkbox" checked={checked.includes(a.id)} disabled={editing} onChange={e=>setChecked(old=>e.target.checked?[...old,a.id]:old.filter(id=>id!==a.id))}/>}
           <a href={`https://canvas.sydney.edu.au/courses/${course.course.id}/assignments/${a.id}`} target="_blank" rel="noopener noreferrer">{a.name}</a></div>{a.dueAt&&<small>{new Date(a.dueAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney",day:"numeric",month:"short"})}</small>}</td>
-          <td><strong>{canvasResultLabel(a)==="No released numeric grade"?"Not available":canvasResultLabel(a)}</strong></td>
-          <td>{prior||choice?<><strong>{effectiveTarget?canvasTargetLabel(effectiveTarget):choice?.targetId==="new"?"New assessment":"Saved destination unavailable"}</strong><small>{canvasMatchStatus(choice,prior,action)}{(choice?.mode||prior?.mode)==="part"?" · individual record":""}</small><button className="canvas-text-button" onClick={()=>onSelect(a.id,prior&&!choice?"saved:":"")}>{prior?(choice?"Skip this check":"Restore saved link"):"Undo connection"}</button></>:<><button onClick={()=>{setBatch(false);open([a.id]);}}>Connect…</button><small>{a.omitted||a.submission?.excused?"Not counted in Canvas":"Not connected"}</small></>}
+          <td><strong>{canvasResultLabel(a)==="No released numeric grade"?"No readable grade yet":canvasResultLabel(a)}</strong></td>
+          <td>{prior||choice?<><strong>{effectiveTarget?canvasTargetLabel(effectiveTarget):choice?.targetId==="new"?"New assessment":"Saved destination unavailable"}</strong><small>{canvasMatchStatus(choice,prior,action,a)}{(choice?.mode||prior?.mode)==="part"?" · individual record":""}</small>{!batch&&<button className="canvas-text-button" onClick={()=>onSelect(a.id,prior&&!choice?"saved:":"")}>{prior?(choice?"Skip this check":"Restore saved link"):"Undo connection"}</button>}</>:<>{!batch&&<button onClick={()=>open([a.id])}>Connect…</button>}<small>{a.omitted||a.submission?.excused?"Not counted in Canvas":batch?"Select on the left":"Not connected"}</small></>}
           {Object.hasOwn(touched,key)&&<small className="canvas-staged">{choice?"Staged · not saved":"Reverted / skipped · not saved"}</small>}
           {action&&(action.kind==="grade"||action.kind==="protected"||action.kind==="attention")&&<details><summary>{action.kind==="protected"?"Compare protected value":"View change"}</summary><p>{action.text}</p><p>Canvas: {canvasResultLabel(a)}<br/>Semester: {result(effectiveTarget)}</p></details>}
         </td></tr>;
       })}</tbody></table></div>
     </section>)}
-    {!rows.length&&<p>No items in this view. Saved links are still kept.</p>}
+    {!inlineSourceId&&!rows.length&&<p>No items in this view. Saved links are still kept.</p>}
   </div>;
 }

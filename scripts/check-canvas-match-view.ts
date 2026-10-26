@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {canvasMatchSections,canvasMatchStatus,canvasTargetLabel} from "../lib/canvas-match-view";
+import {canvasMatchSections,canvasMatchStatus,canvasTargetLabel,simpleCanvasDestination} from "../lib/canvas-match-view";
 import {planCanvasImport,readCanvasBundle,suggestCanvasMatches} from "../lib/canvas-import";
 import {fixtureBoard,fixtureBundle,fixtureChoices} from "./fixtures/canvas-connect";
 
@@ -29,10 +29,16 @@ const prior=applied.semester.canvasImports!.find(r=>r.targetId===root.id)!;
 assert.equal(canvasMatchSections(c,c.assignments,{},board.tasks,applied.semester.canvasImports)[0].destinations.length,2,"skipping this check keeps saved destinations in the group map");
 const choice=reused.choices["104:1"];
 assert.equal(canvasMatchStatus(undefined,prior),"Linked · skipped this check");
-assert.equal(canvasMatchStatus(choice,prior),"Linked · no new result");
+assert.equal(canvasMatchStatus(choice,prior),"Linked · waiting for a result");
+assert.equal(canvasMatchStatus(choice,prior,undefined,c.assignments[0]),"Linked · result unchanged");
 assert.equal(canvasMatchStatus(choice,prior,{key:prior.key,changed:false,kind:"protected",text:"kept"}),"Manual data protected");
 assert.equal(canvasMatchStatus(choice,prior,{key:prior.key,changed:true,kind:"grade",text:"updated"}),"Linked · new result");
 assert.equal(canvasTargetLabel(root),"Design report · 6%");
+assert.equal(simpleCanvasDestination({...root,kind:"assessment",series:undefined,gradePlan:undefined},[]),true,"only a chosen ordinary assessment gets the visible whole-grade default");
+assert.equal(simpleCanvasDestination({...root,kind:"recurring"},[]),false);
+assert.equal(simpleCanvasDestination(root,[{...root,id:"child",parentId:root.id}]),false,"existing child entries require an explicit placement decision");
+assert.equal(simpleCanvasDestination({...root,gradePlan:{mode:"parts",method:"points",items:[]}},[]),false,"an existing grade plan is not defaulted to a whole result");
+assert.equal(simpleCanvasDestination({...root,series:"weekly"},[]),false);
 const orphan={...c.assignments[0],id:"99",groupId:"999"};
 assert.equal(canvasMatchSections(c,[orphan],{},[])[0].name,"Other Canvas items");
 const filtered=canvasMatchSections(c,[c.assignments[2]],{},board.tasks,applied.semester.canvasImports)[0];

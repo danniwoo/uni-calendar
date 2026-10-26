@@ -38,9 +38,11 @@ export function MatchingQA(){
   const [scenario,setScenario]=useState("update");
   const preview=structuredClone(bundle);
   if(scenario==="unchanged")preview.courses[0].assignments[0].submission!.score=41;
-  if(scenario==="new-result")preview.courses[0].assignments[3].submission={released:true,excused:false,score:8,currentAttemptGraded:true,releaseEvidence:"marks-page"};
+  if(scenario==="new-result"){preview.courses[0].assignments[0].submission!.score=41;preview.courses[0].assignments[3].submission={released:true,excused:false,score:8,currentAttemptGraded:true,releaseEvidence:"marks-page"};}
   return <main style={{maxWidth:1200,margin:"20px auto",padding:24}}><h1>Group matching QA · synthetic only</h1><p>No account connection. All marks are invented. No live data is used.</p><p role="status">Test writes: {writes}</p><button onClick={()=>setOpen(true)}>Reopen preview</button>
     <label>QA scenario<select aria-label="QA scenario" value={scenario} onChange={e=>{setScenario(e.target.value);setOpen(true);}}><option value="update">One changed grade</option><option value="unchanged">No changed grades</option><option value="new-result">New unconnected result</option></select></label>
+    <button onClick={()=>{const latest=structuredClone(preview);latest.exportedAt=latest.courses[0].fetchedAt="2026-10-27T06:00:00Z";latest.courses[0].assignments[0].submission!.score=44;window.postMessage({type:"semester-connect-inbox-v1",inbox:{raw:JSON.stringify(latest)}},location.origin);}}>Simulate newer Canvas check</button>
+    <button onClick={()=>setS({...s,tasks:s.tasks.map(t=>({...t,notes:"Concurrent manual edit"}))})}>Simulate manual edit while reviewing</button>
     {open&&<CanvasImport key={scenario} semester={s} initialRaw={JSON.stringify(preview)} onClose={()=>setOpen(false)} onApply={(b,c,expected)=>{if(s!==expected)throw new Error("Stale");setS(confirmCanvasImport(s,b,c,crypto.randomUUID()).semester);setWrites(writes+1);}}/>}
   </main>;
 }

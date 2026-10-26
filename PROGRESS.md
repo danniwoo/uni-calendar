@@ -4,6 +4,13 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.13.0 implementation / continuation
+
+- Direct update-card matching reuses `CanvasCourseMatching` and the existing planner; it is not a second import path. Single simple destinations visibly default to overall only after the user chooses a target. Original cards remain after staging with Undo; Review returns to the originating screen. Batch mode hides competing per-row Connect/Skip actions.
+- `isNewerCanvasBatch` accepts only same-account snapshots including every reviewed course, none older, at least one newer/additional course. Export time alone does not trigger replacement. `CanvasImport` listens to the bounded same-window/origin inbox transport and offers an explicit draft-discard switch; current review and acknowledgement stay frozen until chosen. JSON loading resets the pending notification.
+- Synthetic browser checks: new-result inline selection, whole default/current comparison, stable staging, Review/back/Undo, newer check retaining the old source, Keep review, explicit switch to the new batch and stale-board rejection. Test writes remained zero. Production release evidence will be recorded after packaging; real T11 acceptance remains pending.
+- No live import, extension change or manual-data edit. Previously documented existing-child linking, whole-link repair and persistent dual-value conflict limitations remain; do not represent this UI increment as resolving them.
+
 - Web **0.12.0**: update-first daily flow and assessment-first connection editor replace 0.11.0's overwhelming group-map UI. Connect 0.4.0 / sync v9 unchanged. Web regression scripts, storage checks and 50 extension tests passed; production packaging/deployment recorded separately. Synthetic UI: changed/no-change/new-result entry points, stable staging and Undo, target-first weekly setup, drop-rule block, zero writes. No live imports or manual records changed. T11 remains user acceptance, not marked complete.
 
 ### 0.12.0 implementation / continuation

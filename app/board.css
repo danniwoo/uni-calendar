@@ -1521,3 +1521,17 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-batch-setup label{display:grid;gap:6px}
 .canvas-batch-setup p{margin:0;font-size:14px}
 .canvas-row-comparison p{font-size:13px}
+.canvas-import-review header{height:auto;min-height:0}
+.canvas-result-card>header{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:0;border:0}
+.canvas-result-card>header h3{margin:4px 0 8px}
+.canvas-result-card .canvas-connection-editor{margin:0;padding:16px;background:white}
+.canvas-connection-editor header{padding-bottom:10px}
+.canvas-connection-editor header h3{margin:0}
+.canvas-result-card .canvas-connection-editor header h3{font-size:16px}
+.canvas-result-card .canvas-value-comparison{margin:16px 0}
+.canvas-batch-details{margin:12px 0 20px;font-size:13px;color:var(--muted)}
+.canvas-batch-details summary{cursor:pointer}
+.canvas-update-heading h3{margin:8px 0;font-size:22px}
+.canvas-update-heading p{margin:8px 0 20px}
+.canvas-newer-batch{border-left:4px solid #2856cf}
+.canvas-newer-batch button{margin-right:10px}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import {fixtureBoard,fixtureBundle,fixtureChoices} from "./fixtures/canvas-connect";
 import {planCanvasImport,suggestCanvasMatches,readCanvasBundle} from "../lib/canvas-import";
-import {canvasUpdateStatus} from "../lib/canvas-update-status";
+import {canvasUpdateStatus,canvasResultsHeadline,isNewerCanvasBatch} from "../lib/canvas-update-status";
 
 const first=planCanvasImport(fixtureBoard,fixtureBundle,fixtureChoices);
 const newer=structuredClone(fixtureBundle);
@@ -33,3 +33,15 @@ assert.throws(()=>planCanvasImport({...board,canvasAccountId:"92"},newer,choices
 const raw={...newer,courses:newer.courses.map(c=>({...c,assignments:c.assignments.map(a=>a.id==="2"?{...a,gradingType:"pass_fail",submission:{...a.submission,grade:"complete",released:true,releaseEvidence:"marks-page"}}:a)}))};
 const parsed=readCanvasBundle(JSON.stringify(raw));assert.equal(parsed.courses[0].assignments[1].result,"complete");
 console.log("Canvas update statuses passed: new results, unmatched, protected, repeat, account guard and raw transport.");
+assert.equal(canvasResultsHeadline(0,1),"1 Canvas result to review");
+assert.equal(canvasResultsHeadline(2,1),"3 Canvas results to review");
+assert.equal(canvasResultsHeadline(0,0),"No new results to review");
+const fresh=structuredClone(newer);fresh.courses.forEach(c=>c.fetchedAt="2026-10-25T00:00:00Z");
+assert.equal(isNewerCanvasBatch(newer,fresh),true);
+assert.equal(isNewerCanvasBatch(fresh,newer),false,"older snapshots cannot replace a newer review");
+assert.equal(isNewerCanvasBatch(newer,{...newer,exportedAt:"2026-10-26T00:00:00Z"}),false,"export time alone is not course freshness");
+assert.equal(isNewerCanvasBatch(newer,{...fresh,accountId:"999"}),false,"account isolation");
+assert.equal(isNewerCanvasBatch(newer,{...fresh,courses:fresh.courses.slice(1)}),false,"partial batch must not drop courses");
+const mixed=structuredClone(fresh);mixed.courses[0].fetchedAt="2026-10-01T00:00:00Z";
+assert.equal(isNewerCanvasBatch(newer,mixed),false,"one stale course rejects mixed downgrade");
+assert.equal(isNewerCanvasBatch(newer,newer),false,"repeated inbox events do not nag");

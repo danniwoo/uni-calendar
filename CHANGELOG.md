@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 — 2026-10-27
+
+- Connect a newly available result directly inside its update card, with weighted destination suggestions, current/incoming comparison, stable staging and Undo. Ordinary assessments visibly default to an overall result only after choosing a destination; recurring/individual setups still need explicit placement.
+- Count both changed connected grades and available unconnected results in the review headline. Distinguish unchanged results from linked items still awaiting a readable result; remove competing per-row actions during multi-select.
+- Show per-course read times and explain that Check all reads the selected courses without individually refreshing their Marks pages. Notify when a newer same-account, non-regressive batch arrives; switching requires explicitly discarding the current draft. Never silently replace an open review.
+- Preserve confirmation, concurrent-edit rejection, manual data and JSON fallback. Existing-manual-child linking, whole-link repair and explicit manual-conflict acceptance are still pending; this release does not change the import model.
+
 ## 0.12.0 — 2026-10-27
 
 - Separate daily grade updates from optional connection maintenance. Ungraded/unlinked backlog is no longer presented as an update count; available unconnected results have their own destination action.

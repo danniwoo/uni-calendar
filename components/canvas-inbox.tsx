@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useState} from "react";
 import type {Semester} from "@/lib/semester";
 import {readCanvasBundle,suggestCanvasMatches,planCanvasImport} from "@/lib/canvas-import";
-import {canvasUpdateStatus} from "@/lib/canvas-update-status";
+import {canvasUpdateStatus,canvasResultsHeadline} from "@/lib/canvas-update-status";
 
 type Inbox={enabled:boolean;raw:string|null;message:string;canCheckAll:boolean;checking:boolean;courseCount:number};
 export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;onReview:(raw:string)=>void;reviewOpen:boolean}) {
@@ -31,8 +31,8 @@ export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;on
   return <section className="notice canvas-inbox" aria-label="Canvas update check" aria-live="polite">
     <div><strong>Semester Connect · {inbox.enabled?"review before saving":"checks off"}</strong><p>{inbox.message}</p>
       {preview?.error?<p className="error">{preview.error} Nothing imported. Use the correct account / JSON file.</p>:preview?.status?<>
-        <p><strong>{preview.status.grades.length} grade updates</strong>{preview.status.resultsToConnect.length?` · ${preview.status.resultsToConnect.length} results need a connection`:""}{preview.status.protected.length?` · ${preview.status.protected.length} manual entries protected`:""}{preview.status.attention.length?` · ${preview.status.attention.length} rule changes to review`:""}</p>
-        <small>Canvas account {preview.bundle.accountId} · {preview.bundle.courses.length} courses checked · each course’s read time is shown in review. Other courses are unchanged. Nothing saved.</small>
+        <p><strong>{canvasResultsHeadline(preview.status.grades.length,preview.status.resultsToConnect.length)}</strong>{preview.status.resultsToConnect.length?` · ${preview.status.resultsToConnect.length} to match to an assessment`:""}{preview.status.protected.length?` · ${preview.status.protected.length} manual entries kept`:""}{preview.status.attention.length?` · ${preview.status.attention.length} rule changes to review`:""}</p>
+        <details><summary>Last read by course · {preview.bundle.courses.length} courses</summary>{preview.bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks page unavailable":""}</p>)}</details><small>Check all reads every selected course using one signed-in Canvas tab. No need to refresh each Marks page. Nothing saved.</small>
       </>:null}
     </div>
     <div>{inbox.enabled&&inbox.canCheckAll&&inbox.courseCount>0&&<button disabled={inbox.checking} onClick={()=>{setInbox({...inbox,checking:true,message:"Starting all-course check… Keep your signed-in Canvas tab open."});window.postMessage({type:"semester-connect-check-all-v1"},location.origin);}}>{inbox.checking?"Checking courses…":`Check all ${inbox.courseCount} courses`}</button>}{inbox.raw&&!preview?.error&&<button disabled={reviewOpen||inbox.checking} onClick={()=>onReview(inbox.raw!)}>Review Canvas updates</button>}<button onClick={()=>setDismissed(inbox.raw||inbox.message)}>Dismiss</button></div>

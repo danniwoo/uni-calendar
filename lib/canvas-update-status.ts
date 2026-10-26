@@ -20,6 +20,20 @@ export function existingCanvasRuleChoices(s:Semester,b:CanvasBundle,courseId:str
 }
 export const defaultCanvasStage=(s:Semester,b:CanvasBundle)=>s.canvasAccountId===b.accountId&&!!s.canvasImports?.length?"updates" as const:"match" as const;
 
+// A newer export timestamp alone is not evidence that any course was refreshed.
+// Never offer a different account, missing course or older course over a review.
+export function isNewerCanvasBatch(current:CanvasBundle,incoming:CanvasBundle){
+  if(current.accountId!==incoming.accountId)return false;
+  const times=new Map(incoming.courses.map(c=>[c.course.id,Date.parse(c.fetchedAt)]));
+  if(current.courses.some(c=>{const next=times.get(c.course.id);return next===undefined||next<Date.parse(c.fetchedAt);} ))return false;
+  return incoming.courses.some(c=>{const old=current.courses.find(o=>o.course.id===c.course.id);return !old||Date.parse(c.fetchedAt)>Date.parse(old.fetchedAt);});
+}
+
+export function canvasResultsHeadline(grades:number,unconnected:number){
+  const total=grades+unconnected;
+  return total?`${total} Canvas ${total===1?"result":"results"} to review`:"No new results to review";
+}
+
 // Status comes from the planner, never from matching English warning strings.
 export function canvasUpdateStatus(s:Semester,b:CanvasBundle,choices:CanvasChoice[],actions:CanvasAction[]) {
   const selected=new Set(choices.map(c=>`${c.courseId}:${c.assignmentId}`));

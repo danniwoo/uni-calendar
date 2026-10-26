@@ -1,5 +1,5 @@
 import type {Task} from "./semester";
-import type {CanvasAssignment,CanvasChoice,CanvasCourse,CanvasImportRecord} from "./canvas-import";
+import {canvasGrade,type CanvasAssignment,type CanvasChoice,type CanvasCourse,type CanvasImportRecord} from "./canvas-import";
 import type {CanvasAction} from "./canvas-update-status";
 
 // Presentation only. A Canvas group is never a target or a calculation rule.
@@ -17,13 +17,18 @@ export function canvasMatchSections(course:CanvasCourse,rows:CanvasAssignment[],
   });
 }
 
-export function canvasMatchStatus(choice:CanvasChoice|undefined,prior:CanvasImportRecord|undefined,action?:CanvasAction){
+export function canvasMatchStatus(choice:CanvasChoice|undefined,prior:CanvasImportRecord|undefined,action?:CanvasAction,source?:CanvasAssignment){
   if(!choice)return prior?"Linked · skipped this check":"Not linked · optional";
   if(action?.kind==="protected")return "Manual data protected";
   if(action?.kind==="attention")return "Needs review";
   if(action?.kind==="grade")return prior?"Linked · new result":"New result · review match";
-  if(prior)return "Linked · no new result";
+  if(prior)return source&&(canvasGrade(source)||source.result)?"Linked · result unchanged":"Linked · waiting for a result";
   return "Proposed link · not saved";
 }
 
 export function canvasTargetLabel(t:Task){return `${t.title} · ${t.weight||"weight unknown"}`;}
+
+// UI default only, after the user chooses a destination. It does not create a link.
+export function simpleCanvasDestination(t:Task,tasks:Task[]){
+  return t.kind!=="recurring"&&!t.series&&!t.gradePlan&&!tasks.some(child=>child.parentId===t.id);
+}
