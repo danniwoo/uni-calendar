@@ -26,7 +26,8 @@ export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;on
     } catch(e){return {error:(e as Error).message};}
   },[inbox,semester]);
   // No connected extension is a normal state: the existing JSON entry remains.
-  if(!inbox||dismissed===(inbox.raw||inbox.message))return null;
+  if(!inbox)return null;
+  if(dismissed===(inbox.raw||inbox.message))return <div className="canvas-history-notice"><button onClick={()=>setDismissed(null)}>Show pending Canvas check</button></div>;
   return <section className="notice canvas-inbox" aria-label="Canvas update check" aria-live="polite">
     <div><strong>Semester Connect · {inbox.enabled?"review before saving":"checks off"}</strong><p>{inbox.message}</p>
       {preview?.error?<p className="error">{preview.error} Nothing imported. Use the correct account / JSON file.</p>:preview?.status?<>

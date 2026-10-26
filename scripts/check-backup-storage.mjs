@@ -39,7 +39,11 @@ assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks
 grades.tasks[0].gradePlan={mode:"parts",method:"completion",bestCount:8,completionPoints:.5,items:[{id:"w1",name:"Week 1",outcome:"submitted"},{id:"w2",name:"Week 2",outcome:"not_due"}]};
 assert.equal(save.run("grades",JSON.stringify(grades),"now",2).changes,1);
 assert.deepEqual(JSON.parse(read("grades").data).tasks[0].gradePlan,grades.tasks[0].gradePlan,"Rules and unknown/future outcome states survive SQL JSON storage");
-assert.match(route,/\[7,8\]\.includes\(syncVersion\)[\s\S]*requiresGradeRuleClient\(t.gradePlan\)/,"Old clients must reload before overwriting stored rules");
-assert.match(route,/syncVersion !== 8[\s\S]*previous\?\.canvasImports/ ,"Old clients must preserve imported rule provenance");
+assert.match(route,/\[7,8,9\]\.includes\(syncVersion\)[\s\S]*requiresGradeRuleClient\(t.gradePlan\)/,"Old clients must reload before overwriting stored rules");
+assert.match(route,/\[8,9\]\.includes\(syncVersion\)[\s\S]*previous\?\.canvasImports/ ,"Old clients must preserve imported rule provenance");
+assert.match(route,/syncVersion !== 9[\s\S]*previous\?\.canvasHistory/ ,"Older clients must not erase update receipts");
+const withHistory={...grades,canvasAccountId:"91",canvasHistory:[{id:"synthetic",accountId:"91",confirmedAt:"2026-10-26T00:00:00Z",exportedAt:"2026-10-26T00:00:00Z",changed:1,skipped:0,omitted:0,entries:[{key:"91:101:1",targetId:"quiz",kind:"grade",changed:true,text:"Synthetic grade update",seen:false}]}]};
+assert.equal(save.run("history",JSON.stringify(withHistory),"now",0).changes,1);
+assert.deepEqual(JSON.parse(read("history").data).canvasHistory,withHistory.canvasHistory,"Receipts and unread state survive SQL JSON storage");
 db.close();
 console.log("PASS: recovery SQL, account isolation, stale-revision safety, transaction rollback and one-step recovery rotation.");

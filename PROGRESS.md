@@ -4,6 +4,7 @@ Updated: 2026-10-24. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+- Web **0.10.0** source adds quieter update review, reversible stable selections, confirmed-import receipts and unread grade indicators; Connect remains **0.4.0**, sync guard becomes **v9**. Publication is separate; previous release details below are retained as historical evidence.
 - Web **0.9.0**, Connect **0.4.0**, import format **1**, web sync guard **v8**. Git push is separate from publication. Preceding Web 0.8.0 was deployed as Sites version 45 (`85498d9`); the production footer and saved four-unit board were verified, with no import confirmation.
 - Web 0.9.0 deployed successfully as Sites version 46, source `dd534e4`, deployment `appgdep_6adb7ce0ba6881918879a98522cfa549`, at the existing Semester URL. 50 extension tests, all web regression scripts, TypeScript and production build passed. Connect 0.4.0 still requires user Chrome reload; real four-course batch/preview T11 is not marked passed.
 - Implementation checkpoint: `0374e9c` — `feat(connect): reuse mappings and safely update imported grades`.
@@ -24,6 +25,14 @@ Updated: 2026-10-24. **Priorities, resumable work and acceptance tests live only
 6. Preserve detailed implementation reasoning, failed approaches, edge cases and test evidence. Before shortening this handoff, move the full prior text into a dated archive with a historical-status warning and link it here; a summary or Git history alone is not a replacement.
 
 ## Code map
+
+### 2026-10-26 update history / matching clarity
+
+- `confirmCanvasImport` wraps the unchanged pure planner only at explicit confirmation. It records applied grade/link/item actions and protected/attention entries, plus skipped count, in `Semester.canvasHistory` alongside the same grade write. Preview/cancel and no-op reimports never create receipts. Recent 20 batches, 250 details per batch and 300k serialized-character cap; older/detail-limited records may be pruned with disclosed limits. No raw Canvas snapshots, tokens or private exports in source control. History starts with this release, never fabricates past imports.
+- `validCanvasHistory` is shared by backup and API validation through `validCanvasMetadata`; mergeSemester preserves history on same-board refresh. Sync v9 rejects older writers on history-bearing boards. Concurrent history edits conflict rather than silently discard one side. Existing board replacement/recovery/owner isolation applies.
+- `CanvasHistory` defaults to grade updates with optional links/protected detail. Open grade selects its unit, clears conflicting list filters, shows grades and opens the editor. `markCanvasGradeSeen` only updates receipt read-state after the editor actually opens; no grade/provenance/completion edits. New source grades re-arm the marker; history remains after viewing. Save failure/conflict remains visible in the existing board status. Pending previews are not persisted by merely viewing them; JSON remains the later-review fallback, and a dismissed banner has a reopen control.
+- Canvas matching retains touched rows in the unmatched filter; a selection checkpoint restores choices/reasons/group drafts via Undo. Changing the course-unit mapping clears that undo scope. Review counts planner changes, not unchanged remembered matches. Frozen source and stale-board confirmation guard remain intact.
+- Synthetic fixture `scripts/canvas-rules-qa/?updates` covers no-write cancellation, stable saved-rule selection and Undo, stale review disablement, explicit fake-grade import, history and unread marker, and history-to-unit editor navigation. `check-canvas-history.ts` covers persistence/backup/refresh, manual protection, no-op imports, unread/re-arm, account/validation/retention and merge conflicts. No real import was confirmed; T11 user acceptance remains pending.
 
 ### 2026-10-24 batch checks / compact review
 

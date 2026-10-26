@@ -1458,3 +1458,16 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-inbox {display:flex;align-items:center;justify-content:space-between;gap:20px;max-width:1180px;margin:16px auto;}
 .canvas-inbox p {margin:6px 0;}
 .canvas-inbox>div:last-child {display:flex;gap:8px;flex-shrink:0;}
+/* Canvas review: proposed updates and confirmed, unread results are distinct. */
+.canvas-new-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2855cf;margin-right:7px;flex-shrink:0}
+.canvas-grade-new{display:block;color:#2855cf;font-size:12px;font-weight:600;margin-bottom:5px}
+.canvas-history-notice{max-width:1120px;margin:10px auto;text-align:right;font-size:13px}
+.canvas-history-link{margin:4px 0 12px;color:#2855cf;font-size:13px}
+.canvas-history>label{display:flex;align-items:center;gap:8px;margin:16px 0}
+.canvas-history>label input{width:auto}
+.canvas-history ul{list-style:none;padding:0}
+.canvas-history li{padding:14px 0;border-bottom:1px solid #dbe3ef}
+.canvas-history li p{margin:5px 0 8px}
+.canvas-history-label{font-size:12px;color:#5c6d88;font-weight:600}
+.canvas-staged{color:#2855cf;font-size:13px;font-weight:600}
+.canvas-unmatched>summary{font-weight:500}

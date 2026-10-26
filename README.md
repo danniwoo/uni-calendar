@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.9.0** · **Semester Connect 0.4.0**. Publication is a separate Sites release step; Git push alone does not deploy. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.10.0** · **Semester Connect 0.4.0**. Publication is a separate Sites release step; Git push alone does not deploy. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -22,7 +22,8 @@ Current source versions: **Semester Web 0.9.0** · **Semester Connect 0.4.0**. P
 ## What works today
 
 - Canvas rule import: choose a file, expand **Retakes / completion rules**, select an existing assessment and its source items, confirm highest-attempt or best-N completion settings, then **Stage → Review → Confirm**. Complete converts only under the explicitly selected completion rule; missing/hidden results stay unknown. A confirmed missed submission is a manual decision, not inferred from an empty score. Unlinked opportunities remain blank; source IDs, not teaching-week order, identify grade entries. Saved mappings are reused on later file imports, while manual/cleared/removed entries and changed rules are protected.
-- Optional **Canvas checks**: after enabling selected courses in Connect, use **Check all N courses** in Semester with one signed-in Canvas course tab open, or reload a course to check just that course. Requires Web 0.9.0 / Connect 0.4.0 for batch checks, in the same Chrome profile. The compact preview shows changes, unmatched items and protected manual entries; unchanged records are collapsed. **Nothing saves automatically**; JSON remains the testing/manual fallback. See the [setup and acceptance checklist](extensions/semester-connect/README.md#reload-checks). No timer polling or closed-browser syncing.
+- Optional **Canvas checks**: after enabling selected courses in Connect, use **Check all N courses** in Semester with one signed-in Canvas course tab open, or reload a course to check just that course. Requires Web 0.9.0+ / Connect 0.4.0 for batch checks, in the same Chrome profile. Returning previews show actual grade changes first; unmatched, protected and unchanged entries stay collapsed. Matching rows stay visible after selection, with Undo. **Nothing imports automatically**; JSON remains the testing/manual fallback. See the [setup and acceptance checklist](extensions/semester-connect/README.md#reload-checks). No timer polling or closed-browser syncing.
+- **Canvas update history** (Web 0.10.0): open from Assessments or Manage. Only explicit confirmed imports create receipts, saved with the board and included in backups; earlier imports are not backfilled. New indicators mark unseen imported grade changes, not pending previews. Open the grade (or use the history link to jump to its unit) to clear the indicator without deleting history or changing marks. Retains up to 20 recent batches / 250 details per batch with a 300 KB text-size cap. Pending Connect previews are temporary; keep JSON to review later. No separate notification service.
 
 - Timetable import discovers units and real class instances; matching public outlines supply assessment rules and weekly topics.
 - **Semester** shows the cross-unit teaching-week picture; **Week / Month** show dates, classes, deadlines and personal tasks/events.

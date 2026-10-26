@@ -107,6 +107,7 @@ export type Unit = {
   topics: { week: number; activity: string; topic: string }[];
 };
 export type Semester = {
+  canvasHistory?: import("./canvas-history").CanvasUpdateBatch[];
   canvasAccountId?: string;
   canvasImports?: {key:string;targetId:string;mode:"overall"|"part";lastGrade?:Grade;readAt?:string;manual?:boolean;
     rule?:CanvasRule;lastItem?:GradePlan["items"][number];sourceRules?:string}[];
@@ -221,6 +222,7 @@ export function mergeSemester(
   fresh.boardGeneration = old.boardGeneration;
   fresh.canvasAccountId = old.canvasAccountId;
   fresh.canvasImports = old.canvasImports;
+  fresh.canvasHistory = old.canvasHistory;
   const map = new Map(old.tasks.map((t) => [t.id, t]));
   fresh.tasks = fresh.tasks.map((t) => {
     const prev = map.get(t.id);

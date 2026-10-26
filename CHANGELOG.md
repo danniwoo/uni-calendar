@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.10.0 — 2026-10-26
+
+- Focus returning Canvas previews on real grade changes. Collapse optional unmatched items and protected values; never-linked does not mean newly created in Canvas.
+- Keep selected matching rows visible, label selections as unsaved, allow Undo, and count actual proposed changes on Review rather than all remembered matches.
+- Add confirmed-import history in Assessments and Manage, including before/after descriptions, protected entries and skipped counts. Receipts share the grade save, backups and board lifecycle; no receipt on preview, cancellation or repeated no-op import. Retention is bounded and disclosed; previous imports are not reconstructed.
+- Mark unseen imported grade changes with a labelled dot. A history link opens the relevant unit and grade editor; opening the grade clears only the indicator. Dismissed pending checks can be reopened without a new check.
+- Preserve manual values, unknown results, frozen reviews, concurrent-edit guards and JSON fallback. Sync guard v9 protects receipts from older tabs. Synthetic tests do not constitute real-user acceptance; no live imports were confirmed.
+
 ## 0.9.0 — 2026-10-24
 
 - Add **Check all N courses** with Connect 0.4.0: one explicit batch checks the previously enabled courses using one existing signed-in Canvas tab. No automatic import.

@@ -7,16 +7,21 @@ import { assessmentGrade, gradeTarget, gradeWeight, unitGrades } from "@/lib/gra
 import { gradeNumber as n, validGrade } from "@/lib/grade-value";
 import { GradePartsEditor } from "./grade-parts-editor";
 import { gradeRuleSummary, gradeThreshold } from "@/lib/grades";
+import {unreadCanvasGrades} from "@/lib/canvas-history";
 
-export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,onToggle}:{
+export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,onToggle,onGradeSeen,focusGrade}:{
   semester:Semester;rows:AssessmentRow[];unit:string;
   onGrade:(id:string,grade:Grade|null,expected:Grade|null|undefined)=>void;
   onGradePlan?:(id:string,plan:GradePlan,expected:GradePlan|null|undefined)=>void;
   onOpen:(task:Task)=>void;onToggle:(task:Task)=>void;
+  onGradeSeen?:(id:string)=>void;focusGrade?:{id:string;request:number};
 }) {
   const id=useId();
   const [editing,setEditing]=useState<{task:Task;earned:string;possible:string;mode:"marks"|"percent"}|null>(null);
   const [partsEditing,setPartsEditing]=useState<Task|null>(null);
+  const handledFocus=useRef<number|null>(null);
+  useEffect(()=>{if(!focusGrade||handledFocus.current===focusGrade.request)return;const task=rows.find(r=>r.task.id===focusGrade.id)?.task;if(!task)return;handledFocus.current=focusGrade.request;if(assessmentGrade(task).source==="parts")editParts(task);else edit(task);},[focusGrade,rows]);
+  const unread=unreadCanvasGrades(semester);
   const editorRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(editing||partsEditing)editorRef.current?.scrollIntoView({block:"nearest",behavior:"smooth"});},[editing?.task.id,partsEditing?.id]);
   const [error,setError]=useState("");
@@ -29,10 +34,12 @@ export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,
     if(partsEditing) {setError("Save or cancel individual grades before opening another editor.");return;}
     if (editing && dirty) {setError("Save or cancel the current grade before editing another assessment.");return;}
     setEditing({task,earned:validGrade(task.grade)?String(task.grade.earned):"",possible:validGrade(task.grade)?String(task.grade.possible):"",mode:"marks"});setError("");setNotice("");
+    onGradeSeen?.(task.id);
   }
   function editParts(task:Task) {
     if(partsEditing||editing) {setError("Save or cancel the open editor first. Your entries have been kept.");return;}
     setPartsEditing(task);setError("");setNotice("");
+    onGradeSeen?.(task.id);
   }
   function save(clear=false) {
     if (!editing) return;
@@ -75,7 +82,7 @@ export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,
         <td className="assessment-list-check">{row.grouped?<span aria-label={`${row.completed} of ${row.total} steps complete`}>{row.done?"✓":"—"}</span>:<Checkbox checked={!!t.done} aria-label={`Mark ${t.title} ${t.done?"unfinished":"complete"}`} onCheckedChange={()=>onToggle(t)}/>}</td>
         <td><button className="assessment-list-title" onClick={()=>onOpen(t)}>{t.title}</button>{!unit&&<small className="grade-secondary">{t.unit}</small>}{t.hurdle&&<small className="grade-secondary">Hurdle</small>}<small className="grade-mobile-date">{schedule.label}{schedule.detail&&` · ${schedule.detail}`}</small></td>
         <td className="assessment-list-weight">{assessmentListWeight(t,row.grouped)}</td>
-        <td>{parts?<><button className="grade-edit-button" aria-label={`Edit individual grades for ${t.title}`} onClick={()=>editParts(t)}>{result.ratio===null?"Set up grades":t.gradePlan?.method==="completion"?`${n(result.earned!)} / ${n(result.possible!)} points${result.finished?"":" secured so far"}`:`${n(result.ratio*100)}%${result.finished?"":" so far"}`}<small>{t.gradePlan&&gradeRuleSummary(t.gradePlan)}{t.gradePlan&&gradeRuleSummary(t.gradePlan)?" · ":""}{result.recorded} / {result.total} {t.gradePlan?.method==="completion"?"confirmed":"graded"} · Edit</small></button>{t.gradePlan&&gradeThreshold(t.gradePlan)&&<small className="grade-secondary">{gradeThreshold(t.gradePlan)}</small>}{result.error&&<small className="grade-warning">Calculation needs review</small>}</>:<button className="grade-edit-button" aria-label={`${startWithParts?"Add individual":g?"Edit":"Add"} grade for ${t.title}`} onClick={()=>startWithParts?editParts(t):edit(t)}>{startWithParts?"+ Individual grades":g?`${g.earned} / ${g.possible}`:"+ Add grade"}{g&&<small>{n(g.earned/g.possible*100)}%</small>}</button>}{result.ratio!==null&&result.finished&&<small className="grade-contribution">{w===null?"Weight needs review":`${n(result.ratio*w)} / ${n(w)} unit points`}</small>}{onGradePlan&&!parts&&<button className="grade-parts-link" onClick={()=>startWithParts?edit(t):editParts(t)} aria-label={`${startWithParts?"Overall result":"Individual grades"} for ${t.title}`}>{startWithParts?"Enter overall result":t.gradePlan?"Grade source / saved items":"Individual grades / rules →"}</button>}</td>
+        <td>{unread.has(t.id)&&<span className="canvas-grade-new"><span className="canvas-new-dot" aria-hidden="true"/>New · Canvas update</span>}{parts?<><button className="grade-edit-button" aria-label={`Edit individual grades for ${t.title}`} onClick={()=>editParts(t)}>{result.ratio===null?"Set up grades":t.gradePlan?.method==="completion"?`${n(result.earned!)} / ${n(result.possible!)} points${result.finished?"":" secured so far"}`:`${n(result.ratio*100)}%${result.finished?"":" so far"}`}<small>{t.gradePlan&&gradeRuleSummary(t.gradePlan)}{t.gradePlan&&gradeRuleSummary(t.gradePlan)?" · ":""}{result.recorded} / {result.total} {t.gradePlan?.method==="completion"?"confirmed":"graded"} · Edit</small></button>{t.gradePlan&&gradeThreshold(t.gradePlan)&&<small className="grade-secondary">{gradeThreshold(t.gradePlan)}</small>}{result.error&&<small className="grade-warning">Calculation needs review</small>}</>:<button className="grade-edit-button" aria-label={`${startWithParts?"Add individual":g?"Edit":"Add"} grade for ${t.title}`} onClick={()=>startWithParts?editParts(t):edit(t)}>{startWithParts?"+ Individual grades":g?`${g.earned} / ${g.possible}`:"+ Add grade"}{g&&<small>{n(g.earned/g.possible*100)}%</small>}</button>}{result.ratio!==null&&result.finished&&<small className="grade-contribution">{w===null?"Weight needs review":`${n(result.ratio*w)} / ${n(w)} unit points`}</small>}{onGradePlan&&!parts&&<button className="grade-parts-link" onClick={()=>startWithParts?edit(t):editParts(t)} aria-label={`${startWithParts?"Overall result":"Individual grades"} for ${t.title}`}>{startWithParts?"Enter overall result":t.gradePlan?"Grade source / saved items":"Individual grades / rules →"}</button>}</td>
         <td className="grade-date"><span>{schedule.label}</span><small>{schedule.detail}</small>{t.sourceConflict&&<button className="assessment-list-date-warning" onClick={()=>onOpen(t)}>Dates conflict · review</button>}</td>
       </tr></Fragment>;})}</tbody>
     </table></div>

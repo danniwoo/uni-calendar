@@ -3,6 +3,7 @@ import {applyCanvasRules,validCanvasRule,validRuleRecord} from "./canvas-rule-im
 import {subjectAssessments} from "./subject-view";
 import {validGrade,validGradePlan} from "./grade-value";
 import {availabilityError} from "./assessment-schedule";
+import {validCanvasHistory} from "./canvas-history";
 
 export const CANVAS_SOURCE="https://canvas.sydney.edu.au";
 export type CanvasAssignment={id:string;name:string;groupId:string|null;dueAt:string|null;opensAt:string|null;closesAt:string|null;pointsPossible:number|null;omitted:boolean;result?:"complete"|"incomplete";submission:null|{released:boolean;excused:boolean;score:number|null;releaseEvidence:string|null;currentAttemptGraded:boolean|null}};
@@ -17,8 +18,8 @@ const date=(x:unknown):x is string=>typeof x==="string"&&/^\d{4}-\d\d-\d\dT/.tes
 const finite=(x:unknown)=>x===null||(typeof x==="number"&&Number.isFinite(x)&&x>=0);
 const unique=(xs:string[])=>new Set(xs).size===xs.length;
 export function validCanvasRecords(x:unknown):x is CanvasImportRecord[]{return Array.isArray(x)&&x.length<=5000&&x.every(r=>object(r)&&text(r.key,150)&&/^\d+:\d+:\d+$/.test(r.key)&&text(r.targetId,500)&&["overall","part"].includes(String(r.mode))&&(r.lastGrade===undefined||validGrade(r.lastGrade))&&(r.readAt===undefined||date(r.readAt))&&(r.manual===undefined||typeof r.manual==="boolean")&&validRuleRecord(r))&&unique(x.map(r=>r.key));}
-export function validCanvasMetadata(s:{canvasAccountId?:unknown;canvasImports?:unknown}) {
-  return (s.canvasAccountId===undefined||id(s.canvasAccountId))&&(s.canvasImports===undefined||(validCanvasRecords(s.canvasImports)&&s.canvasImports.every(r=>id(s.canvasAccountId)&&r.key.startsWith(`${s.canvasAccountId}:`))));
+export function validCanvasMetadata(s:{canvasAccountId?:unknown;canvasImports?:unknown;canvasHistory?:unknown}) {
+  return validCanvasHistory(s.canvasHistory,s.canvasAccountId)&&(s.canvasAccountId===undefined||id(s.canvasAccountId))&&(s.canvasImports===undefined||(validCanvasRecords(s.canvasImports)&&s.canvasImports.every(r=>id(s.canvasAccountId)&&r.key.startsWith(`${s.canvasAccountId}:`))));
 }
 
 export function readCanvasBundle(raw:string):CanvasBundle{

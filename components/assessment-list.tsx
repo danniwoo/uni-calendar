@@ -1,5 +1,5 @@
 "use client";
-import { Fragment, useId, useRef, useState } from "react";
+import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { ChevronDown, ChevronRight, ArrowUp, ArrowDown, Search, Plus, Check } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { COLORS, type Semester, type Task, type Grade, type GradePlan } from "@/lib/semester";
@@ -7,16 +7,19 @@ import { AssessmentGrades } from "@/components/assessment-grades";
 import {activityLabel} from "@/lib/assessment-activity";
 import { assessmentRows, assessmentListDate, assessmentListWeight, assessmentDateContext, assessmentDateSections, assessmentDateMatches, assessmentStepLabel, assessmentOverviewSchedule, isRecurringAssessment, defaultAssessmentFilters, type AssessmentDisplay, type AssessmentFilters, type AssessmentSort } from "@/lib/assessment-list";
 
-export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade,onGradePlan}:{
+export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade,onGradePlan,onGradeSeen,focusGrade,onHistory}:{
   semester:Semester; today:string; unit?:string; compact?:boolean;
   onOpen:(task:Task)=>void; onToggle:(task:Task)=>void; onAdd?:(unit?:string)=>void;
   onGrade?:(id:string,grade:Grade|null,expected:Grade|null|undefined)=>void;
   onGradePlan?:(id:string,plan:GradePlan,expected:GradePlan|null|undefined)=>void;
+  onGradeSeen?:(id:string)=>void;
+  focusGrade?:{id:string;request:number};onHistory?:()=>void;
 }) {
   const [filters,setFilters]=useState<AssessmentFilters>({...defaultAssessmentFilters,unit:unit||""});
   const [expanded,setExpanded]=useState<Set<string>>(new Set());
   const [display,setDisplay]=useState<AssessmentDisplay>("overview");
   const [showGrades,setShowGrades]=useState(false);
+  useEffect(()=>{if(!focusGrade)return;const task=semester.tasks.find(t=>t.id===focusGrade.id)||semester.units.flatMap(u=>u.assessments).find(t=>t.id===focusGrade.id);if(!task)return;setFilters({...defaultAssessmentFilters,unit:task.unit,hideRecurring:false});setDisplay("overview");setShowGrades(true);},[focusGrade]);
   const overview=display==="overview";
   const grades=overview&&showGrades&&!!onGrade;
   const id=useId();
@@ -50,7 +53,8 @@ export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggl
     </div>
     <div className="grade-display-options">{onGrade&&overview&&<label className="grade-display-toggle" htmlFor={`${id}-grades`}><Checkbox id={`${id}-grades`} checked={showGrades} onCheckedChange={v=>setShowGrades(v===true)}/>Show grades</label>}<label className="grade-display-toggle" htmlFor={`${id}-recurring`}><Checkbox id={`${id}-recurring`} checked={filters.hideRecurring} onCheckedChange={checked=>setFilters({...filters,hideRecurring:checked===true})}/>Hide recurring</label></div>
     <div className="assessment-list-tools"><span role="status">{rows.length} of {total} assessments{filtered&&" · filtered"}</span><div>{upcomingKey&&<button className="assessment-list-jump" onClick={()=>{upcomingRef.current?.scrollIntoView({block:"start"});upcomingRef.current?.focus({preventScroll:true});}}>Jump to upcoming</button>}<label>Sort <select aria-label="Sort assessments" value={filters.sort} onChange={e=>setFilters({...filters,sort:e.target.value as AssessmentSort,descending:e.target.value==="weight"})}><option value="date">Due / scheduled</option><option value="title">Name</option><option value="unit">Unit</option><option value="weight">Weight</option></select></label><button aria-label={filters.descending?"Sort ascending":"Sort descending"} title={filters.descending?"Sort ascending":"Sort descending"} onClick={()=>setFilters({...filters,descending:!filters.descending})}>{filters.descending?<ArrowDown size={15}/>:<ArrowUp size={15}/>}</button>{filtered&&<button onClick={()=>setFilters({...defaultAssessmentFilters,unit:unit||""})}>Clear filters</button>}</div></div>
-    {onGrade&&<div hidden={!grades}><AssessmentGrades semester={semester} rows={rows} unit={effective.unit} onGrade={onGrade} onGradePlan={onGradePlan} onOpen={onOpen} onToggle={onToggle}/></div>}
+    {onHistory&&<button className="canvas-history-link" onClick={onHistory}>Canvas update history</button>}
+    {onGrade&&<div hidden={!grades}><AssessmentGrades semester={semester} rows={rows} unit={effective.unit} onGrade={onGrade} onGradePlan={onGradePlan} onOpen={onOpen} onToggle={onToggle} onGradeSeen={onGradeSeen} focusGrade={grades?focusGrade:undefined}/></div>}
     <div className="assessment-list-table-wrap" hidden={grades}><table className="assessment-list-table">
       <caption className="sr-only">{overview?"One row per assessment. Group ranges show known dates across all steps; date sorting uses the earliest recorded schedule.":"Expand grouped assessments to see steps."} Completion is shared with your calendar, not a grade.</caption>
       <colgroup><col className="assessment-col-check"/><col className="assessment-col-name"/><col className="assessment-col-weight"/><col className="assessment-col-date"/>{showUnits&&<col className="assessment-col-unit"/>}</colgroup>
