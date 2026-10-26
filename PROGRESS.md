@@ -1,8 +1,10 @@
 # Engineering handoff
 
-Updated: 2026-10-24. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-26. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
+
+- Web **0.11.0**: grouped source → independent-assessment comparison and contextual selected-item rule setup. Connect **0.4.0** / sync **v9** unchanged. Publication and real-user acceptance are separate; final deployment result is reported in the release handoff.
 
 - Web **0.10.0** adds quieter update review, reversible stable selections, confirmed-import receipts and unread grade indicators; Connect remains **0.4.0**, sync guard becomes **v9**. Published successfully as Sites version **47**, source `d3fad546b45613bfcf3949a6c449b7486637c7ec`, deployment `appgdep_6adebe1362c48191ba65618922a15934`; GitHub main SHA verified. TypeScript, production build, web regression scripts, storage checks and 50 extension tests passed; synthetic desktop UI covered selection/Undo/cancel, stale confirmation, history navigation and unread clearing. No live import confirmed; user acceptance remains pending. Previous releases below remain historical evidence.
 - Web **0.9.0**, Connect **0.4.0**, import format **1**, web sync guard **v8**. Git push is separate from publication. Preceding Web 0.8.0 was deployed as Sites version 45 (`85498d9`); the production footer and saved four-unit board were verified, with no import confirmation.
@@ -25,6 +27,14 @@ Updated: 2026-10-24. **Priorities, resumable work and acceptance tests live only
 6. Preserve detailed implementation reasoning, failed approaches, edge cases and test evidence. Before shortening this handoff, move the full prior text into a dated archive with a historical-status warning and link it here; a summary or Git history alone is not a replacement.
 
 ## Code map
+
+### 2026-10-26 group-to-assessment matching
+
+- `canvas-course-matching.tsx` replaces the two pre-rendered rule/group forms and repeated table. Each group shows full source name/weight and distinct selected or saved target names/weights; each source row has an explicit state. Auxiliary and missing-group items remain visible. `canvas-match-view.ts` is presentation-only; it never infers a grading rule or mutates weights.
+- Saved source-ID mappings remain in the existing matcher/planner. Skip only changes this preview's selection; restore uses the saved suggestion, and skip does not count as never linked. Fuzzy suggestions remain explicit. Contextual bulk setup stages only selected unlinked source IDs as parts, with points/equal group guards or explicit/saved highest/completion rules. It does not create calendar tasks.
+- Manual values remain protected and can be compared with incoming source values. This is NOT existing-manual-child linking, durable dual-value conflict storage or explicit Accept Canvas. An already saved overall link cannot be silently converted to a child. The recurring-overall warning explains this; preserve that ledger until a separately reviewed repair exists.
+- `check-canvas-match-view.ts` covers group fan-out, weights, auxiliary/missing groups, saved/skipped states, idempotence, fuzzy caution, future blank results and JSON/direct parity. `scripts/canvas-rules-qa/?matching` browser checks: grade delta only initially, independent destinations, skip/restore, candidate selection/Undo, blocked drop-rule averaging, selected-only explicit rule staging, review and Cancel with Test writes 0. Fixtures are invented, no live data or account connection.
+- User stories and scoped acceptance: `docs/CANVAS-MATCHING-USER-STORIES.md`. Real four-course UX acceptance remains T11.
 
 ### 2026-10-26 update history / matching clarity
 

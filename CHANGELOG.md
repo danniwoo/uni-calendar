@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.11.0 — 2026-10-26
+
+- Replace duplicate group/rule/item forms with one grouped source-to-assessment comparison. Display original Canvas names and distinct Semester destinations with weights; groups never become extra assessments or inferred combined grades.
+- Reuse saved source-ID links with explicit linked/new-result/unchanged/protected states. Skipping a saved link for one check no longer labels it never linked; restore it without rematching.
+- Show bulk individual-result setup only after selecting source items. Preserve explicit calculation/drop-rule guards, selected rows, Undo and JSON/direct matching parity.
+- Add user stories, synthetic group/matching regressions and isolated browser QA. Manual data, calendar tasks and confirmation boundaries remain unchanged. Existing manual-child linking, overall-to-child repair and explicit acceptance of a conflicting Canvas value remain separate work.
+
 ## 0.10.0 — 2026-10-26
 
 - Focus returning Canvas previews on real grade changes. Collapse optional unmatched items and protected values; never-linked does not mean newly created in Canvas.

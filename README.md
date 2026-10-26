@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.10.0** · **Semester Connect 0.4.0**. Publication is a separate Sites release step; Git push alone does not deploy. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.11.0** · **Semester Connect 0.4.0**. Publication is a separate Sites release step; Git push alone does not deploy. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -16,12 +16,13 @@ Current source versions: **Semester Web 0.10.0** · **Semester Connect 0.4.0**. 
 | [PROGRESS.md](PROGRESS.md) | Concise engineering handoff, code map, checks and safety constraints. |
 | [Connect guide](extensions/semester-connect/README.md) | Chrome installation/reload, reading Canvas and reviewed import. |
 | [Connect changelog](extensions/semester-connect/CHANGELOG.md) | Independently versioned extension changes. |
+| [Canvas matching user stories](docs/CANVAS-MATCHING-USER-STORIES.md) | User needs, matching behaviour, acceptance checks and remaining limitations. |
 | [Historical milestones](docs/archive/IMPLEMENTATION-2026-10-20.md) | Short digest of past implementation milestones; not current priorities or proof of user acceptance. |
 | [Full historical PROGRESS](docs/archive/PROGRESS-2026-10-20-full.md) | Verbatim detailed engineering log: decisions, fixes, limitations and test evidence. Historical context, not current instructions. |
 
 ## What works today
 
-- Canvas rule import: choose a file, expand **Retakes / completion rules**, select an existing assessment and its source items, confirm highest-attempt or best-N completion settings, then **Stage → Review → Confirm**. Complete converts only under the explicitly selected completion rule; missing/hidden results stay unknown. A confirmed missed submission is a manual decision, not inferred from an empty score. Unlinked opportunities remain blank; source IDs, not teaching-week order, identify grade entries. Saved mappings are reused on later file imports, while manual/cleared/removed entries and changed rules are protected.
+- Canvas matching shows **source group → independent Semester assessments**, including target weights, with each source item listed once. Saved links are reused; similar-title suggestions remain opt-in. For weekly entries/retakes, tick source items → **Link selected items to one assessment** → choose a saved rule or explicitly configure calculation → **Stage → Review → Confirm**. Complete converts only under a confirmed completion rule; missing/hidden results stay unknown. A confirmed miss is a manual decision. Source IDs, not teaching-week order, identify entries. Manual/cleared/removed entries and changed rules remain protected. Linking an existing manual child or repairing a previously saved overall-to-child link is not yet supported.
 - Optional **Canvas checks**: after enabling selected courses in Connect, use **Check all N courses** in Semester with one signed-in Canvas course tab open, or reload a course to check just that course. Requires Web 0.9.0+ / Connect 0.4.0 for batch checks, in the same Chrome profile. Returning previews show actual grade changes first; unmatched, protected and unchanged entries stay collapsed. Matching rows stay visible after selection, with Undo. **Nothing imports automatically**; JSON remains the testing/manual fallback. See the [setup and acceptance checklist](extensions/semester-connect/README.md#reload-checks). No timer polling or closed-browser syncing.
 - **Canvas update history** (Web 0.10.0): open from Assessments or Manage. Only explicit confirmed imports create receipts, saved with the board and included in backups; earlier imports are not backfilled. New indicators mark unseen imported grade changes, not pending previews. Open the grade (or use the history link to jump to its unit) to clear the indicator without deleting history or changing marks. Retains up to 20 recent batches / 250 details per batch with a 300 KB text-size cap. Pending Connect previews are temporary; keep JSON to review later. No separate notification service.
 

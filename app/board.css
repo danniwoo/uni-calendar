@@ -1471,3 +1471,30 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-history-label{font-size:12px;color:#5c6d88;font-weight:600}
 .canvas-staged{color:#2855cf;font-size:13px;font-weight:600}
 .canvas-unmatched>summary{font-weight:500}
+.canvas-source-group{margin:20px 0;border:1px solid var(--line,#dbe3f0);border-radius:12px;overflow:hidden;background:var(--surface,#fff)}
+.canvas-group-map{display:grid;grid-template-columns:1fr 28px 1fr;gap:14px;height:auto;min-height:100px;padding:18px 20px;background:#edf2fc;align-items:center}
+.canvas-group-map h4{margin:6px 0;font-size:16px;line-height:1.4}
+.canvas-group-map small{font-size:11px;letter-spacing:.04em;color:#536580;display:block}
+.canvas-group-map span,.canvas-group-map p{font-size:13px;color:#536580;margin:4px 0}
+.canvas-group-map ul{margin:6px 0;padding-left:18px;font-size:14px}
+.canvas-group-map .canvas-map-arrow{font-size:22px}
+.canvas-matching-workspace .canvas-import-table{overflow-x:auto}
+.canvas-matching-workspace table{width:100%;table-layout:fixed;border-collapse:collapse}
+.canvas-matching-workspace th,.canvas-matching-workspace td{padding:16px 20px;vertical-align:top;text-align:left;border-bottom:1px solid #e3e9f2}
+.canvas-matching-workspace th{font-size:12px;color:#60718c;font-weight:500}
+.canvas-matching-workspace td>small,.canvas-matching-workspace td>strong{display:block;margin:7px 0;font-size:13px}
+.canvas-matching-workspace select{width:100%;min-height:42px;border:1px solid #cbd7e8;border-radius:7px;background:white;padding:8px;color:#263854;font:inherit}
+.canvas-source-title{display:flex;align-items:flex-start;gap:10px}
+.canvas-source-title input{flex:0 0 18px;width:18px;height:18px;margin-top:3px;accent-color:#2853cb}
+.canvas-source-title a{overflow-wrap:anywhere}
+.canvas-link-state{display:inline-block;background:#eaf1ff;color:#284c99;font-size:12px;padding:3px 8px;border-radius:5px;margin-bottom:8px}
+.canvas-link-state.protected{background:#fff3da;color:#805516}
+.canvas-candidates{display:grid;gap:6px;margin-top:10px}
+.canvas-candidates button{text-align:left;width:100%;padding:10px 12px}
+.canvas-candidates small{display:block;font-size:12px;color:#64748b}
+.canvas-candidates summary,.canvas-row-comparison summary{font-size:13px;color:#3158a1;cursor:pointer;margin:10px 0}
+.canvas-batch-bar{position:sticky;top:0;z-index:2;padding:14px;border:1px solid #aabfe9;border-radius:10px;background:#f2f6ff;box-shadow:0 3px 12px #1c345210;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.canvas-batch-setup{flex-basis:100%;display:grid;gap:12px}
+.canvas-batch-setup label{display:grid;gap:6px}
+.canvas-batch-setup p{margin:0;font-size:14px}
+.canvas-row-comparison p{font-size:13px}
