@@ -31,7 +31,7 @@ export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;on
   return <section className="notice canvas-inbox" aria-label="Canvas update check" aria-live="polite">
     <div><strong>Semester Connect · {inbox.enabled?"review before saving":"checks off"}</strong><p>{inbox.message}</p>
       {preview?.error?<p className="error">{preview.error} Nothing imported. Use the correct account / JSON file.</p>:preview?.status?<>
-        <p><strong>{preview.status.grades.length} new / updated results</strong> · {preview.status.unmatched.length} not matched · {preview.status.protected.length} manual entries protected{preview.status.attention.length?` · ${preview.status.attention.length} rule changes to review`:""}</p>
+        <p><strong>{preview.status.grades.length} grade updates</strong>{preview.status.resultsToConnect.length?` · ${preview.status.resultsToConnect.length} results need a connection`:""}{preview.status.protected.length?` · ${preview.status.protected.length} manual entries protected`:""}{preview.status.attention.length?` · ${preview.status.attention.length} rule changes to review`:""}</p>
         <small>Canvas account {preview.bundle.accountId} · {preview.bundle.courses.length} courses checked · each course’s read time is shown in review. Other courses are unchanged. Nothing saved.</small>
       </>:null}
     </div>

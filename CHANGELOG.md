@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.0 — 2026-10-26
+
+- Separate daily grade updates from optional connection maintenance. Ungraded/unlinked backlog is no longer presented as an update count; available unconnected results have their own destination action.
+- Show one course at a time with compact Canvas-style rows. Connect opens an assessment-first comparison; whole results versus individual entries are explicit, and calculation rules appear only when relevant. Suggestions include weights but still need confirmation.
+- Keep confirmed links as collapsed context even when filtering them out. Staged connections stay visible and reversible; saved rules are reused without re-entering their parameters.
+- Add regression coverage for the update/backlog distinction, filtered context, and manual deadline extensions surviving new Canvas grades through both JSON and direct snapshots. No live import is performed.
+- Existing-manual-child linking, correction of already saved whole-result links and explicit acceptance of conflicting manual values remain pending. The interface explains these limits rather than silently duplicating or moving records.
+
 ## 0.11.0 — 2026-10-26
 
 - Replace duplicate group/rule/item forms with one grouped source-to-assessment comparison. Display original Canvas names and distinct Semester destinations with weights; groups never become extra assessments or inferred combined grades.

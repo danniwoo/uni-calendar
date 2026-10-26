@@ -14,6 +14,7 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
   const [bundle,setBundle]=useState<CanvasBundle|null>(initial.bundle),[units,setUnits]=useState<Record<string,string>>(initial.suggestions?.units||{}),[choices,setChoices]=useState<Record<string,CanvasChoice>>(initial.suggestions?.choices||{}),[confirmed,setConfirmed]=useState(false),[error,setError]=useState(initial.error);
   const [reasons,setReasons]=useState<Record<string,string>>(initial.suggestions?.reasons||{}),[stage,setStage]=useState<"updates"|"match"|"review">(initial.bundle?defaultCanvasStage(semester,initial.bundle):"match");
   const [query,setQuery]=useState(""),[filter,setFilter]=useState("all");
+  const [activeCourse,setActiveCourse]=useState(initial.bundle?.courses[0]?.course.id||"");
   const [selectionNotice,setSelectionNotice]=useState("");
   const [touched,setTouched]=useState<Record<string,CanvasChoice|undefined>>({});
   const [undoStack,setUndoStack]=useState<{choices:Record<string,CanvasChoice>;reasons:Record<string,string>}[]>([]);
@@ -31,7 +32,7 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
     try{
       if(file.size>1500000)throw new Error("Maximum file size is 1.5 MB.");
       const b=readCanvasBundle(await file.text()),suggestions=suggestCanvasMatches(semester,b);
-      setBundle(b);setUnits(suggestions.units);setChoices(suggestions.choices);setReasons(suggestions.reasons);setStage(defaultCanvasStage(semester,b));
+      setBundle(b);setActiveCourse(b.courses[0]?.course.id||"");setUnits(suggestions.units);setChoices(suggestions.choices);setReasons(suggestions.reasons);setStage(defaultCanvasStage(semester,b));
     }catch(e){setError((e as Error).message);}
   }
   function select(courseId:string,assignmentId:string,targetId:string){
@@ -49,74 +50,66 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
   const selected=Object.values(choices),total=bundle?.courses.reduce((n,c)=>n+c.assignments.length,0)||0;
   const added=selected.filter(c=>c.targetId==="new").length;
   const updates=bundle?canvasUpdateStatus(semester,bundle,selected,preview?.actions||[]):null;
-  const notLinked=updates?.unmatched.filter(a=>a.isNew).length||0,skippedLinks=updates?.unmatched.filter(a=>!a.isNew).length||0;
   const ruleSummaries=preview?.actions.filter(a=>a.kind==="summary")||[];
-  function resolveUnmatched(){changed();setFilter("unmatched");setQuery("");}
+  function manageConnections(nextFilter="unmatched",courseId?:string){changed();setFilter(nextFilter);setQuery("");if(courseId)setActiveCourse(courseId);}
   function review(){setReviewedSemester(semester);setConfirmed(false);setError("");setStage("review");}
-  const unmatchedPanel=updates&&updates.unmatched.length>0&&<details className="rule-card canvas-unmatched"><summary>{notLinked} not linked{skippedLinks?` · ${skippedLinks} saved links skipped this check`:""} · optional matching</summary><p>Not linked does not mean new. These may be older or ungraded Canvas items. Leave them skipped if unsure; skipped never means zero.</p><button onClick={resolveUnmatched}>Choose where these items belong →</button><details><summary>See item names</summary><ul>{updates.unmatched.map(a=><li key={a.key}><strong>{a.course} · {a.name}</strong> — {a.isNew?"Not previously linked":"Saved link not selected"}</li>)}</ul></details></details>;
+  const unmatchedPanel=<details className="rule-card canvas-unmatched"><summary>Manage Canvas connections · optional</summary><p>Already connected assessments update without matching again. Other Canvas items may be old, ungraded or not needed in Semester; you do not need to connect everything.</p><button onClick={()=>manageConnections()}>Manage connections →</button></details>;
   return <section className="canvas-import-review">
-    <h2>{stage==="updates"?"Canvas updates · review before saving":"Import from Semester Connect"}</h2>
+    <h2>{stage==="updates"?"Canvas updates":stage==="match"?"Connect your assessments":"Review Canvas changes"}</h2>
     {stage!=="updates"&&<nav className="canvas-import-stages" aria-label="Import steps">
-      <button aria-current={stage!=="review"?"step":undefined} onClick={changed}>1 · Match assessments</button>
+      <button aria-current={stage!=="review"?"step":undefined} onClick={changed}>1 · Choose connections</button>
       <span aria-hidden="true">→</span>
       <span aria-current={stage==="review"?"step":undefined}>2 · Review &amp; confirm</span>
     </nav>}
     <p>{stage==="updates"?"Only changes in this batch. Nothing is saved until you review and confirm.":"Match a Canvas item to an assessment you already have. Nothing is saved until you confirm the changes in step 2."}</p>
     {stage!=="updates"&&<p className="notice">Existing names, dates, weights, notes and completion stay unchanged. Manual or cleared grades are protected. Only unchanged Canvas-imported grades can update.</p>}
-    {stage==="match"&&<label className="restore-backup">JSON import · testing / manual fallback<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label>}
+    {stage==="match"&&<details open={!bundle}><summary>JSON import · testing / manual fallback</summary><label className="restore-backup">Choose a Connect export<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label></details>}
     {error&&<p className="notice error" role="alert">{error}</p>}
     {bundle&&<>
       <p className="hint"><strong>Canvas account {bundle.accountId}</strong> · {bundle.courses.length} courses · exported {new Date(bundle.exportedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney · preview only.</p>
       {updates&&!preview?.error&&<>
-        {stage!=="updates"&&<div className="canvas-update-summary" aria-label="Canvas update summary">
-          <div><strong>{updates.grades.length}</strong><span>New / updated results</span><small>Preview only · not saved</small></div>
-          <div><strong>{notLinked}</strong><span>Not linked yet</span><small>{skippedLinks?`${skippedLinks} saved links skipped this check`:"Not added automatically"}</small></div>
-          <div><strong>{updates.protected.length}</strong><span>Manual data protected</span><small>Grades, rules or removed entries kept</small></div>
-        </div>}
-        {stage==="match"&&unmatchedPanel}
         {updates.attention.length>0&&<section className="rule-card"><h3>Rules / source changes need review</h3><ul>{updates.attention.map(a=><li key={a.key}>{a.text}</li>)}</ul><p>These changes will not be applied.</p></section>}
       </>}
       {stage==="updates"?<>
-        <section className="rule-card"><h3>{updates?.grades.length||0} new / updated results</h3>{updates?.grades.length?<ul>{updates.grades.map(a=><li key={a.key}>{a.text}</li>)}</ul>:<p>No new applicable grade changes. Existing results are already up to date or protected.</p>}</section>
+        <section className="rule-card"><h3>{updates?.grades.length?`${updates.grades.length} grade ${updates.grades.length===1?"update":"updates"} ready to review`:"No new grade changes to apply"}</h3>{updates?.grades.length?<ul>{updates.grades.map(a=><li key={a.key}>{a.text}</li>)}</ul>:<p>Your connected results have no applicable changes in this check. You do not need to match ungraded items to finish.</p>}</section>
+        {!!updates?.resultsToConnect.length&&<section className="rule-card"><h3>{updates.resultsToConnect.length} {updates.resultsToConnect.length===1?"result needs":"results need"} a destination</h3><p>These results are available in Canvas but are not connected yet. Check the suggested assessment before saving.</p><ul>{updates.resultsToConnect.map(a=><li key={a.key}>{a.course} · {a.name} · <strong>{a.result}</strong> <button onClick={()=>manageConnections("results",a.key.split(":")[0])}>Connect result…</button></li>)}</ul></section>}
         {unmatchedPanel}
         {!!updates?.protected.length&&<details className="rule-card"><summary>{updates.protected.length} manual entries protected · no overwrite</summary><ul>{updates.protected.map(a=><li key={a.key}>{a.text}</li>)}</ul><p>Kept exactly as you entered them; not overwritten.</p></details>}
         {!!updates?.otherChanges.length&&<section className="rule-card"><h3>Other proposed changes · review required</h3><ul>{updates.otherChanges.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
         <details className="rule-card"><summary>{updates?.unchanged.length||0} unchanged / no new result · source details</summary><ul>{updates?.unchanged.map(a=><li key={a.key}>{a.text}</li>)}</ul>{bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · checked {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks-page check unavailable — compare with Canvas":""}</p>)}<button onClick={()=>{changed();setFilter("all");}}>Inspect all matches / calculation rules</button></details>
         <details className="rule-card"><summary>JSON fallback &amp; import safeguards</summary><p className="hint">Manual grades, names, dates, weights, notes and completion stay unchanged. Nothing is saved until confirmation. Keep a JSON export to review this pending batch later.</p><label>Choose another file<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label></details>
         {preview?.error&&<p role="alert" className="notice error">{preview.error}</p>}
-        <div className="canvas-import-footer"><button onClick={onClose}>Close · save nothing</button><button className="primary" disabled={!preview?.changed||!!preview.error} onClick={review}>Review {preview?.changed||0} {preview?.changed===1?"change":"changes"} →</button></div>
+        <div className="canvas-import-footer"><button onClick={onClose}>Close · save nothing</button>{!!preview?.changed&&<button className="primary" disabled={!!preview.error} onClick={review}>Review {preview.changed} {preview.changed===1?"change":"changes"} →</button>}</div>
       </>:stage==="match"?<>
-        <div ref={matchingRef} tabIndex={-1} className="rule-card"><h3>{filter==="unmatched"?"Resolve unmatched items":"Assessment matching"}</h3>{filter==="unmatched"&&<p>Choose an independent assessment on the right. For weekly entries or retakes, tick their boxes first, then link the selected individual results. Leave uncertain items for later; missing results stay unknown.</p>}<button onClick={()=>{setConfirmed(false);setStage("updates");}}>← Back to update summary</button></div>
+        <div ref={matchingRef} tabIndex={-1}><button onClick={()=>{setConfirmed(false);setStage("updates");}}>← Back to update summary</button></div>
         {selectionNotice&&<p className="notice" role="status">{selectionNotice}</p>}
         {undoStack.length>0&&<button onClick={undo}>Undo last selection</button>}
-        <div className="canvas-match-summary"><strong>{selected.length} links selected for review</strong> · {total-selected.length} skipped · {added} to add
-          <small>Skipped means no change. “Match existing” updates or links a grade; it does not create another assignment.</small>
-        </div>
+        <p className="hint">{preview?.changed||0} proposed changes · confirmed connections are reused. Nothing is saved yet.</p>
         {!bundle.courses.some(c=>c.assignments.some(a=>canvasGrade(a)))&&<p className="notice">No released numeric grades in this file. Complete/Incomplete are text results, not percentages. If Canvas shows numeric marks, reload Connect, reopen its preview and download a fresh file.</p>}
         <div className="field-pair">
           <label>Find a Canvas item<input aria-label="Find a Canvas item" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search title or unit"/></label>
-          <label>Show<select aria-label="Filter Canvas items" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All items</option><option value="grades">Released numeric grades</option><option value="unmatched">Not matched yet</option><option value="selected">Selected for review</option></select></label>
+          <label>Show<select aria-label="Filter Canvas items" value={filter} onChange={e=>setFilter(e.target.value)}><option value="all">All Canvas items</option><option value="results">Results needing a connection</option><option value="grades">Released numeric grades</option><option value="unmatched">Not connected yet</option><option value="selected">Connected / staged</option></select></label>
         </div>
-        {bundle.courses.map(c=>{
+        <nav className="canvas-course-nav" aria-label="Choose course">{bundle.courses.map(c=><button key={c.course.id} aria-pressed={activeCourse===c.course.id} onClick={()=>setActiveCourse(c.course.id)}>{units[c.course.id]||c.course.code}</button>)}</nav>
+        {bundle.courses.filter(c=>c.course.id===activeCourse).map(c=>{
           const cid=c.course.id,unit=units[cid]||"",targets=unit?canvasTargets(semester,unit):[];
-          const rows=c.assignments.filter(a=>(`${a.name} ${c.course.code}`.toLowerCase().includes(query.trim().toLowerCase()))&&(filter==="all"||filter==="grades"&&!!canvasGrade(a)||filter==="unmatched"&&(!choices[`${cid}:${a.id}`]||Object.hasOwn(touched,`${cid}:${a.id}`))||filter==="selected"&&!!choices[`${cid}:${a.id}`]));
-          if(filter==="unmatched"&&!rows.length)return null;
-          return <details key={cid} className="rule-card" open><summary className="canvas-course-heading">{unit||c.course.code} · {Object.values(choices).filter(v=>v.courseId===cid).length} / {c.assignments.length} links selected</summary>
+          const rows=c.assignments.filter(a=>(`${a.name} ${c.course.code}`.toLowerCase().includes(query.trim().toLowerCase()))&&(filter==="all"||filter==="results"&&(updates?.resultsToConnect.some(r=>r.key===`${cid}:${a.id}`)||Object.hasOwn(touched,`${cid}:${a.id}`))||filter==="grades"&&!!canvasGrade(a)||filter==="unmatched"&&(!choices[`${cid}:${a.id}`]||Object.hasOwn(touched,`${cid}:${a.id}`))||filter==="selected"&&!!choices[`${cid}:${a.id}`]));
+          return <section key={cid} className="rule-card"><h3 className="canvas-course-heading">{unit||c.course.code}</h3>
             <p className="hint">{c.course.name} · {c.course.term||"Term not provided"} · checked {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney</p>
             {c.marksPageUnavailable&&<p className="notice">Marks-page check unavailable. Compare this course with Canvas before selecting grades.</p>}
-            <label>Canvas course → your unit<select aria-label={`Unit for ${c.course.code}`} value={unit} onChange={e=>{
+            <details open={!unit}><summary>Semester unit: {unit||"Choose your unit"} · change</summary><label>Canvas course → your unit<select aria-label={`Unit for ${c.course.code}`} value={unit} onChange={e=>{
               setUndoStack([]);setTouched({});setUnits({...units,[cid]:e.target.value});setChoices(old=>Object.fromEntries(Object.entries(old).filter(([,v])=>v.courseId!==cid)));
               changed();
-            }}><option value="">Choose unit…</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select></label>
+            }}><option value="">Choose unit…</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select></label></details>
             {unit&&<>
               <CanvasCourseMatching key={`${cid}:${unit}`} semester={semester} bundle={bundle} course={c} unit={unit} rows={rows} targets={targets} choices={choices} actions={preview?.actions||[]} touched={touched} onSelect={(id,target)=>select(cid,id,target)} onStage={items=>{
                 checkpoint();setTouched(old=>({...old,...Object.fromEntries(items.map(i=>[`${cid}:${i.assignmentId}`,choices[`${cid}:${i.assignmentId}`]]))}));
                 changed();setError("");setChoices(old=>({...old,...Object.fromEntries(items.map(i=>[`${cid}:${i.assignmentId}`,i]))}));
-                setSelectionNotice(`${items.length} individual links staged. Review before saving; use Undo to reverse.`);
+                setSelectionNotice(`${items.length} connections staged. Review before saving; use Undo to reverse.`);
               }}/>
 
             </>}
-          </details>;
+          </section>;
         })}
         {preview?.error&&<p role="alert" className="notice error">{preview.error}</p>}
         {filter==="unmatched"&&!updates?.unmatched.length&&<p role="status">All items have a selected match. Nothing saved yet — review the proposed changes below.</p>}

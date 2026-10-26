@@ -71,6 +71,16 @@ const ambiguous=structuredClone(b);ambiguous.courses[0].assignments[1].name=ambi
 assert.equal(Object.keys(suggestCanvasMatches(exact,ambiguous).choices).length,0,"many-to-one exact title guesses all skipped");
 assert.equal(validCanvasMetadata({...updated.semester,canvasImports:[{...updated.semester.canvasImports![0],lastGrade:{earned:11,possible:10}}]}),false);
 console.log("PASS: remembered/exact matching, ambiguity, source-owned grade updates, stale files, legacy/manual protection and ungraded-to-released transitions.");
+const extended=structuredClone(applied.semester);
+extended.tasks[0]={...extended.tasks[0],date:"2026-10-31",time:"23:59",description:"My approved extension",timing:"Saturday extension"};
+const extensionBefore=JSON.stringify(extended);
+const extensionPreview=planCanvasImport(extended,newer,[choices[0]]);
+assert.equal(extensionPreview.semester.tasks[0].grade?.earned,9);
+const {grade:oldGrade,...beforeFields}=extended.tasks[0];
+const {grade:newGrade,...afterFields}=extensionPreview.semester.tasks[0];
+assert.deepEqual(afterFields,beforeFields,"fresh Canvas grade cannot revert a manual deadline extension or other task fields");
+assert.equal(JSON.stringify(extended),extensionBefore,"preview itself never mutates the extended task");
+assert.deepEqual(planCanvasImport(extended,readCanvasBundle(JSON.stringify(newer)),[choices[0]]),extensionPreview,"JSON and direct checks preserve the same deadline extension");
 
 // Connect 0.2.2 preserves pass/fail as text with no fabricated numeric score.
 // Format 1 readers accept extra source facts but never turn Complete into 100%.

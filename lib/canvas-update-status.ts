@@ -1,5 +1,5 @@
 import type {Semester} from "./semester";
-import {canvasKey,type CanvasBundle,type CanvasChoice} from "./canvas-import";
+import {canvasGrade,canvasKey,canvasResultLabel,type CanvasBundle,type CanvasChoice} from "./canvas-import";
 
 export type CanvasActionKind="grade"|"protected"|"attention"|"mapping"|"added"|"unchanged"|"summary";
 export type CanvasAction={key:string;text:string;changed:boolean;kind?:CanvasActionKind};
@@ -25,7 +25,7 @@ export function canvasUpdateStatus(s:Semester,b:CanvasBundle,choices:CanvasChoic
   const selected=new Set(choices.map(c=>`${c.courseId}:${c.assignmentId}`));
   const records=new Set(s.canvasImports?.map(r=>r.key));
   const unmatched=b.courses.flatMap(c=>c.assignments.filter(a=>!selected.has(`${c.course.id}:${a.id}`)).map(a=>({
-    key:`${c.course.id}:${a.id}`,name:a.name,course:c.course.code,isNew:!records.has(canvasKey(b,c.course.id,a.id)),
+    key:`${c.course.id}:${a.id}`,name:a.name,course:c.course.code,result:canvasResultLabel(a),isNew:!records.has(canvasKey(b,c.course.id,a.id)),hasResult:!!canvasGrade(a)||!!a.result&&!a.omitted&&!a.submission?.excused,
   })));
   return {
     grades:actions.filter(a=>a.kind==="grade"),
@@ -34,5 +34,9 @@ export function canvasUpdateStatus(s:Semester,b:CanvasBundle,choices:CanvasChoic
     otherChanges:actions.filter(a=>a.changed&&a.kind!=="grade"&&a.kind!=="protected"),
     unchanged:actions.filter(a=>!a.changed&&!["protected","attention","summary"].includes(a.kind||"")),
     unmatched,
+    // An unlinked item is not necessarily new or actionable. Only released
+    // results need a destination in the daily update flow; the rest is setup.
+    resultsToConnect:unmatched.filter(a=>a.isNew&&a.hasResult),
+    optionalLinks:unmatched.filter(a=>!a.isNew||!a.hasResult),
   };
 }

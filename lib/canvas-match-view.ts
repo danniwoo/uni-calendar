@@ -9,9 +9,11 @@ export function canvasMatchSections(course:CanvasCourse,rows:CanvasAssignment[],
   return ids.map(id=>{
     const group=course.groups.find(g=>g.id===id),items=rows.filter(a=>a.groupId===id);
     const selected=items.flatMap(a=>{const c=choices[`${course.course.id}:${a.id}`];return c?[c]:[];});
-    const destinationIds=items.map(a=>choices[`${course.course.id}:${a.id}`]?.targetId||records.find(r=>r.key.endsWith(`:${course.course.id}:${a.id}`))?.targetId);
+    const contextItems=course.assignments.filter(a=>a.groupId===id);
+    const linked=contextItems.flatMap(a=>{const r=records.find(r=>r.key.endsWith(`:${course.course.id}:${a.id}`));return r?[{source:a,record:r,target:targets.find(t=>t.id===r.targetId)}]:[];});
+    const destinationIds=contextItems.map(a=>choices[`${course.course.id}:${a.id}`]?.targetId||records.find(r=>r.key.endsWith(`:${course.course.id}:${a.id}`))?.targetId);
     const destinations=[...new Set(destinationIds)].flatMap(id=>{const t=targets.find(t=>t.id===id);return t?[t]:[];});
-    return {id:id||"ungrouped",name:group?.name||"Canvas group not provided",weight:group?.weight,items,destinations,selectedCount:selected.length};
+    return {id:id||"ungrouped",name:group?.name||"Other Canvas items",weight:group?.weight,items,destinations,linked,selectedCount:selected.length};
   });
 }
 

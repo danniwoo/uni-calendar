@@ -34,7 +34,10 @@ assert.equal(canvasMatchStatus(choice,prior,{key:prior.key,changed:false,kind:"p
 assert.equal(canvasMatchStatus(choice,prior,{key:prior.key,changed:true,kind:"grade",text:"updated"}),"Linked · new result");
 assert.equal(canvasTargetLabel(root),"Design report · 6%");
 const orphan={...c.assignments[0],id:"99",groupId:"999"};
-assert.equal(canvasMatchSections(c,[orphan],{},[])[0].name,"Canvas group not provided");
+assert.equal(canvasMatchSections(c,[orphan],{},[])[0].name,"Other Canvas items");
+const filtered=canvasMatchSections(c,[c.assignments[2]],{},board.tasks,applied.semester.canvasImports)[0];
+assert.equal(filtered.destinations.length,2,"filtering unconnected items retains the group's existing destinations");
+assert.equal(filtered.linked.length,2,"confirmed links remain available as context without duplicate editable rows");
 const ungrouped={...orphan,groupId:null};
 assert.equal(canvasMatchSections(c,[ungrouped],{},[])[0].items.length,1);
 const unlinked=structuredClone(board);unlinked.tasks[3].title="Design scope report";

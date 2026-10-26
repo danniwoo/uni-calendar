@@ -15,6 +15,16 @@ assert.equal(status.grades.length,1);assert.match(status.grades[0].text,/7\/10 â
 assert.equal(status.protected.length,2);assert.equal(status.unmatched.length,5);
 assert.equal(status.otherChanges.length,0);assert.equal(status.unchanged.length,1);
 assert.ok(status.unmatched.some(a=>a.name==="New activity"&&a.isNew));
+assert.equal(status.resultsToConnect.length,0,"ungraded backlog is not a daily grade decision");
+assert.equal(status.optionalLinks.length,5);
+const incoming=structuredClone(newer);
+incoming.courses[0].assignments[2].submission={released:true,score:6,excused:false,releaseEvidence:"marks-page",currentAttemptGraded:true};
+incoming.courses[0].assignments[1].result="complete";
+incoming.courses[1].assignments[1].result="complete";
+incoming.courses[1].assignments[1].omitted=true;
+const resultStatus=canvasUpdateStatus(board,incoming,choices,plan.actions);
+assert.deepEqual(resultStatus.resultsToConnect.map(a=>a.key),["101:2","101:3"],"numeric and text results need destinations; excluded items do not");
+assert.equal(canvasUpdateStatus(first.semester,newer,[],[]).resultsToConnect.some(a=>a.key==="101:1"),false,"skipped saved link is not a new connection request");
 assert.equal(JSON.stringify(board),before,"preview never saves");
 assert.equal(plan.semester.tasks[2].grade,null);assert.equal(plan.semester.tasks[1].grade!.earned,8);
 assert.equal(canvasUpdateStatus(plan.semester,newer,choices,planCanvasImport(plan.semester,newer,choices).actions).grades.length,0);

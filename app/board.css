@@ -1472,6 +1472,29 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-staged{color:#2855cf;font-size:13px;font-weight:600}
 .canvas-unmatched>summary{font-weight:500}
 .canvas-source-group{margin:20px 0;border:1px solid var(--line,#dbe3f0);border-radius:12px;overflow:hidden;background:var(--surface,#fff)}
+.canvas-course-nav{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0}
+.canvas-course-nav button[aria-pressed="true"]{background:#2854cb;color:white;border-color:#2854cb}
+.canvas-link-tools,.canvas-selection-bar,.canvas-connection-editor header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.canvas-link-tools p{margin:12px 0}
+.canvas-selection-bar{position:sticky;top:0;z-index:2;background:#eef3ff;padding:12px;border:1px solid #a7b9ed;border-radius:10px}
+.canvas-connection-editor{margin:16px 0;padding:20px;border:2px solid #8aa5ed;border-radius:12px;background:#fff;scroll-margin-top:20px}
+.canvas-connection-editor header h3{margin:0 0 12px}
+.canvas-connection-editor>label{display:block;margin:16px 0}
+.canvas-value-comparison{display:grid;grid-template-columns:1fr 1fr;gap:20px;padding:16px;background:#f4f7fc;border-radius:8px;margin:16px 0}
+.canvas-value-comparison strong{display:block;margin-top:4px}
+.canvas-placement{border:1px solid #dbe3f0;border-radius:8px;padding:12px;margin:16px 0}
+.canvas-placement label{display:flex;align-items:center;gap:10px;margin:10px 0}
+.canvas-placement input{appearance:auto;width:18px;height:18px;flex-shrink:0;margin:0}
+.canvas-compact-group{padding:12px 16px;background:#f4f7fc}
+.canvas-compact-group h4{margin:0 0 4px;font-size:15px}
+.canvas-compact-group details{font-size:12px;color:#64748b}
+.canvas-matching-workspace .canvas-import-table th:first-child{width:43%}
+.canvas-matching-workspace .canvas-import-table th:nth-child(2){width:18%}
+.canvas-matching-workspace .canvas-import-table th:nth-child(3){width:39%}
+.canvas-matching-workspace .canvas-import-table td{padding:12px 16px}
+.canvas-matching-workspace .canvas-import-table th{padding:10px 16px}
+.canvas-matching-workspace .canvas-import-table td>strong{font-size:14px;font-weight:500}
+.canvas-text-button{border:0!important;background:transparent!important;padding:4px 0!important;color:#2854cb;font-size:13px}
 .canvas-group-map{display:grid;grid-template-columns:1fr 28px 1fr;gap:14px;height:auto;min-height:100px;padding:18px 20px;background:#edf2fc;align-items:center}
 .canvas-group-map h4{margin:6px 0;font-size:16px;line-height:1.4}
 .canvas-group-map small{font-size:11px;letter-spacing:.04em;color:#536580;display:block}
