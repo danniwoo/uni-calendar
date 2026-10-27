@@ -10,6 +10,7 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 - Compact inline editor removes the duplicate destination selector and comparison; Cancel changes retains the staged proposal. Totals explain existing results and unlinked slots without implying missing submissions.
 - TypeScript, all Web regression scripts, SQL backup/storage and synthetic mixed/inline/onboarding/connection browser suites pass. Browser checks cover Complete + numeric updates, unchanged Complete, manual protection, skip/Undo, course-filter global counts, cancel with zero writes, JSON parity, in-memory save/reimport and compact editor height. Screenshots visually inspected. No live account APIs or user-data writes. Production publication recorded below once verified.
 - User waived the 30% stop for this turn only. Concurrent extension edits excluded; no migration, rule inference or manual-child-link repair. Real-user usability acceptance still pending.
+- Published 2026-10-27 Sydney as Sites version 54, source `8b75d393636202018cab233e4ae79e576fc9974b`, deployment `appgdep_6ae08eedc1d88191b78823610c530963` (succeeded). Production build and 50 base-extension tests passed from the isolated release checkout; custom audience preserved. Website-only release, no extension reload required.
 
 ### 0.14.2 implementation / continuation
 
