@@ -10,6 +10,7 @@ Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only
 - Protected no-ops move into collapsed context; changed link-only protection stays visible/countable. Match evidence and detailed receipts collapse; advanced editor is labelled placement/calculation. Cancel and Undo remain unsaved operations; totals recompute from the planner.
 - Verified TypeScript, all Web regression scripts, SQL backup/storage, mixed/inline/onboarding/connection browser suites and visual screenshots with invented data only. Added before/after, cap/no-increase, multiple-source parent, unknown/not-zero, equal-weight units, cancellation after rule selection and Undo-total assertions. No live account APIs/imports or real-data edits. Publication recorded after terminal success.
 - User explicitly renewed the 30% allowance-stop waiver for this turn only. Unrelated extension edits excluded. No new rule inference, manual-child link repair or persistent-data migration; real usability acceptance remains pending.
+- Published 2026-10-28 Sydney as Sites 55, source `e0ab2750e72fb7685b2219ccd9a0330b6b1734c4`, deployment `appgdep_6ae0c96528c88191937d757867d5b203` (succeeded). Production build and 50 base-extension tests passed from the isolated release checkout. Existing custom audience preserved; no live import or account-data write. Refresh the website; no extension reload needed.
 
 ### 0.14.3 implementation / continuation
 
