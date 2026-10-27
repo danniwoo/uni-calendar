@@ -136,7 +136,13 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
   for(const choice of choices){
     if(choice.rule)continue;
     const c=b.courses.find(c=>c.course.id===choice.courseId),a=c?.assignments.find(a=>a.id===choice.assignmentId);
-    if(!c||!a||!next.units.some(u=>u.code===choice.unit)||!["overall","part"].includes(choice.mode))throw new Error("Course or assessment mapping changed. Review again.");
+    if(!c||!a||!["overall","part"].includes(choice.mode))throw new Error("Course or assessment mapping changed. Review again.");
+    if(!next.units.some(u=>u.code===choice.unit)){
+      const codes=[...new Set(c.course.code.toUpperCase().match(/[A-Z]{4}\d{4}/g)||[])];
+      const term=c.course.term.match(/Semester\s*([12])\D+(20\d{2})/i);
+      if(choice.targetId!=="new"||codes.length!==1||codes[0]!==choice.unit||!term||Number(term[2])!==s.year||`S${term[1]}C`!==s.session)throw new Error("Choose an existing unit, or a single-code Canvas course in this board’s semester.");
+      next.units.push({code:choice.unit,name:c.course.name,session:s.session,outline:"",status:"Canvas results only",summary:"Assessment weights and teaching schedule not supplied by Canvas.",assessments:[],topics:[]});
+    }
     const key=canvasKey(b,c.course.id,a.id),prior=records.get(key),grade=canvasGrade(a);
     const newId=`canvas-${b.accountId}-${c.course.id}-${a.id}`;
     const targetId=choice.targetId==="new"?newId:choice.targetId;

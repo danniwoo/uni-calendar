@@ -4,6 +4,14 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.14.0 implementation / continuation
+
+- `canvas-prepare.ts` prepares a draft over the existing matcher/planner for both JSON and extension. Saved IDs win; eligible ordinary targets may be suggested using title/assignment label and supporting Sydney dates / explicit item-title percentages. Group weights and points possible are not item weights. Ties, competing sources, semantic role/number mismatches, retakes and recurring calculations do not become automatic overall links. No persistent write occurs during preparation.
+- Prepared first-use review replaces the legacy update branch. Ordinary proposals have Change/Skip/Undo and a single Import; stale-board identity is checked both here and in the board callback. Source batch stays frozen with an explicit newer-batch switch. Advanced rule review remains available, with its existing guards. Old exact matcher tests intentionally still exercise the conservative primitive; first-use policy tests exercise the new shared preparation layer.
+- Numeric results with no suitable destination can create deterministic Canvas-ID assessments with unknown weights; a missing unique same-semester unit can be created without inventing an outline or schedule. Same-board timetable refresh retains unit shells owning linked Canvas tasks. Different-feed/year/session boundaries remain unchanged. Import opens the grade list with grades visible, without opening an editor or clearing unread markers.
+- Tests: all Web regression scripts, SQL backup/storage check, TypeScript and 50 extension tests. New synthetic browser script checks 64 source items → 4 visible grades, no checkboxes, skip/Undo/cancel, one fake Import, grades visible after save, repeated import disabled, JSON, tentative link evidence, protected manual value, stale board and newer batch. Synthetic 64-readable-result case prepares all 64 distinct labelled targets. No real user export/grade fixture or live import.
+- Release packaging/publication pending at this checkpoint; Connect remains 0.4.0, schema 1 and sync v9. Real first-user usability remains an acceptance gate. Existing-child matching, saved-link repair, explicit manual-conflict acceptance and automatic background saves are not implemented by this increment.
+
 ### 0.13.0 implementation / continuation
 
 - Direct update-card matching reuses `CanvasCourseMatching` and the existing planner; it is not a second import path. Single simple destinations visibly default to overall only after the user chooses a target. Original cards remain after staging with Undo; Review returns to the originating screen. Batch mode hides competing per-row Connect/Skip actions.

@@ -9,6 +9,7 @@ import "../../app/globals.css";
 import "../../app/board.css";
 import {UpdatesQA} from "./updates";
 import {MatchingQA} from "./matching";
+import {OnboardingQA} from "./onboarding";
 const board=structuredClone(fixtureBoard),bundle=structuredClone(fixtureBundle);
 board.tasks=[{...board.tasks[2],id:"quiz",title:"Practice quiz"},{...board.tasks[2],id:"prep",title:"Preparation",weight:"4%"}];
 board.units=[{...board.units[2],assessments:board.tasks}];bundle.courses=[bundle.courses[2]];
@@ -23,4 +24,4 @@ function App(){const [s,setS]=useState(board),[open,setOpen]=useState(true),[wri
     {open&&<CanvasImport semester={s} onClose={()=>setOpen(false)} onApply={(b,c,expected)=>{if(s!==expected)throw new Error("Stale preview");setS(planCanvasImport(s,b,c).semester);setWrites(writes+1);}}/>}
   </main>;
 }
-createRoot(document.getElementById("root")!).render(location.search.includes("matching")?<MatchingQA/>:location.search.includes("updates")?<main style={{maxWidth:1100,margin:"20px auto",padding:24}}><UpdatesQA/></main>:<App/>);
+createRoot(document.getElementById("root")!).render(location.search.includes("onboarding")?<OnboardingQA/>:location.search.includes("matching")?<MatchingQA/>:location.search.includes("updates")?<main style={{maxWidth:1100,margin:"20px auto",padding:24}}><UpdatesQA/></main>:<App/>);

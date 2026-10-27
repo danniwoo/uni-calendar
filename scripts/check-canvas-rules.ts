@@ -86,7 +86,7 @@ assert.throws(()=>planCanvasImport(cp.semester,{...cb,accountId:"100"},compChoic
 const freshPrep=structuredClone(cb);freshPrep.courses[2].assignments.push({...structuredClone(cc.assignments[6]),id:"27",name:"Preparation 8"});
 const options=existingCanvasRuleChoices(cp.semester,freshPrep,cc.course.id,"ELEC2302");
 assert.equal(options.length,1);assert.deepEqual(options[0].rule,completion);
-assert.equal(defaultCanvasStage(cp.semester,freshPrep),"updates");assert.equal(defaultCanvasStage(board,freshPrep),"match");
+assert.equal(defaultCanvasStage(cp.semester,freshPrep),"prepared");assert.equal(defaultCanvasStage(board,freshPrep),"prepared","new and returning users both see prepared results first");
 assert.equal(existingCanvasRuleChoices(cp.semester,{...freshPrep,accountId:"100"},cc.course.id,"ELEC2302").length,0);
 assert.equal(existingCanvasRuleChoices(cp.semester,freshPrep,cc.course.id,"SOFT2412").length,0);
 const auto=Object.values(suggestCanvasMatches(cp.semester,freshPrep).choices);

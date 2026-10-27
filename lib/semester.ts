@@ -223,6 +223,10 @@ export function mergeSemester(
   fresh.canvasAccountId = old.canvasAccountId;
   fresh.canvasImports = old.canvasImports;
   fresh.canvasHistory = old.canvasHistory;
+  // Canvas-only courses may not occur in the refreshed timetable. Keep the
+  // unit shell for retained, linked results so their grades stay discoverable.
+  fresh.units.push(...old.units.filter(u=>!fresh.units.some(v=>v.code===u.code)&&
+    old.canvasImports?.some(r=>old.tasks.some(t=>t.id===r.targetId&&t.unit===u.code))));
   const map = new Map(old.tasks.map((t) => [t.id, t]));
   fresh.tasks = fresh.tasks.map((t) => {
     const prev = map.get(t.id);

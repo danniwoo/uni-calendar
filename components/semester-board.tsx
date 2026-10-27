@@ -118,6 +118,7 @@ export default function SemesterBoard() {
     [canvasImport,setCanvasImport] = useState(false),
     [canvasHistory,setCanvasHistory] = useState(false),
     [focusGrade,setFocusGrade] = useState<{id:string;request:number}>(),
+    [importedGradeView,setImportedGradeView] = useState(0),
     [canvasRaw,setCanvasRaw] = useState<string|undefined>(),
     [detail, setDetail] = useState<Detail | null>(null),
     [subject, setSubject] = useState<{code:string;taskId?:string}|null>(null),
@@ -786,7 +787,7 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} focusGrade={focusGrade} onHistory={()=>setCanvasHistory(true)} onGradeSeen={id=>{const s=current.current;if(!s||saveError||conflict)return;const next=markCanvasGradeSeen(s,id);if(next!==s)commit(next);}} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment} onGrade={(id,grade,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGrade(s,id,grade,expected));}} onGradePlan={(id,plan,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGradePlan(s,id,plan,expected));}}/></div>
+          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} focusGrade={focusGrade} importedGradeView={importedGradeView} onHistory={()=>setCanvasHistory(true)} onGradeSeen={id=>{const s=current.current;if(!s||saveError||conflict)return;const next=markCanvasGradeSeen(s,id);if(next!==s)commit(next);}} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment} onGrade={(id,grade,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGrade(s,id,grade,expected));}} onGradePlan={(id,plan,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGradePlan(s,id,plan,expected));}}/></div>
           {view==="assessments" ? null : view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} focusItem={calendarFocus} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>
@@ -1061,14 +1062,14 @@ export default function SemesterBoard() {
       )}
       <Sheet open={canvasHistory} onOpenChange={setCanvasHistory}><SheetContent className="detail-panel canvas-import-panel"><SheetHeader><SheetTitle>Canvas update history</SheetTitle><SheetDescription>Confirmed changes, separate from pending previews.</SheetDescription></SheetHeader>{semester&&<CanvasHistory semester={semester} onOpenGrade={id=>{setCanvasHistory(false);setSettings(false);chooseView("assessments");setFocusGrade({id,request:Date.now()});}}/>}</SheetContent></Sheet>
       <Sheet open={canvasImport} onOpenChange={setCanvasImport}>
-        <SheetContent className="detail-panel canvas-import-panel"><SheetHeader><SheetTitle>Review Canvas import</SheetTitle><SheetDescription>Match existing assessments, review grade changes, then confirm. Nothing is saved before confirmation.</SheetDescription></SheetHeader>
+        <SheetContent className="detail-panel canvas-import-panel"><SheetHeader><SheetTitle>Import from Canvas</SheetTitle><SheetDescription>Prepared for you. Change a suggestion if needed, then Import to save.</SheetDescription></SheetHeader>
           {semester&&canvasImport&&<CanvasImport initialRaw={canvasRaw} semester={semester} onClose={()=>setCanvasImport(false)} onApply={(bundle,choices,expected)=>{
             const s=current.current;
             if(!s||s!==expected||busy||saving.current||pending.current||saveError||conflict)throw new Error("The board changed or has unsaved edits. Finish saving, then review the import again.");
             const result=confirmCanvasImport(s,bundle,choices,crypto.randomUUID());
             if(!result.changed)throw new Error("No new changes to import.");
-            commit(result.semester);chooseView("assessments");setSettings(false);
-            setNotice(`${result.changed} Canvas changes added locally; check the save status. Existing data was kept. Imported individual grades need a calculation review before counting as final.`);
+            commit(result.semester);setFocusGrade(undefined);setImportedGradeView(Date.now());chooseView("assessments");setSettings(false);
+            setNotice(`${result.changed} Canvas changes imported; check the save status. Your manual data was kept. Future checks remember these connections.`);
           }}/>}
         </SheetContent>
       </Sheet>

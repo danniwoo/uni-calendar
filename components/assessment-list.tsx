@@ -7,18 +7,21 @@ import { AssessmentGrades } from "@/components/assessment-grades";
 import {activityLabel} from "@/lib/assessment-activity";
 import { assessmentRows, assessmentListDate, assessmentListWeight, assessmentDateContext, assessmentDateSections, assessmentDateMatches, assessmentStepLabel, assessmentOverviewSchedule, isRecurringAssessment, defaultAssessmentFilters, type AssessmentDisplay, type AssessmentFilters, type AssessmentSort } from "@/lib/assessment-list";
 
-export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade,onGradePlan,onGradeSeen,focusGrade,onHistory}:{
+export function AssessmentList({semester,today,unit,compact=false,onOpen,onToggle,onAdd,onGrade,onGradePlan,onGradeSeen,focusGrade,onHistory,importedGradeView}:{
   semester:Semester; today:string; unit?:string; compact?:boolean;
   onOpen:(task:Task)=>void; onToggle:(task:Task)=>void; onAdd?:(unit?:string)=>void;
   onGrade?:(id:string,grade:Grade|null,expected:Grade|null|undefined)=>void;
   onGradePlan?:(id:string,plan:GradePlan,expected:GradePlan|null|undefined)=>void;
   onGradeSeen?:(id:string)=>void;
-  focusGrade?:{id:string;request:number};onHistory?:()=>void;
+  focusGrade?:{id:string;request:number};onHistory?:()=>void;importedGradeView?:number;
 }) {
   const [filters,setFilters]=useState<AssessmentFilters>({...defaultAssessmentFilters,unit:unit||""});
   const [expanded,setExpanded]=useState<Set<string>>(new Set());
   const [display,setDisplay]=useState<AssessmentDisplay>("overview");
   const [showGrades,setShowGrades]=useState(false);
+  // Import lands on the results, not a table that hides grades by default.
+  // Merely showing the list does not mark any grade as read or change data.
+  useEffect(()=>{if(!importedGradeView)return;setFilters({...defaultAssessmentFilters,hideRecurring:false});setDisplay("overview");setShowGrades(true);},[importedGradeView]);
   useEffect(()=>{if(!focusGrade)return;const task=semester.tasks.find(t=>t.id===focusGrade.id)||semester.units.flatMap(u=>u.assessments).find(t=>t.id===focusGrade.id);if(!task)return;setFilters({...defaultAssessmentFilters,unit:task.unit,hideRecurring:false});setDisplay("overview");setShowGrades(true);},[focusGrade]);
   const overview=display==="overview";
   const grades=overview&&showGrades&&!!onGrade;

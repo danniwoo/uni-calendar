@@ -2,26 +2,29 @@
 import {useEffect,useMemo,useRef,useState} from "react";
 import type {Semester} from "@/lib/semester";
 import {CanvasCourseMatching} from "./canvas-course-matching";
+import {CanvasPrepared} from "./canvas-prepared";
+import {prepareCanvasImport} from "@/lib/canvas-prepare";
 import {ruleDescription} from "@/lib/canvas-rule-import";
-import {canvasUpdateStatus,canvasResultsHeadline,isNewerCanvasBatch,defaultCanvasStage,existingCanvasRuleChoices} from "@/lib/canvas-update-status";
+import {canvasUpdateStatus,isNewerCanvasBatch,defaultCanvasStage,existingCanvasRuleChoices} from "@/lib/canvas-update-status";
 import {canvasGrade,canvasTargets,planCanvasImport,readCanvasBundle,suggestCanvasMatches,type CanvasBundle,type CanvasChoice} from "@/lib/canvas-import";
 
 
 export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Semester;onApply:(b:CanvasBundle,c:CanvasChoice[],expected:Semester)=>void;onClose:()=>void;initialRaw?:string}){
   // Freeze the incoming snapshot for this review. Later checks never replace an
   // open review or tick its confirmation box. JSON and Connect use one parser.
-  const [initial]=useState(()=>{try{const b=initialRaw?readCanvasBundle(initialRaw):null;return {bundle:b,suggestions:b?suggestCanvasMatches(semester,b):null,error:""};}catch(e){return {bundle:null,suggestions:null,error:(e as Error).message};}});
+  const [initial]=useState(()=>{try{const b=initialRaw?readCanvasBundle(initialRaw):null;return {bundle:b,suggestions:b?prepareCanvasImport(semester,b):null,error:""};}catch(e){return {bundle:null,suggestions:null,error:(e as Error).message};}});
   const [bundle,setBundle]=useState<CanvasBundle|null>(initial.bundle),[units,setUnits]=useState<Record<string,string>>(initial.suggestions?.units||{}),[choices,setChoices]=useState<Record<string,CanvasChoice>>(initial.suggestions?.choices||{}),[confirmed,setConfirmed]=useState(false),[error,setError]=useState(initial.error);
-  const [reasons,setReasons]=useState<Record<string,string>>(initial.suggestions?.reasons||{}),[stage,setStage]=useState<"updates"|"match"|"review">(initial.bundle?defaultCanvasStage(semester,initial.bundle):"match");
+  const [reasons,setReasons]=useState<Record<string,string>>(initial.suggestions?.reasons||{}),[stage,setStage]=useState<"prepared"|"match"|"review">(initial.bundle?defaultCanvasStage(semester,initial.bundle):"match");
+  const [preparedSemester,setPreparedSemester]=useState(semester);
+  const prepared=useMemo(()=>bundle?prepareCanvasImport(preparedSemester,bundle):null,[preparedSemester,bundle]);
   const [query,setQuery]=useState(""),[filter,setFilter]=useState("all");
   const [activeCourse,setActiveCourse]=useState(initial.bundle?.courses[0]?.course.id||"");
   const [selectionNotice,setSelectionNotice]=useState("");
-  const [inlineKey,setInlineKey]=useState<string|null>(null),[newerBatch,setNewerBatch]=useState<CanvasBundle|null>(null),[replacePrompt,setReplacePrompt]=useState(false);
-  const [reviewOrigin,setReviewOrigin]=useState<"updates"|"match">("updates");
+  const [newerBatch,setNewerBatch]=useState<CanvasBundle|null>(null),[replacePrompt,setReplacePrompt]=useState(false);
   const [touched,setTouched]=useState<Record<string,CanvasChoice|undefined>>({});
   const [undoStack,setUndoStack]=useState<{choices:Record<string,CanvasChoice>;reasons:Record<string,string>}[]>([]);
   function checkpoint(){setUndoStack(old=>[...old,{choices,reasons}]);}
-  function undo(){const last=undoStack.at(-1);if(!last)return;changed();if(stage==="updates")setStage("updates");setInlineKey(null);setError("");setChoices(last.choices);setReasons(last.reasons);setUndoStack(old=>old.slice(0,-1));setSelectionNotice("Last selection undone. Nothing saved.");}
+  function undo(){const last=undoStack.at(-1);if(!last)return;changed();if(stage==="prepared")setStage(stage);setError("");setChoices(last.choices);setReasons(last.reasons);setUndoStack(old=>old.slice(0,-1));setSelectionNotice("Last selection undone. Nothing saved.");}
   const matchingRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(stage==="match"&&filter==="unmatched")matchingRef.current?.focus();},[stage,filter]);
   const [reviewedSemester,setReviewedSemester]=useState<Semester|null>(null);
@@ -35,16 +38,17 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
     window.addEventListener("message",receive);window.postMessage({type:"semester-connect-request-v1"},location.origin);
     return()=>window.removeEventListener("message",receive);
   },[bundle]);
-  function replaceBatch(){if(!newerBatch)return;const suggestions=suggestCanvasMatches(semester,newerBatch);setBundle(newerBatch);setUnits(suggestions.units);setChoices(suggestions.choices);setReasons(suggestions.reasons);setTouched({});setUndoStack([]);setInlineKey(null);setConfirmed(false);setReviewedSemester(null);setSelectionNotice("");setError("");setQuery("");setFilter("all");setActiveCourse(newerBatch.courses[0]?.course.id||"");setStage("updates");setNewerBatch(null);setReplacePrompt(false);}
+  function replaceBatch(){if(!newerBatch)return;const suggestions=prepareCanvasImport(semester,newerBatch);setPreparedSemester(semester);setBundle(newerBatch);setUnits(suggestions.units);setChoices(suggestions.choices);setReasons(suggestions.reasons);setTouched({});setUndoStack([]);setConfirmed(false);setReviewedSemester(null);setSelectionNotice("");setError("");setQuery("");setFilter("all");setActiveCourse(newerBatch.courses[0]?.course.id||"");setStage("prepared");setNewerBatch(null);setReplacePrompt(false);}
+  function refreshPrepared(){if(!bundle)return;const p=prepareCanvasImport(semester,bundle);setPreparedSemester(semester);setUnits(p.units);setChoices(p.choices);setReasons(p.reasons);setUndoStack([]);setTouched({});setError("");}
   const preview=useMemo(()=>{if(!bundle)return null;try{return {...planCanvasImport(semester,bundle,Object.values(choices)),error:""};}catch(e){return {actions:[],changed:0,error:(e as Error).message};}},[semester,bundle,choices]);
   const staleReview=stage==="review"&&reviewedSemester!==semester;
   function changed(){setConfirmed(false);setStage("match");setReviewedSemester(null);}
   async function load(file?:File){
     if(!file)return;
-    setError("");setSelectionNotice("");setTouched({});setUndoStack([]);setInlineKey(null);setNewerBatch(null);setReplacePrompt(false);setBundle(null);setChoices({});setUnits({});setReasons({});setQuery("");setFilter("all");changed();
+    setError("");setSelectionNotice("");setTouched({});setUndoStack([]);setNewerBatch(null);setReplacePrompt(false);setBundle(null);setChoices({});setUnits({});setReasons({});setQuery("");setFilter("all");changed();
     try{
       if(file.size>1500000)throw new Error("Maximum file size is 1.5 MB.");
-      const b=readCanvasBundle(await file.text()),suggestions=suggestCanvasMatches(semester,b);
+      const b=readCanvasBundle(await file.text()),suggestions=prepareCanvasImport(semester,b);setPreparedSemester(semester);
       setBundle(b);setActiveCourse(b.courses[0]?.course.id||"");setUnits(suggestions.units);setChoices(suggestions.choices);setReasons(suggestions.reasons);setStage(defaultCanvasStage(semester,b));
     }catch(e){setError((e as Error).message);}
   }
@@ -63,26 +67,18 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
   const selected=Object.values(choices),total=bundle?.courses.reduce((n,c)=>n+c.assignments.length,0)||0;
   const added=selected.filter(c=>c.targetId==="new").length;
   const updates=bundle?canvasUpdateStatus(semester,bundle,selected,preview?.actions||[]):null;
-  // Keep the original unresolved cards on screen after staging, with an Undo action.
-  const resultCards=bundle?canvasUpdateStatus(semester,bundle,Object.values(suggestCanvasMatches(semester,bundle).choices),[]).resultsToConnect:[];
-  function stageItems(items:CanvasChoice[],keepUpdates=false){
-    checkpoint();setTouched(old=>({...old,...Object.fromEntries(items.map(i=>[`${i.courseId}:${i.assignmentId}`,choices[`${i.courseId}:${i.assignmentId}`]]))}));
-    changed();if(keepUpdates)setStage("updates");setInlineKey(null);setError("");setChoices(old=>({...old,...Object.fromEntries(items.map(i=>[`${i.courseId}:${i.assignmentId}`,i]))}));
-    setSelectionNotice(`${items.length} ${items.length===1?"connection":"connections"} added to review. Nothing saved; you can undo before confirming.`);
-  }
   const ruleSummaries=preview?.actions.filter(a=>a.kind==="summary")||[];
   function manageConnections(nextFilter="unmatched",courseId?:string){changed();setFilter(nextFilter);setQuery("");if(courseId)setActiveCourse(courseId);}
-  function review(){setReviewOrigin(stage==="updates"?"updates":"match");setReviewedSemester(semester);setConfirmed(false);setError("");setStage("review");}
-  const unmatchedPanel=<details className="rule-card canvas-unmatched"><summary>Manage Canvas connections · optional</summary><p>Already connected assessments update without matching again. Other Canvas items may be old, ungraded or not needed in Semester; you do not need to connect everything.</p><button onClick={()=>manageConnections()}>Manage connections →</button></details>;
+  function review(){setReviewedSemester(semester);setConfirmed(false);setError("");setStage("review");}
   return <section className="canvas-import-review">
-    <h2>{stage==="updates"?"Canvas updates":stage==="match"?"Connect your assessments":"Review Canvas changes"}</h2>
-    {stage!=="updates"&&<nav className="canvas-import-stages" aria-label="Import steps">
+    {stage!=="prepared"&&<h2>{stage==="match"?"Connect your assessments":"Review Canvas changes"}</h2>}
+    {stage!=="prepared"&&<nav className="canvas-import-stages" aria-label="Import steps">
       <button aria-current={stage!=="review"?"step":undefined} onClick={changed}>1 · Choose connections</button>
       <span aria-hidden="true">→</span>
       <span aria-current={stage==="review"?"step":undefined}>2 · Review &amp; confirm</span>
     </nav>}
-    <p>{stage==="updates"?"Only changes in this batch. Nothing is saved until you review and confirm.":"Match a Canvas item to an assessment you already have. Nothing is saved until you confirm the changes in step 2."}</p>
-    {stage!=="updates"&&<p className="notice">Existing names, dates, weights, notes and completion stay unchanged. Manual or cleared grades are protected. Only unchanged Canvas-imported grades can update.</p>}
+    {stage!=="prepared"&&<p>Manage connections and calculation rules. Nothing is saved until you import.</p>}
+    {stage!=="prepared"&&<p className="notice">Existing names, dates, weights, notes and completion stay unchanged. Manual or cleared grades are protected. Only unchanged Canvas-imported grades can update.</p>}
     {stage==="match"&&<details open={!bundle}><summary>JSON import · testing / manual fallback</summary><label className="restore-backup">Choose a Connect export<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label></details>}
     {error&&<p className="notice error" role="alert">{error}</p>}
     {bundle&&<>
@@ -91,25 +87,11 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
       {updates&&!preview?.error&&<>
         {updates.attention.length>0&&<section className="rule-card"><h3>Rules / source changes need review</h3><ul>{updates.attention.map(a=><li key={a.key}>{a.text}</li>)}</ul><p>These changes will not be applied.</p></section>}
       </>}
-      {stage==="updates"?<>
-        <section className="canvas-update-heading"><h3>{canvasResultsHeadline(updates?.grades.length||0,updates?.resultsToConnect.length||0)}</h3><p>{updates?.resultsToConnect.length?"Choose the assessment for each unconnected result below. Confirmed connections are reused.":updates?.grades.length?"Review the changes below, then confirm when ready.":"Connected results are unchanged. Ungraded items do not need attention."}</p></section>
-        {!!updates?.grades.length&&<section className="rule-card"><h3>Ready for review</h3><ul>{updates.grades.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
-        {resultCards.map(a=>{
-          const [cid,aid]=a.key.split(":"),c=bundle.courses.find(c=>c.course.id===cid)!,source=c.assignments.find(s=>s.id===aid)!,unit=units[cid]||"",targets=canvasTargets(semester,unit),choice=choices[a.key],target=targets.find(t=>t.id===choice?.targetId);
-          return <section className="rule-card canvas-result-card" key={a.key} aria-label={`Canvas result ${a.name}`}><header><div><small>{unit||a.course}</small><h3>{a.name}</h3><strong>{a.result}</strong></div>{choice?<span className="canvas-staged">Added to review · not saved</span>:<span>Choose an assessment</span>}</header>
-            {choice?<><p>→ {target?.title||"New assessment"}{target?.weight?` · ${target.weight}`:""}</p><button onClick={()=>{select(cid,aid,"");setStage("updates");}}>Undo connection</button></>:inlineKey===a.key&&unit?<CanvasCourseMatching key={a.key} inlineSourceId={aid} onCancel={()=>setInlineKey(null)} semester={semester} bundle={bundle} course={c} unit={unit} rows={[source]} targets={targets} choices={choices} actions={preview?.actions||[]} touched={touched} onSelect={(id,target)=>{select(cid,id,target);setStage("updates");setInlineKey(null);}} onStage={items=>stageItems(items,true)}/>:<button onClick={()=>unit?setInlineKey(a.key):manageConnections("results",cid)}>Choose assessment…</button>}
-          </section>;
-        })}
-        {selectionNotice&&<p className="notice" role="status">{selectionNotice}</p>}
-        {unmatchedPanel}
-        {!!updates?.protected.length&&<details className="rule-card"><summary>{updates.protected.length} manual entries protected · no overwrite</summary><ul>{updates.protected.map(a=><li key={a.key}>{a.text}</li>)}</ul><p>Kept exactly as you entered them; not overwritten.</p></details>}
-        {!!updates?.otherChanges.length&&<section className="rule-card"><h3>Other proposed changes · review required</h3><ul>{updates.otherChanges.map(a=><li key={a.key}>{a.text}</li>)}</ul></section>}
-        <details className="rule-card"><summary>{updates?.unchanged.length||0} unchanged / no new result · source details</summary><ul>{updates?.unchanged.map(a=><li key={a.key}>{a.text}</li>)}</ul>{bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · checked {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks-page check unavailable — compare with Canvas":""}</p>)}<button onClick={()=>{changed();setFilter("all");}}>Inspect all matches / calculation rules</button></details>
-        <details className="rule-card"><summary>JSON fallback &amp; import safeguards</summary><p className="hint">Manual grades, names, dates, weights, notes and completion stay unchanged. Nothing is saved until confirmation. Keep a JSON export to review this pending batch later.</p><label>Choose another file<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label></details>
-        {preview?.error&&<p role="alert" className="notice error">{preview.error}</p>}
-        <div className="canvas-import-footer">{undoStack.length>0&&<button onClick={undo}>Undo last selection</button>}<button onClick={onClose}>Close · save nothing</button>{!!preview?.changed&&<button className="primary" disabled={!!preview.error||!!inlineKey} onClick={review}>Review {preview.changed} {preview.changed===1?"change":"changes"} →</button>}</div>
+      {stage==="prepared"&&prepared?<>
+        <CanvasPrepared semester={semester} bundle={bundle} prepared={{...prepared,units}} choices={choices} actions={preview?.actions||[]} changed={preview?.changed||0} error={preview?.error} stale={preparedSemester!==semester} onRefresh={refreshPrepared} onSelect={(cid,aid,target)=>{select(cid,aid,target);setStage("prepared");}} onManage={manageConnections} onUndo={undo} canUndo={undoStack.length>0} onClose={onClose} onImport={()=>{try{if(preparedSemester!==semester)throw new Error("Your board changed. Refresh suggestions first.");onApply(bundle,Object.values(choices),preparedSemester);onClose();}catch(e){setError((e as Error).message);}}}/>
+        <details><summary>Use a JSON export instead</summary><label>Choose a Connect export<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label></details>
       </>:stage==="match"?<>
-        <div ref={matchingRef} tabIndex={-1}><button onClick={()=>{setConfirmed(false);setStage("updates");}}>← Back to update summary</button></div>
+        <div ref={matchingRef} tabIndex={-1}><button onClick={()=>{setConfirmed(false);setStage("prepared");}}>← Back to prepared import</button></div>
         {selectionNotice&&<p className="notice" role="status">{selectionNotice}</p>}
         {undoStack.length>0&&<button onClick={undo}>Undo last selection</button>}
         <p className="hint">{preview?.changed||0} proposed changes · confirmed connections are reused. Nothing is saved yet.</p>
@@ -157,7 +139,7 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
         {added>0&&<p className="notice">New assessments have unknown weights. Set them after importing; Canvas group weight is not an individual item’s weight.</p>}
         {selected.some(c=>c.mode==="part")&&<p className="notice">Unknown results remain unresolved. See each rule summary for whether its result is settled or still in progress. Ordinary points/equal groups need a full-list review after import. Calendar completion is unchanged.</p>}
         <label className="canvas-confirm"><input type="checkbox" checked={confirmed&&!staleReview} disabled={staleReview||!!preview?.error} onChange={e=>setConfirmed(e.target.checked)}/>I checked the account, semester, unit and assessment matches, and any retake / individual-grade rules.</label>
-        <div className="canvas-import-footer"><button onClick={()=>{changed();setStage(reviewOrigin);}}>← Back to {reviewOrigin==="updates"?"updates":"matching"}</button><button onClick={onClose}>Cancel</button>
+        <div className="canvas-import-footer"><button onClick={changed}>← Back to matching</button><button onClick={onClose}>Cancel</button>
           <button className="primary" disabled={!confirmed||staleReview||!preview?.changed||!!preview?.error} onClick={()=>{try{onApply(bundle,Object.values(choices),reviewedSemester!);onClose();}catch(e){setError((e as Error).message);setConfirmed(false);}}}>Confirm {preview?.changed||0} {preview?.changed===1?"change":"changes"}</button>
         </div>
       </>}

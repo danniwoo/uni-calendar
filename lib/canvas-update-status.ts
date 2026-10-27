@@ -18,7 +18,7 @@ export function existingCanvasRuleChoices(s:Semester,b:CanvasBundle,courseId:str
     return [{target:t,rule:r.rule!}];
   });
 }
-export const defaultCanvasStage=(s:Semester,b:CanvasBundle)=>s.canvasAccountId===b.accountId&&!!s.canvasImports?.length?"updates" as const:"match" as const;
+export const defaultCanvasStage=(_s:Semester,_b:CanvasBundle)=>"prepared" as const;
 
 // A newer export timestamp alone is not evidence that any course was refreshed.
 // Never offer a different account, missing course or older course over a review.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.14.0 — 2026-10-27
+
+- First and returning imports now open a prepared-results list. Reuse saved IDs, prefill tentative matches from assignment labels, similar titles and supporting dates/explicit item percentages, or prepare a new assessment for an otherwise unmatched released numeric grade. Show evidence, destination weight and current/incoming values; Change, Skip and Undo remain available. Competing candidates and source collisions never silently share an overall grade.
+- One Import action saves the visible ordinary proposals: no per-row acceptance, second confirmation screen or checkbox. Ambiguous results can wait without blocking ready grades. Ungraded backlog is collapsed; advanced weekly/retake calculations still require explicit rules. JSON and extension checks use the same preparation and planner.
+- Missing single-code courses in the same semester may be added with raw results and unknown weights. Group weights and points possible never become individual weights. Preserve these linked course shells during same-board timetable refresh; different-board isolation is unchanged.
+- Import lands on the assessment list with grades visible. Protect manual values/clears, personal deadlines, concurrent edits, frozen batches and source-ID persistence. New synthetic checks cover a 64-item first-use batch, 64 separately suggested grades, single-click fake imports, skip/undo/cancel, JSON, reimport and new-batch switching.
+- No live imports or manual-data changes. Exact existing-manual-child linking, correcting saved overall links and explicit manual-conflict replacement remain separate work; raw results do not imply a calculated final unit grade.
+
 ## 0.13.0 — 2026-10-27
 
 - Connect a newly available result directly inside its update card, with weighted destination suggestions, current/incoming comparison, stable staging and Undo. Ordinary assessments visibly default to an overall result only after choosing a destination; recurring/individual setups still need explicit placement.

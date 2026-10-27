@@ -1533,5 +1533,29 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-batch-details summary{cursor:pointer}
 .canvas-update-heading h3{margin:8px 0;font-size:22px}
 .canvas-update-heading p{margin:8px 0 20px}
+.canvas-prepared{display:grid;gap:18px}
+.canvas-ready-heading{padding:8px 0 12px}
+.canvas-eyebrow{font-size:11px;letter-spacing:.09em;color:#3859a6;font-weight:700}
+.canvas-ready-heading h3{font-size:28px;line-height:1.25;margin:8px 0 10px}
+.canvas-ready-heading p{margin:0;color:#526581}
+.canvas-ready-stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px}
+.canvas-ready-stats span{padding:4px 10px;border-radius:20px;background:#edf2fb;color:#41577b;font-size:12px}
+.canvas-ready-course{border:1px solid #dce3ef;border-radius:12px;overflow:hidden;background:#fff}
+.canvas-ready-course h4{margin:0;padding:16px 20px;background:#f5f7fc;font-size:16px;color:#244dc2}
+.canvas-ready-course h4 small{display:inline;margin-left:12px;font-weight:400}
+.canvas-ready-columns,.canvas-ready-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:24px;padding:16px 20px;border-top:1px solid #e4e9f1}
+.canvas-ready-columns{font-size:12px;color:#64748b;padding-top:8px;padding-bottom:8px}
+.canvas-ready-row>div{min-width:0;overflow-wrap:anywhere}
+.canvas-ready-row a{font-weight:550;color:#2854cd}
+.canvas-ready-row small{display:block;color:#64748b;font-size:12px;margin-top:6px}
+.canvas-ready-grade{display:block;font-size:20px;margin:8px 0 4px;color:#1e314e}
+.canvas-ready-row .canvas-match-reason{color:#4965a2}
+.canvas-ready-row .canvas-grade-delta{margin:8px 0;color:#425a78;font-size:13px}
+.canvas-protected-comparison{background:#fff7e8;border-radius:6px;padding:10px;color:#775320;font-size:13px}
+.canvas-change-match{margin-top:10px;font-size:13px}
+.canvas-change-match label{margin:12px 0}
+.canvas-ready-row.is-skipped{background:#fafbfd}
+.canvas-prepared .canvas-import-footer{align-items:center}
+.canvas-prepared .canvas-import-footer>span{margin-right:auto;color:#60718c;font-size:12px}
 .canvas-newer-batch{border-left:4px solid #2856cf}
 .canvas-newer-batch button{margin-right:10px}
