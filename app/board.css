@@ -1562,6 +1562,7 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-ready-columns,.canvas-ready-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:24px;padding:16px 20px;border-top:1px solid #e4e9f1}
 .canvas-ready-columns{font-size:12px;color:#64748b;padding-top:8px;padding-bottom:8px}
 .canvas-ready-row>div{min-width:0;overflow-wrap:anywhere}
+.canvas-ready-row>.canvas-inline-placement{grid-column:1/-1}
 .canvas-ready-row a{font-weight:550;color:#2854cd}
 .canvas-ready-row small{display:block;color:#64748b;font-size:12px;margin-top:6px}
 .canvas-ready-grade{display:block;font-size:20px;margin:8px 0 4px;color:#1e314e}

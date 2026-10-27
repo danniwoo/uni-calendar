@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.2 — 2026-10-27
+
+- “Only part of an assessment?” opens the existing rule/placement editor inside the selected result card, retaining its proposed assessment. It no longer jumps to an entire course. Cancel keeps the proposal; staging stays in the prepared list with Undo. Import is disabled while an inline connection is unfinished.
+- Show individual-result changes without presenting them as the parent assessment's overall grade. The advanced review leads with actual changes; unchanged, protected and total-selection counts expand on demand. The saving button explicitly says Import.
+- Reuse the same JSON/direct planner and manual/drop-rule safeguards. No rule guessing, live import or migration of existing links. Synthetic browser coverage includes cancel/focus, stage/Undo, explicit in-memory child import and repeat no-op; real usability acceptance remains pending.
+
 ## 0.14.1 — 2026-10-27
 
 - Keep a compact Canvas entry visible without an extension response, with explicit connection steps, retry feedback and JSON fallback. Empty previews and inactive checks no longer remove the entry. Ready-result counts and check/review buttons stay visible; diagnostics and per-course read times expand on demand.

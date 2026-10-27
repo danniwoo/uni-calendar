@@ -9,12 +9,12 @@ import {ruleDescription} from "@/lib/canvas-rule-import";
 
 const result=(t?:Task)=>t?.grade?`${t.grade.earned} / ${t.grade.possible}`:t?.grade===null?"Manually cleared":t?.gradePlan?"Individual results recorded":"No recorded grade";
 
-export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,choices,actions,touched,onSelect,onStage,inlineSourceId,onCancel}:{
+export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,choices,actions,touched,onSelect,onStage,inlineSourceId,onCancel,initialTargetId,initialPlacement,stageLabel}:{
   semester:Semester;bundle:CanvasBundle;course:CanvasCourse;unit:string;rows:CanvasAssignment[];targets:Task[];choices:Record<string,CanvasChoice>;actions:CanvasAction[];touched:Record<string,CanvasChoice|undefined>;
   onSelect:(id:string,target:string)=>void;onStage:(items:CanvasChoice[])=>void;
-  inlineSourceId?:string;onCancel?:()=>void;
+  inlineSourceId?:string;onCancel?:()=>void;initialTargetId?:string;initialPlacement?:"parts";stageLabel?:string;
 }){
-  const [checked,setChecked]=useState<string[]>(inlineSourceId?[inlineSourceId]:[]),[editing,setEditing]=useState(!!inlineSourceId),[batch,setBatch]=useState(false),[target,setTarget]=useState(""),[placement,setPlacement]=useState(""),[method,setMethod]=useState("");
+  const [checked,setChecked]=useState<string[]>(inlineSourceId?[inlineSourceId]:[]),[editing,setEditing]=useState(!!inlineSourceId),[batch,setBatch]=useState(false),[target,setTarget]=useState(initialTargetId||""),[placement,setPlacement]=useState(initialPlacement||""),[method,setMethod]=useState("");
   const editorRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(editing)editorRef.current?.focus();},[editing]);
   const records=semester.canvasAccountId===bundle.accountId?semester.canvasImports||[]:[];
@@ -26,7 +26,7 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
   const sameGroup=sources.length>0&&sources.every(a=>a.groupId===sources[0].groupId);
   const block=sameGroup?canvasGroupBlock(course,sources[0].groupId||""):"These items belong to different Canvas groups. Check their rules before combining marks.";
   function reset(){setChecked([]);setEditing(false);setBatch(false);setTarget("");setPlacement("");setMethod("");onCancel?.();}
-  function chooseTarget(id:string){const t=targets.find(t=>t.id===id);setTarget(id);setPlacement(sources.length>1?"parts":t&&simpleCanvasDestination(t,semester.tasks)?"overall":"");setMethod("");}
+  function chooseTarget(id:string){const t=targets.find(t=>t.id===id);setTarget(id);setPlacement(initialPlacement|| (sources.length>1?"parts":t&&simpleCanvasDestination(t,semester.tasks)?"overall":""));setMethod("");}
   function open(ids:string[]){setChecked(ids);setTarget("");setPlacement("");setMethod("");setEditing(true);}
   function stage(items:CanvasChoice[]){onStage(items);reset();}
   const eligible=course.assignments.filter(a=>!records.some(r=>r.key===canvasKey(bundle,course.course.id,a.id))&&!choices[`${course.course.id}:${a.id}`]&&!a.omitted&&!a.submission?.excused);
@@ -55,13 +55,13 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
           {placement==="parts"&&(targetRecords.some(r=>r.mode==="overall")?<p role="alert" className="notice">This assessment already has a whole-result link. It cannot also receive weekly entries. Leave this unchanged until that link is reviewed; no existing link will be moved automatically.</p>:destination.gradePlan&&!targetRecords.some(r=>r.mode==="part")?<p className="notice">This assessment has manually created records. Linking directly to one of those records is not supported yet. They are kept unchanged; do not create a duplicate to work around this.</p>:<>
             <label>How are these records counted?<select aria-label={`Calculation for ${destination.title}`} value={method} onChange={e=>setMethod(e.target.value)}><option value="">Choose the assessment’s rule…</option><option value="points">Add marks together</option><option value="equal">Each record counts equally</option><option value="special">Best attempt or completion-based rule…</option></select></label>
             {block&&["points","equal"].includes(method)&&<p role="alert" className="notice">{block} You can leave these unconnected until the rule is known.</p>}
-            {method==="special"&&<CanvasRuleMapping key={target+checked.join(":")} course={course} unit={unit} targets={targets} fixedTarget={target} sourceIds={checked} onStage={stage}/>}
+            {method==="special"&&<CanvasRuleMapping key={target+checked.join(":")} course={course} unit={unit} targets={targets} fixedTarget={target} sourceIds={checked} onStage={stage} stageLabel={stageLabel?"Use this rule · not saved yet":undefined}/>}
           </>)}
         </>}
         {validation&&<p role="alert" className="notice error">{validation}</p>}
         {proposedActions.some(a=>a.kind==="protected")&&<p className="notice">Your existing value is kept. This does not accept or replace it with Canvas.</p>}
         {noApplicableChange&&<p className="notice">No link or result can be changed with this selection. Existing records are protected.</p>}
-        {method!=="special"&&<button className="primary" disabled={!proposed.length||!!validation||noApplicableChange} onClick={()=>stage(proposed)}>Add to review · not saved yet</button>}
+        {method!=="special"&&<button className="primary" disabled={!proposed.length||!!validation||noApplicableChange} onClick={()=>stage(proposed)}>{stageLabel||"Add to review · not saved yet"}</button>}
       </>}
     </div>}
     {!inlineSourceId&&sections.map(section=><section className="canvas-source-group" key={section.id} aria-label={`Canvas group ${section.name}`}>

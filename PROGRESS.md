@@ -4,6 +4,13 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.14.2 implementation / continuation
+
+- Prepared result cards host the shared `CanvasCourseMatching` editor for a single source; initial destination is retained, part placement is explicit, and calculation rules remain user-selected. Staging returns to the same card with Undo, cancel restores focus without changing the proposal, and Import stays disabled while editing. Source-batch switches remount the prepared state; stale-board protection remains unchanged.
+- Advanced review prioritizes actual changes and collapses selection counts/protected values. Save is labelled Import. Individual-source previews no longer imply replacing the parent's overall grade.
+- Uses synthetic localhost QA only; no live imports, user-data writes or extension changes. User waived the 30% usage stop for this turn; standing guard applies afterwards. Existing-child exact linking / saved overall-link repair remain unimplemented. Publication and completed verification are recorded below when confirmed.
+- Verification: TypeScript, all Web regression scripts and SQL storage checks pass. Synthetic inline browser checks cover one-card scope, retained target, explicit rules, cancel/focus, stage/Undo, drop-rule protection, stale-board refresh and newer-batch discard; explicit in-memory import saves exactly one child and repeating it is a no-op. First-use and compact connection/Manage browser suites also pass with no live API traffic.
+
 ### 0.14.1 implementation / continuation
 
 - Persistent compact Canvas entry distinguishes absent bridge response, inactive checks, connected empty preview, pending result and malformed preview. Same-window/origin validation stays intact. Connection instructions, bounded retry feedback, per-course timestamps and JSON fallback expand on demand. Check-all and review remain explicit; no consent or grade writes were added. Clearing a source preview does not hide the entry.

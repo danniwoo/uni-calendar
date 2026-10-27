@@ -5,7 +5,7 @@ import {canvasGrade,canvasResultLabel,type CanvasCourse,type CanvasChoice} from 
 import {validCanvasRule} from "@/lib/canvas-rule-import";
 import {canvasTargetLabel} from "@/lib/canvas-match-view";
 
-export function CanvasRuleMapping({course,unit,targets,onStage,sourceIds,fixedTarget}:{course:CanvasCourse;unit:string;targets:Task[];onStage:(choices:CanvasChoice[])=>void;sourceIds?:string[];fixedTarget?:string}) {
+export function CanvasRuleMapping({course,unit,targets,onStage,sourceIds,fixedTarget,stageLabel}:{course:CanvasCourse;unit:string;targets:Task[];onStage:(choices:CanvasChoice[])=>void;sourceIds?:string[];fixedTarget?:string;stageLabel?:string}) {
   const [target,setTarget]=useState(fixedTarget||""),[method,setMethod]=useState<CanvasRule["method"]>("highest"),[count,setCount]=useState(3),[best,setBest]=useState(8),[points,setPoints]=useState(.5);
   const [threshold,setThreshold]=useState(""),[maximum,setMaximum]=useState("20"),[query,setQuery]=useState(""),[selected,setSelected]=useState<Record<string,boolean>>({}),[outcomes,setOutcomes]=useState<Record<string,string>>({}),[ack,setAck]=useState(false),[staged,setStaged]=useState(false);
   const rule:CanvasRule={method,count,...(method==="completion"?{bestCount:best,completionPoints:points}:threshold!==""?{passMark:{earned:Number(threshold),possible:Number(maximum)}}:{})};
@@ -27,7 +27,7 @@ export function CanvasRuleMapping({course,unit,targets,onStage,sourceIds,fixedTa
     </div>)}
     {sourceIds&&rows.some(a=>!canvasGrade(a)&&a.result!=="complete")&&<details><summary>Optional: confirm a missing outcome</summary><p className="hint">Leave unconfirmed unless you know. A blank result is not zero.</p>{rows.filter(a=>!canvasGrade(a)&&a.result!=="complete").map(a=><label key={a.id}>{a.name}<select aria-label={`Outcome for ${a.name}`} value={outcomes[a.id]||""} onChange={e=>{setOutcomes({...outcomes,[a.id]:e.target.value});change();}}><option value="">Unconfirmed · not zero</option>{method==="highest"?<option value="not_taken">I confirm: not taken yet · no zero</option>:<option value="missed">I confirm: not submitted · counts as 0</option>}</select></label>)}</details>}
     <label className="canvas-confirm"><input type="checkbox" checked={ack} onChange={e=>setAck(e.target.checked)}/>I checked these source items, the target assessment and this calculation rule.</label>
-    <button disabled={!ack||!target||!ids.length||ids.length>count||!validCanvasRule(rule)} onClick={()=>{onStage(ids.map(assignmentId=>({courseId:course.course.id,assignmentId,unit,targetId:target,mode:"part",rule,...(outcomes[assignmentId]?{outcome:outcomes[assignmentId] as "missed"|"not_taken"}:{})})));setStaged(true);setAck(false);setSelected({});setOutcomes({});}}>Stage rule mapping for review</button>
+    <button disabled={!ack||!target||!ids.length||ids.length>count||!validCanvasRule(rule)} onClick={()=>{onStage(ids.map(assignmentId=>({courseId:course.course.id,assignmentId,unit,targetId:target,mode:"part",rule,...(outcomes[assignmentId]?{outcome:outcomes[assignmentId] as "missed"|"not_taken"}:{})})));setStaged(true);setAck(false);setSelected({});setOutcomes({});}}>{stageLabel||"Stage rule mapping for review"}</button>
     {staged&&<p role="status">Staged only — nothing saved. You can stage another assessment, then open Review selected items below.</p>}
   </details>;
 }

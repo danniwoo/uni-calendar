@@ -57,6 +57,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 **Canvas 四科 → 核對 → 配對匯入** · P0 · **待驗證** · Now
 
+- 0.14.2：依本次回饋，prepared 卡片中的「Only part of an assessment?」只展開當前項目，保留作業選擇；取消不改配對、stage 後可 Undo，編輯未完成不能 Import。Review 優先實際變更、收起全批選取總數。下一個試用：同一筆點開 → 取消／選規則 → Undo，是否不再迷失到整科清單；synthetic 通過不等同使用者驗收，發布狀態見 PROGRESS。
+
 - 2026-10-27 使用者／朋友回報：首次使用呈現 50+ 配對項目，看不到立即可用的成果。先前 returning-user UI 不足以處理此問題。
 - 0.14.0 已實作：JSON/direct 共用 prepared preview；預填有依據的暫定配對並可改／Skip／Undo，未找到相似對象的已公布數字成績可準備新增作業；缺少單一且同學期課程時新增 raw-results unit。預設不把未出分清單當待辦；普通匯入按一次 Import，已確認特殊規則仍重用，未知規則不猜。成功後直接打開 Show grades。
 - 證據：新增 64 項／4 已出分與 64 已出分自動建議 synthetic cases，JSON parity、ID 重用、重複零變更、備份／refresh 保留課程、手動日期／分數／清空保護、browser Import／改錯／撤回／取消／新批次／stale guard。未匯入真實資料。
