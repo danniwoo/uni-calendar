@@ -1,0 +1,38 @@
+import assert from "node:assert/strict";
+import {mixedUpdatesFixture} from "./fixtures/canvas-mixed-updates";
+import {planCanvasImport,readCanvasBundle,type CanvasChoice} from "../lib/canvas-import";
+import {prepareCanvasImport} from "../lib/canvas-prepare";
+import {preparedCanvasView} from "../lib/canvas-prepared-view";
+const {board,bundle,raw}=mixedUpdatesFixture(),before=JSON.stringify(board);
+const prepared=prepareCanvasImport(board,bundle),choices=prepared.choices;
+const plan=planCanvasImport(board,bundle,Object.values(choices));
+const view=preparedCanvasView(board,bundle,choices,plan.actions,plan.actions);
+assert.equal(plan.changed,2);assert.equal(view.total,2);assert.equal(view.results,2);
+assert.equal(view.useful.filter(r=>r.action?.changed).length,2);
+assert(view.useful.some(r=>r.a.name==="Preparation 1"&&r.action?.kind==="grade"));
+assert(!view.useful.some(r=>r.a.name==="Preparation 2"),"unchanged Complete is not another update");
+assert(view.useful.some(r=>r.a.name==="Preparation 3"&&r.action?.kind==="protected"));
+assert.equal(view.extraChanges.length,0);
+const skip={...choices};delete skip["103:1"];
+const skippedPlan=planCanvasImport(board,bundle,Object.values(skip));
+const skipped=preparedCanvasView(board,bundle,skip,skippedPlan.actions,plan.actions);
+assert.equal(skipped.total,1);assert(skipped.useful.some(r=>r.a.name==="Preparation 1"&&!r.choice),"skipped Complete stays visible");
+const repeated=planCanvasImport(plan.semester,bundle,Object.values(prepareCanvasImport(plan.semester,bundle).choices));
+assert.equal(repeated.changed,0);
+const parsed=readCanvasBundle(raw),parsedPlan=planCanvasImport(board,parsed,Object.values(prepareCanvasImport(board,parsed).choices));
+assert.deepEqual(parsedPlan.semester,plan.semester,"JSON/direct use identical text results");
+assert.equal(JSON.stringify(board),before);
+// Include link-only mutations, including when a manual grade is protected.
+const manual=structuredClone(board);manual.tasks[0].grade={earned:4,possible:20};
+const mp=prepareCanvasImport(manual,bundle),mplan=planCanvasImport(manual,bundle,Object.values(mp.choices));
+const mv=preparedCanvasView(manual,bundle,mp.choices,mplan.actions,mplan.actions);
+assert.equal(mv.total,mplan.changed);assert.equal(mv.results,1);assert.equal(mv.connections,1);
+assert(mv.useful.some(r=>r.action?.changed&&r.action.kind==="protected"));
+const unknown=structuredClone(bundle);unknown.courses[1].assignments=[{...bundle.courses[0].assignments[0],name:"Pending result",submission:{...bundle.courses[0].assignments[0].submission!,score:null,released:false}}];
+const links:Record<string,CanvasChoice>={...choices,"102:1":{courseId:"102",assignmentId:"1",unit:"SOFT2412",targetId:"root-1",mode:"overall"}};
+const lp=planCanvasImport(board,unknown,Object.values(links));const lv=preparedCanvasView(board,unknown,links,lp.actions,[]);
+assert.equal(lv.total,3);assert.equal(lv.connections,1);assert(lv.useful.some(r=>r.a.name==="Pending result"));
+// Summaries and protected no-ops never increase the import count.
+assert.equal(view.total,plan.actions.filter(a=>a.changed).length);
+assert(plan.actions.some(a=>a.kind==="summary"&&!a.changed));
+console.log("PASS prepared updates: numeric + Complete, stable skip/Undo context, unchanged/protected excluded from counts, link-only included, JSON parity, repeat no-op and immutable board.");

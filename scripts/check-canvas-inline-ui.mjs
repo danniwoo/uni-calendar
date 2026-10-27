@@ -19,18 +19,21 @@ async function openPart(){
 }
 try{
   await page.goto(base);
-  await shown(page.getByRole("heading",{name:"4 grades ready to import"}));
+  await shown(page.getByRole("heading",{name:"4 updates ready to import"}));
   await openPart();
   assert.equal(await page.getByLabel("Find a Canvas item").count(),0,"no jump to all-course manager");
   assert.equal(await page.getByRole("article").count(),4,"only prepared cards remain");
   assert.equal(await row().getByLabel("Destination assessment ISYS2120").inputValue(),"root-0","keep current destination");
+  assert.equal(await row().getByLabel("Destination for Assignment 1",{exact:true}).count(),0,"no duplicate destination control");
+  assert.equal(await row().locator(".canvas-value-comparison").count(),0,"do not repeat the source comparison");
+  assert((await row().getByLabel("Review connection").boundingBox()).height<460,"compact simple editor fits on desktop");
   assert(await row().getByRole("radio",{name:"One week, attempt or part within this assessment"}).isChecked());
-  assert(await page.getByRole("button",{name:"Import 4 grades",exact:true}).isDisabled(),"do not import old choice while editing");
+  assert(await page.getByRole("button",{name:"Import 4 updates",exact:true}).isDisabled(),"do not import old choice while editing");
   assert(await row().getByRole("button",{name:"Use this connection · not saved yet"}).isDisabled(),"do not guess calculation");
   await page.screenshot({path:"/private/tmp/semester-inline-part.png",fullPage:true});
-  await row().getByRole("button",{name:"Cancel connection",exact:true}).click();
+  await row().getByRole("button",{name:"Cancel changes",exact:true}).click();
   await page.waitForFunction(()=>document.activeElement?.textContent==="Only part of an assessment?");
-  assert(await page.getByRole("button",{name:"Import 4 grades",exact:true}).isEnabled());
+  assert(await page.getByRole("button",{name:"Import 4 updates",exact:true}).isEnabled());
   await shown(page.getByText("Test writes: 0",{exact:true}));
   await openPart();
   await row().getByLabel("Calculation for A1: Data model assignment").selectOption("equal");
@@ -44,9 +47,9 @@ try{
   await row().getByLabel("Calculation for A1: Data model assignment").selectOption("special");
   await shown(row().getByLabel("Special rule ISYS2120"));
   assert(await row().getByRole("button",{name:"Use this rule · not saved yet"}).isDisabled(),"explicit rule acknowledgement required");
-  await row().getByRole("button",{name:"Cancel connection",exact:true}).click();
+  await row().getByRole("button",{name:"Cancel changes",exact:true}).click();
   // The full manager is still explicit, and review counts changes, not selections.
-  await page.getByText("Unchanged / no numeric result (60) · no action needed",{exact:true}).click();
+  await page.getByText("Unchanged / not included (60) · no action needed",{exact:true}).click();
   await page.getByRole("button",{name:"Manage all connections & rules"}).click();
   await page.getByRole("button",{name:/^Review \d+ changes/}).click();
   await shown(page.getByText("4 changes will be saved when you click Import. Everything else stays unchanged.",{exact:true}));
@@ -68,7 +71,7 @@ try{
   await shown(row().getByText(/This group has drop rules/));
   assert(await row().getByRole("button",{name:"Use this connection · not saved yet"}).isDisabled());
   await page.getByRole("button",{name:"Simulate concurrent edit"}).click();
-  assert(await page.getByRole("button",{name:"Import 4 grades",exact:true}).isDisabled());
+  assert(await page.getByRole("button",{name:"Import 4 updates",exact:true}).isDisabled());
   await page.getByRole("button",{name:"Refresh suggestions"}).click();
   assert.equal(await row().getByLabel("Review connection").count(),0,"refresh discards editor draft explicitly");
   await shown(page.getByText("Test writes: 0",{exact:true}));
@@ -77,7 +80,7 @@ try{
   await openPart();
   await row().getByLabel("Calculation for A1: Data model assignment").selectOption("equal");
   await row().getByRole("button",{name:"Use this connection · not saved yet"}).click();
-  await page.getByRole("button",{name:"Import 4 grades",exact:true}).click();
+  await page.getByRole("button",{name:"Import 4 updates",exact:true}).click();
   await shown(page.getByText("Test writes: 1",{exact:true}));
   await shown(page.getByText("Saved individual records: 1",{exact:true}));
   await page.getByRole("button",{name:"Reopen import"}).click();

@@ -17,6 +17,7 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
   const [reasons,setReasons]=useState<Record<string,string>>(initial.suggestions?.reasons||{}),[stage,setStage]=useState<"prepared"|"match"|"review">(initial.bundle?defaultCanvasStage(semester,initial.bundle):"match");
   const [preparedSemester,setPreparedSemester]=useState(semester);
   const prepared=useMemo(()=>bundle?prepareCanvasImport(preparedSemester,bundle):null,[preparedSemester,bundle]);
+  const baselineActions=useMemo(()=>{try{return bundle&&prepared?planCanvasImport(preparedSemester,bundle,Object.values(prepared.choices)).actions:[];}catch{return [];}},[preparedSemester,bundle,prepared]);
   const [query,setQuery]=useState(""),[filter,setFilter]=useState("all");
   const [activeCourse,setActiveCourse]=useState(initial.bundle?.courses[0]?.course.id||"");
   const [selectionNotice,setSelectionNotice]=useState("");
@@ -94,7 +95,7 @@ export function CanvasImport({semester,onApply,onClose,initialRaw}:{semester:Sem
         {updates.attention.length>0&&<section className="rule-card"><h3>Rules / source changes need review</h3><ul>{updates.attention.map(a=><li key={a.key}>{a.text}</li>)}</ul><p>These changes will not be applied.</p></section>}
       </>}
       {stage==="prepared"&&prepared?<>
-        <CanvasPrepared key={batchKey} semester={semester} bundle={bundle} prepared={{...prepared,units}} choices={choices} actions={preview?.actions||[]} changed={preview?.changed||0} error={preview?.error} stale={preparedSemester!==semester} onRefresh={refreshPrepared} onSelect={(cid,aid,target)=>{select(cid,aid,target);setStage("prepared");}} onStage={items=>stageConnections(items,"prepared")} onManage={manageConnections} onUndo={undo} canUndo={undoStack.length>0} onClose={onClose} onImport={()=>{try{if(preparedSemester!==semester)throw new Error("Your board changed. Refresh suggestions first.");onApply(bundle,Object.values(choices),preparedSemester);onClose();}catch(e){setError((e as Error).message);}}}/>
+        <CanvasPrepared key={batchKey} semester={semester} bundle={bundle} prepared={{...prepared,units}} choices={choices} actions={preview?.actions||[]} baselineActions={baselineActions} changed={preview?.changed||0} error={preview?.error} stale={preparedSemester!==semester} onRefresh={refreshPrepared} onSelect={(cid,aid,target)=>{select(cid,aid,target);setStage("prepared");}} onStage={items=>stageConnections(items,"prepared")} onManage={manageConnections} onUndo={undo} canUndo={undoStack.length>0} onClose={onClose} onImport={()=>{try{if(preparedSemester!==semester)throw new Error("Your board changed. Refresh suggestions first.");onApply(bundle,Object.values(choices),preparedSemester);onClose();}catch(e){setError((e as Error).message);}}}/>
         <details><summary>Use a JSON export instead</summary><label>Choose a Connect export<input aria-label="Choose Connect import file" type="file" accept=".json,application/json" onChange={e=>{void load(e.target.files?.[0]);e.target.value="";}}/></label></details>
       </>:stage==="match"?<>
         <div ref={matchingRef} tabIndex={-1}><button onClick={()=>{setConfirmed(false);setStage("prepared");}}>← Back to prepared import</button></div>

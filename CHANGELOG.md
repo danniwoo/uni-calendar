@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.3 — 2026-10-27
+
+- List every actual planned update, including Complete results under saved completion rules. Import counts all saved changes, with separate result, new-assessment and connection-only totals; unchanged/protected values are not reported as grade updates. Skipped Complete rows stay visible for Undo.
+- Shorten inline result settings to one assessment selector and remove the repeated comparison. Cancel changes preserves the prior draft. Explain that calculated totals include existing results and unlinked slots are not confirmed missed submissions.
+- Synthetic mixed-result and browser regressions cover counts, skip/Undo, cancel, course filters, manual protection, JSON parity and repeat no-op. No live imports, manual-data edits or calculation-rule changes.
+
 ## 0.14.2 — 2026-10-27
 
 - “Only part of an assessment?” opens the existing rule/placement editor inside the selected result card, retaining its proposed assessment. It no longer jumps to an entire course. Cancel keeps the proposal; staging stays in the prepared list with Undo. Import is disabled while an inline connection is unfinished.

@@ -4,6 +4,13 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.14.3 implementation / continuation
+
+- Prepared visibility/counts now derive from the import planner, including nonnumeric Complete updates under existing confirmed rules. Baseline changes retain skipped rows. Import counts every changed action, with disjoint result/new-assessment/connection-only breakdowns and a fallback for actions without a source row; manual protection remains unchanged.
+- Compact inline editor removes the duplicate destination selector and comparison; Cancel changes retains the staged proposal. Totals explain existing results and unlinked slots without implying missing submissions.
+- TypeScript, all Web regression scripts, SQL backup/storage and synthetic mixed/inline/onboarding/connection browser suites pass. Browser checks cover Complete + numeric updates, unchanged Complete, manual protection, skip/Undo, course-filter global counts, cancel with zero writes, JSON parity, in-memory save/reimport and compact editor height. Screenshots visually inspected. No live account APIs or user-data writes. Production publication recorded below once verified.
+- User waived the 30% stop for this turn only. Concurrent extension edits excluded; no migration, rule inference or manual-child-link repair. Real-user usability acceptance still pending.
+
 ### 0.14.2 implementation / continuation
 
 - Prepared result cards host the shared `CanvasCourseMatching` editor for a single source; initial destination is retained, part placement is explicit, and calculation rules remain user-selected. Staging returns to the same card with Undo, cancel restores focus without changing the proposal, and Import stays disabled while editing. Source-batch switches remount the prepared state; stale-board protection remains unchanged.
