@@ -14,7 +14,7 @@ const shown=async locator=>locator.waitFor({state:"visible"});
 async function openPart(){
   const details=row().locator(".canvas-change-match");
   if(!await details.evaluate(e=>e.open))await details.locator("summary").click();
-  await row().getByRole("button",{name:"Only part of an assessment?"}).click();
+  await row().getByRole("button",{name:"Advanced: weekly items / retakes"}).click();
   await shown(row().getByLabel("Review connection"));
 }
 try{
@@ -32,17 +32,25 @@ try{
   assert(await row().getByRole("button",{name:"Use this connection · not saved yet"}).isDisabled(),"do not guess calculation");
   await page.screenshot({path:"/private/tmp/semester-inline-part.png",fullPage:true});
   await row().getByRole("button",{name:"Cancel changes",exact:true}).click();
-  await page.waitForFunction(()=>document.activeElement?.textContent==="Only part of an assessment?");
+  await page.waitForFunction(()=>document.activeElement?.textContent==="Advanced: weekly items / retakes");
   assert(await page.getByRole("button",{name:"Import 4 updates",exact:true}).isEnabled());
   await shown(page.getByText("Test writes: 0",{exact:true}));
   await openPart();
   await row().getByLabel("Calculation for A1: Data model assignment").selectOption("equal");
+  await row().getByRole("button",{name:"Cancel changes",exact:true}).click();
+  await shown(row().getByText("Grade update",{exact:true}));
+  assert.equal(await page.getByRole("region",{name:"Total for A1: Data model assignment"}).count(),0,"cancel discards changed rule without staging a total");
+  await shown(page.getByText("Test writes: 0",{exact:true}));
+  await openPart();
+  await row().getByLabel("Calculation for A1: Data model assignment").selectOption("equal");
   await row().getByRole("button",{name:"Use this connection · not saved yet"}).click();
-  await shown(row().getByText(/Individual result ·/));
+  await shown(row().getByText("Individual result",{exact:true}));
+  await shown(page.getByRole("region",{name:"Total for A1: Data model assignment"}).getByText("60%",{exact:true}));
   assert.equal(await row().getByLabel("Review connection").count(),0,"staging closes local editor");
   await shown(page.getByText("Test writes: 0",{exact:true}));
   await page.getByRole("button",{name:"Undo last change",exact:true}).click();
-  assert.equal(await row().getByText(/Individual result ·/).count(),0,"undo restores overall proposal");
+  assert.equal(await row().getByText("Individual result",{exact:true}).count(),0,"undo restores overall proposal");
+  assert.equal(await page.getByRole("region",{name:"Total for A1: Data model assignment"}).count(),0,"Undo removes staged child total");
   await openPart();
   await row().getByLabel("Calculation for A1: Data model assignment").selectOption("special");
   await shown(row().getByLabel("Special rule ISYS2120"));

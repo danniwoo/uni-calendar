@@ -11,7 +11,7 @@ assert.equal(plan.changed,2);assert.equal(view.total,2);assert.equal(view.result
 assert.equal(view.useful.filter(r=>r.action?.changed).length,2);
 assert(view.useful.some(r=>r.a.name==="Preparation 1"&&r.action?.kind==="grade"));
 assert(!view.useful.some(r=>r.a.name==="Preparation 2"),"unchanged Complete is not another update");
-assert(view.useful.some(r=>r.a.name==="Preparation 3"&&r.action?.kind==="protected"));
+assert(!view.useful.some(r=>r.a.name==="Preparation 3"),"protected no-op belongs in collapsed context");
 assert.equal(view.extraChanges.length,0);
 const skip={...choices};delete skip["103:1"];
 const skippedPlan=planCanvasImport(board,bundle,Object.values(skip));

@@ -12,7 +12,7 @@ export function preparedCanvasView(s:Semester,b:CanvasBundle,choices:Record<stri
     const sourceKey=canvasKey(b,c.course.id,a.id),key=`${c.course.id}:${a.id}`;
     return {c,a,key,sourceKey,choice:choices[key],prior:records.get(sourceKey),action:byKey.get(sourceKey)};
   }));
-  const useful=rows.filter(r=>r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind==="protected"||r.action?.kind==="attention"||!r.prior&&!!canvasGrade(r.a));
+  const useful=rows.filter(r=>r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind==="attention"||r.action?.kind!=="protected"&&!r.prior&&!!canvasGrade(r.a));
   const changed=actions.filter(a=>a.changed);
   const visibleKeys=new Set(useful.map(r=>r.sourceKey));
   return {rows,useful,total:changed.length,

@@ -39,6 +39,7 @@ try{
   await shown(page.getByRole("heading",{name:"You’re up to date"}));
   await page.goto(base+"&existing");
   await shown(page.getByRole("heading",{name:"4 updates ready to import"}));
+  await page.getByText("Why this match?",{exact:true}).first().click();
   await shown(page.getByText("Suggested · Assignment 1",{exact:true}));
   await page.screenshot({path:"/private/tmp/semester-0.14.0-prepared.png",fullPage:true});
   await page.getByRole("button",{name:"Simulate concurrent edit"}).click();
@@ -48,10 +49,10 @@ try{
   const newer=structuredClone(onboardingBundle);newer.exportedAt="2026-10-26T00:00:00Z";newer.courses.forEach(c=>c.fetchedAt=newer.exportedAt);newer.courses[0].assignments[0].submission.score=19;
   await page.evaluate(raw=>window.postMessage({type:"semester-connect-inbox-v1",inbox:{raw}},location.origin),JSON.stringify(newer));
   await shown(page.getByText("A newer Canvas check is available",{exact:true}));
-  await shown(page.getByText("12 / 20",{exact:true}));
+  await shown(page.locator(".canvas-ready-grade").filter({hasText:"12 / 20"}));
   await page.getByRole("button",{name:"View newer check…"}).click();
   await page.getByRole("button",{name:"Discard draft & open newer batch"}).click();
-  await shown(page.getByText("19 / 20",{exact:true}));
+  await shown(page.locator(".canvas-ready-grade").filter({hasText:"19 / 20"}));
   await page.goto(base+"&manual");
   await shown(page.getByRole("heading",{name:"4 updates ready to import"}));
   await shown(page.getByText("3 new assessments · 1 connection only",{exact:true}));

@@ -1,8 +1,15 @@
 # Engineering handoff
 
-Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
+
+### 0.14.4 implementation / continuation
+
+- `canvas-preview-impact.ts` reads the unchanged board and planned next board, never parses receipt text. Individual status changes are distinct from completion points. Each parts assessment has one before/after total and batch delta; equal/weighted/best use percentages, completion uses explicit completion-point units, missing results remain unknown, and cap results may have no increase. Existing calculation functions are reused unchanged.
+- Protected no-ops move into collapsed context; changed link-only protection stays visible/countable. Match evidence and detailed receipts collapse; advanced editor is labelled placement/calculation. Cancel and Undo remain unsaved operations; totals recompute from the planner.
+- Verified TypeScript, all Web regression scripts, SQL backup/storage, mixed/inline/onboarding/connection browser suites and visual screenshots with invented data only. Added before/after, cap/no-increase, multiple-source parent, unknown/not-zero, equal-weight units, cancellation after rule selection and Undo-total assertions. No live account APIs/imports or real-data edits. Publication recorded after terminal success.
+- User explicitly renewed the 30% allowance-stop waiver for this turn only. Unrelated extension edits excluded. No new rule inference, manual-child link repair or persistent-data migration; real usability acceptance remains pending.
 
 ### 0.14.3 implementation / continuation
 

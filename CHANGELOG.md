@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.4 — 2026-10-28
+
+- Lead Canvas updates with actual before → after values. Complete remains a source status; completion points appear separately in one parent-total comparison with the whole batch's increase, no-change-at-cap and in-progress state.
+- Collapse matching evidence, calculation details and protected no-op entries. Advanced placement/rule editing stays behind Change match; existing Cancel changes and Undo preserve the draft and recalculate totals.
+- Pure snapshot-derived presentation only: no import math, saved rules, persistence or manual-data policy changes. Synthetic regression/browser coverage includes unknowns, cap, multi-source totals, equal weighting, cancel, Undo, JSON and repeat imports.
+
 ## 0.14.3 — 2026-10-27
 
 - List every actual planned update, including Complete results under saved completion rules. Import counts all saved changes, with separate result, new-assessment and connection-only totals; unchanged/protected values are not reported as grade updates. Skipped Complete rows stay visible for Undo.
