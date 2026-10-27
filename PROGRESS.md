@@ -10,6 +10,7 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 - Advanced review prioritizes actual changes and collapses selection counts/protected values. Save is labelled Import. Individual-source previews no longer imply replacing the parent's overall grade.
 - Uses synthetic localhost QA only; no live imports, user-data writes or extension changes. User waived the 30% usage stop for this turn; standing guard applies afterwards. Existing-child exact linking / saved overall-link repair remain unimplemented. Publication and completed verification are recorded below when confirmed.
 - Verification: TypeScript, all Web regression scripts and SQL storage checks pass. Synthetic inline browser checks cover one-card scope, retained target, explicit rules, cancel/focus, stage/Undo, drop-rule protection, stale-board refresh and newer-batch discard; explicit in-memory import saves exactly one child and repeating it is a no-op. First-use and compact connection/Manage browser suites also pass with no live API traffic.
+- Published 2026-10-27 Sydney as Sites version 53, source `1b7f72930396e7bdb92266bad5b46fc8c0b488f5`, deployment `appgdep_6ae07cd7c3a4819183b758a77569d7c6` (succeeded). Production build and 50 base-extension tests pass from the isolated release checkout. Existing custom audience preserved; concurrent extension changes excluded. User usability acceptance remains pending.
 
 ### 0.14.1 implementation / continuation
 
