@@ -97,6 +97,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 **Reload → 待確認更新** · P0 · **待驗證** · Now
 
+- 2026-10-27／Web 0.14.1：使用者要求 Connect 沒連上也保留入口與連接步驟，Manage 不再整頁攤開。已實作固定精簡狀態列、展開說明／Retry／JSON、收起課表／備份／舊學期；synthetic 畫面與保護回歸通過，發布中。未動真實資料、未更動 extension 連接授權。下一步：使用者重讀課程後回到網站，入口仍可找到且能自行重新連接；不把本機模擬當實機驗收。
+
 - 已做：Web 0.8.0 分清新結果、未配對、手動資料保護、規則需核對；Connect 0.3.0 加入固定兩站 optional permission、選科/account 綁定、單科 reload checks、session pending preview、固定站點 bridge。JSON 入口保留。
 - 邊界：每科每分鐘最多一次，只在選定課程頁完整載入時檢查，沒有 timer polling。權限撤回／關閉／帳戶錯誤清理 preview；登入失效與失敗有提示。未配對不新增，未知不是零，絕不自動確認或回寫 Canvas。
 - 證據：reader／mocked lifecycle/security tests、TypeScript、web regression、production build；synthetic web UI 驗證 JSON 和 pending banner 共用 preview、並行更新不替換已開預覽、stale review 停用、取消零寫入、只確認一項假成績時手動值／清空保留。

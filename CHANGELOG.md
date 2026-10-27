@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1 — 2026-10-27
+
+- Keep a compact Canvas entry visible without an extension response, with explicit connection steps, retry feedback and JSON fallback. Empty previews and inactive checks no longer remove the entry. Ready-result counts and check/review buttons stay visible; diagnostics and per-course read times expand on demand.
+- Replace the oversized existing-board Manage hero with collapsed timetable, backup and previous-board sections. First-time timetable setup stays open. No grade, mapping, deadline, consent or persistence logic changed.
+- Synthetic full-board browser checks cover missing/disabled/empty/invalid connection states, retry, preview cancellation, Manage sections, 1024px desktop layout and empty-board setup, with account API traffic blocked. This does not claim a real extension reconnect or user acceptance.
+
 ## 0.14.0 — 2026-10-27
 
 - First and returning imports now open a prepared-results list. Reuse saved IDs, prefill tentative matches from assignment labels, similar titles and supporting dates/explicit item percentages, or prepare a new assessment for an otherwise unmatched released numeric grade. Show evidence, destination weight and current/incoming values; Change, Skip and Undo remain available. Competing candidates and source collisions never silently share an overall grade.

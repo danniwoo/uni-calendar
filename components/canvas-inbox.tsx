@@ -6,14 +6,16 @@ import {prepareCanvasImport} from "@/lib/canvas-prepare";
 import {canvasUpdateStatus,canvasResultsHeadline} from "@/lib/canvas-update-status";
 
 type Inbox={enabled:boolean;raw:string|null;message:string;canCheckAll:boolean;checking:boolean;courseCount:number};
-export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;onReview:(raw:string)=>void;reviewOpen:boolean}) {
-  const [inbox,setInbox]=useState<Inbox|null>(null),[dismissed,setDismissed]=useState<string|null>(null);
+export function CanvasInbox({semester,onReview,reviewOpen,onImportFile}:{semester:Semester;onReview:(raw:string)=>void;reviewOpen:boolean;onImportFile?:()=>void}) {
+  const [inbox,setInbox]=useState<Inbox|null>(null),[details,setDetails]=useState(false),[retrying,setRetrying]=useState(false),[retried,setRetried]=useState(false);
+  useEffect(()=>{if(!retrying)return;const timer=setTimeout(()=>setRetrying(false),2000);return()=>clearTimeout(timer);},[retrying]);
   useEffect(()=>{
     const receive=(e:MessageEvent)=>{
       if(e.source!==window||e.origin!==location.origin||e.data?.type!=="semester-connect-inbox-v1")return;
       const value=e.data.inbox;
       if(!value||typeof value.enabled!=="boolean"||typeof value.message!=="string"||value.message.length>500||!(value.raw===null||typeof value.raw==="string"&&value.raw.length<=1500000))return;
       setInbox({enabled:value.enabled,raw:value.raw,message:value.message,canCheckAll:value.canCheckAll===true,checking:value.checking===true,courseCount:Number.isInteger(value.courseCount)&&value.courseCount>0&&value.courseCount<=8?value.courseCount:0});
+      setRetrying(false);setRetried(false);
     };
     const request=()=>window.postMessage({type:"semester-connect-request-v1"},location.origin);
     window.addEventListener("message",receive);window.addEventListener("focus",request);request();
@@ -26,16 +28,28 @@ export function CanvasInbox({semester,onReview,reviewOpen}:{semester:Semester;on
       return {bundle,status:canvasUpdateStatus(semester,bundle,choices,plan.actions),error:""};
     } catch(e){return {error:(e as Error).message};}
   },[inbox,semester]);
-  // No connected extension is a normal state: the existing JSON entry remains.
-  if(!inbox)return null;
-  if(dismissed===(inbox.raw||inbox.message))return <div className="canvas-history-notice"><button onClick={()=>setDismissed(null)}>Show pending Canvas check</button></div>;
-  return <section className="notice canvas-inbox" aria-label="Canvas update check" aria-live="polite">
-    <div><strong>Semester Connect · {inbox.enabled?"review before saving":"checks off"}</strong><p>{inbox.message}</p>
-      {preview?.error?<p className="error">{preview.error} Nothing imported. Use the correct account / JSON file.</p>:preview?.status?<>
-        <p><strong>{canvasResultsHeadline(preview.status.grades.length+preview.status.otherChanges.filter(a=>a.kind==="added").length,preview.status.resultsToConnect.length)}</strong>{preview.status.resultsToConnect.length?` · ${preview.status.resultsToConnect.length} can be connected later`:""}{preview.status.protected.length?` · ${preview.status.protected.length} manual entries kept`:""}{preview.status.attention.length?` · ${preview.status.attention.length} rule changes to review`:""}</p>
-        <details><summary>Last read by course · {preview.bundle.courses.length} courses</summary>{preview.bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks page unavailable":""}</p>)}</details><small>Check all reads every selected course using one signed-in Canvas tab. No need to refresh each Marks page. Nothing saved.</small>
-      </>:null}
+  const connected=!!inbox?.enabled;
+  const headline=preview?.status?canvasResultsHeadline(preview.status.grades.length+preview.status.otherChanges.filter(a=>a.kind==="added").length,preview.status.resultsToConnect.length):"";
+  // Missing bridge response, empty preview and disabled checks are distinct.
+  // None of them removes the connection entry or changes saved course consent.
+  return <section className="canvas-connect-entry" aria-label="Canvas connection">
+    <div className="canvas-connect-row"><div className="canvas-connect-status"><strong>Canvas</strong><span role="status">{inbox?.checking?"Checking courses…":preview?.error?"Preview needs attention":connected?headline||"Connected · no pending preview":inbox?"Connection inactive":"Connect to bring in your grades"}</span></div>
+      <div className="canvas-connect-actions">
+        {connected&&inbox.canCheckAll&&inbox.courseCount>0&&<button disabled={inbox.checking} onClick={()=>{setInbox({...inbox,checking:true,message:"Starting all-course check… Keep your signed-in Canvas tab open."});window.postMessage({type:"semester-connect-check-all-v1"},location.origin);}}>{inbox.checking?"Checking…":`Check all ${inbox.courseCount} courses`}</button>}
+        {connected&&inbox.raw&&!preview?.error&&<button className="primary" disabled={reviewOpen||inbox.checking} onClick={()=>onReview(inbox.raw!)}>Review updates</button>}
+        <button aria-expanded={details} onClick={()=>setDetails(!details)}>{details?"Hide details":connected?"Connection details":"Connect Canvas"}</button>
+      </div>
     </div>
-    <div>{inbox.enabled&&inbox.canCheckAll&&inbox.courseCount>0&&<button disabled={inbox.checking} onClick={()=>{setInbox({...inbox,checking:true,message:"Starting all-course check… Keep your signed-in Canvas tab open."});window.postMessage({type:"semester-connect-check-all-v1"},location.origin);}}>{inbox.checking?"Checking courses…":`Check all ${inbox.courseCount} courses`}</button>}{inbox.raw&&!preview?.error&&<button disabled={reviewOpen||inbox.checking} onClick={()=>onReview(inbox.raw!)}>Review Canvas updates</button>}<button onClick={()=>setDismissed(inbox.raw||inbox.message)}>Dismiss</button></div>
+    {preview?.error&&<p className="error" role="alert">{preview.error} Nothing imported.</p>}
+    {details&&<div className="canvas-connect-help">
+      {connected?<><p>{inbox.message}</p>{preview?.status&&<><p>{preview.status.protected.length} manual entries kept · {preview.status.attention.length} rules to review</p><details><summary>Last read by course · {preview.bundle.courses.length} courses</summary>{preview.bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks page unavailable":""}</p>)}</details></>}<p>Check all reads every selected course using one signed-in Canvas course tab. You do not need to refresh each Marks page. Checks only prepare a preview; they never save grades.</p></>:<>
+      <h3>Connect Semester to Canvas</h3>
+      <ol><li>Open <a href="https://canvas.sydney.edu.au/" target="_blank" rel="noopener noreferrer">Canvas</a> in the same Chrome profile and sign in.</li><li>Open Semester Connect from Chrome’s extensions menu. Choose <strong>Read my courses</strong>, select your courses, then <strong>Enable for selected courses</strong> and allow site access.</li><li>Return here and reload Semester. Keep one signed-in Canvas course tab open to check all selected courses.</li></ol>
+      <p>Reading your course list is not the same as enabling the connection. If Semester Connect is not installed in this browser, use a JSON export from the browser where it is installed.</p>
+      {inbox?.message&&<p className="hint">{inbox.message}</p>}
+      </>}
+      <div className="canvas-connect-actions"><button disabled={retrying} onClick={()=>{setRetrying(true);setRetried(true);window.postMessage({type:"semester-connect-request-v1"},location.origin);}}>{retrying?"Looking for connection…":"Retry connection"}</button>{onImportFile&&<button onClick={onImportFile}>Import JSON file</button>}</div>
+      {retried&&!retrying&&<p role="status">No response yet. Check Semester Connect in the same Chrome profile, then reload this page. Any status above is from its last response.</p>}
+    </div>}
   </section>;
 }

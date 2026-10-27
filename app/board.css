@@ -1455,9 +1455,25 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-update-summary>div {background:var(--card,#fff);border:1px solid #ccd8eb;border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:5px;}
 .canvas-update-summary strong {font-size:1.6rem;color:#254fc4;}
 .canvas-update-summary small {color:#526582;font-size:.8rem;}
-.canvas-inbox {display:flex;align-items:center;justify-content:space-between;gap:20px;max-width:1180px;margin:16px auto;}
-.canvas-inbox p {margin:6px 0;}
-.canvas-inbox>div:last-child {display:flex;gap:8px;flex-shrink:0;}
+.canvas-connect-entry {max-width:1180px;margin:12px auto;padding:12px 16px;background:white;border:1px solid var(--border);border-radius:10px;}
+.canvas-connect-row,.canvas-connect-status,.canvas-connect-actions {display:flex;align-items:center;gap:12px;flex-wrap:wrap;}
+.canvas-connect-row {justify-content:space-between;}
+.canvas-connect-status span {color:#637085;font-size:14px;}
+.canvas-connect-actions {gap:8px;}
+.canvas-connect-entry summary,.manage-backup summary {cursor:pointer;color:#2851c9;}
+.canvas-connect-help {max-width:760px;margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:14px;}
+.canvas-connect-help h3 {font-size:16px;margin:0 0 12px;}
+.canvas-connect-help li {margin-bottom:8px;}
+.canvas-connect-help ol {list-style:decimal;padding-left:24px;}
+.canvas-connect-help button {margin-right:8px;}
+.setup.manage-compact {display:block;max-width:1180px;margin:16px auto;padding:20px;}
+.manage-compact h1 {font-size:22px;margin-bottom:16px;}
+.manage-compact .rule-card {margin-top:12px;}
+.manage-compact .manage-timetable,.manage-compact .manage-backup {padding:12px 0;border-top:1px solid var(--border);}
+.manage-compact summary {cursor:pointer;}
+.manage-timetable small {margin-left:10px;color:#637085;font-size:13px;font-weight:400;}
+.manage-compact .manage-timetable form {margin-top:16px;}
+.manage-compact .manage-timetable[open] {padding-bottom:16px;}
 /* Canvas review: proposed updates and confirmed, unread results are distinct. */
 .canvas-new-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#2855cf;margin-right:7px;flex-shrink:0}
 .canvas-grade-new{display:block;color:#2855cf;font-size:12px;font-weight:600;margin-bottom:5px}

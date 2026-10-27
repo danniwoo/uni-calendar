@@ -658,7 +658,7 @@ export default function SemesterBoard() {
           )}
         </div>
       </header>
-      {semester&&!loadError&&<CanvasInbox semester={semester} reviewOpen={canvasImport} onReview={raw=>{setCanvasRaw(raw);setCanvasImport(true);}}/>}
+      {semester&&!loadError&&<CanvasInbox semester={semester} reviewOpen={canvasImport} onImportFile={()=>{setCanvasRaw(undefined);setCanvasImport(true);}} onReview={raw=>{setCanvasRaw(raw);setCanvasImport(true);}}/>}
       {semester&&!loadError&&unreadCanvasGrades(semester).size>0&&<div className="canvas-history-notice"><button onClick={()=>setCanvasHistory(true)}><span className="canvas-new-dot" aria-hidden="true"/>{unreadCanvasGrades(semester).size} assessments have unseen Canvas grade updates · View history</button></div>}
       {loadError && (
         <div className="notice error">
@@ -680,15 +680,17 @@ export default function SemesterBoard() {
         </div>
       )}
       {(!semester || settings) && (
-        <section className="setup">
+        <section className={semester?"setup manage-compact":"setup"}>
           <div>
-            <p className="eyebrow">YOUR SEMESTER, IN ONE PLACE</p>
-            <h1>{semester ? "Keep it up to date." : "See it coming."}</h1>
-            <p className="muted">
+            {!semester&&<p className="eyebrow">YOUR SEMESTER, IN ONE PLACE</p>}
+            <h1>{semester ? "Manage semester" : "See it coming."}</h1>
+            {!semester&&<p className="muted">
               Assignments, quizzes and the weeks to catch up on.
-            </p>
+            </p>}
           </div>
           <div>
+            <details className="manage-timetable" open={!semester}>
+            <summary hidden={!semester}>Timetable <small>{semester?.feedUrl?"Connected":"Subscription link not connected"}</small></summary>
             <form
               onSubmit={(e) => {
                 e.preventDefault();
@@ -721,28 +723,22 @@ export default function SemesterBoard() {
                 missing details against Canvas/Ed.
               </p>
             </form>
+            {semester&&<><button disabled={busy||!semester.feedUrl} onClick={()=>importFeed(semester.feedUrl)}><RefreshCw size={15}/> Refresh current timetable</button>{!semester.feedUrl&&<p className="hint">Saved classes are still available. Add this board’s subscription link above if you want to refresh its timetable.</p>}</>}
+            </details>
             {semester && (
-              <div className="toolbar">
-                <button
-                  disabled={busy || !semester.feedUrl}
-                  onClick={() => importFeed(semester.feedUrl)}
-                >
-                  <RefreshCw size={15} />
-                  Refresh current timetable
-                </button>
-                <button onClick={backup}>
+              <>
+                <details className="manage-backup"><summary>Backup & restore</summary><div className="toolbar"><button onClick={backup}>
                   <Download size={15} />
                   Export backup
                 </button>
                 <label className="restore-backup">Restore backup<input type="file" disabled={busy} accept=".json,application/json" onChange={e=>{void restoreBackup(e.target.files?.[0]);e.target.value="";}}/></label>
-                <button disabled={busy || saveStatus==="Saving…" || !!saveError || !!conflict} onClick={()=>{setCanvasRaw(undefined);setCanvasImport(true);}}>Import from Semester Connect</button>
+                </div></details><div className="toolbar"><button disabled={busy || saveStatus==="Saving…" || !!saveError || !!conflict} onClick={()=>{setCanvasRaw(undefined);setCanvasImport(true);}}>Import Canvas JSON</button>
                 <button onClick={()=>setCanvasHistory(true)}>Canvas update history</button>
-              </div>
+              </div></>
             )}
             {!semester && loaded && <label className="restore-backup">Restore backup instead<input type="file" disabled={busy} accept=".json,application/json" onChange={e=>{void restoreBackup(e.target.files?.[0]);e.target.value="";}}/></label>}
-            {semester && !semester.feedUrl && <p className="notice">This board has no connected timetable link. Its saved classes remain visible. Paste this board’s link above, then choose “Connect to this board” to enable refresh.</p>}
             {!!retainedCount && <p className="notice">{retainedCount} retained tasks belong to units outside this timetable. They are excluded from all calendar summaries, but kept in your export. To repair an earlier mixed restore, restore the original clean backup; this will replace the complete board.</p>}
-            {recovery && <div className="rule-card"><strong>Before the last switch · {recovery.session} {recovery.year}</strong><p>{recovery.units.map(u=>u.code).join(" · ")}</p><button onClick={()=>downloadBackup(recovery,"before-switch")}>Download previous board</button>{" "}<button onClick={()=>setTransfer({board:recovery,kind:"backup"})}>Review previous board</button><p className="hint">After saving, this recovery copy stays in your account across reloads. Only the previous board is kept; the next switch replaces this recovery copy. Export it to keep it longer. Subscription links are not included in exports.</p></div>}
+            {recovery && <details className="rule-card"><summary>Previous board · {recovery.session} {recovery.year}</summary><p>{recovery.units.map(u=>u.code).join(" · ")}</p><button onClick={()=>downloadBackup(recovery,"before-switch")}>Download previous board</button>{" "}<button onClick={()=>setTransfer({board:recovery,kind:"backup"})}>Review previous board</button><p className="hint">Only the previous board is kept; the next switch replaces this recovery copy. Export it to keep it longer. Subscription links are not included in exports.</p></details>}
           </div>
         </section>
       )}

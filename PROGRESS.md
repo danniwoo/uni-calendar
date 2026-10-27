@@ -4,6 +4,12 @@ Updated: 2026-10-27. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.14.1 implementation / continuation
+
+- Persistent compact Canvas entry distinguishes absent bridge response, inactive checks, connected empty preview, pending result and malformed preview. Same-window/origin validation stays intact. Connection instructions, bounded retry feedback, per-course timestamps and JSON fallback expand on demand. Check-all and review remain explicit; no consent or grade writes were added. Clearing a source preview does not hide the entry.
+- Existing-board Manage removes its marketing hero and collapses timetable, backup and recovery controls; empty-board timetable setup remains visible. Synthetic full-board QA intercepts account reads with invented fixtures and rejects every API write/import. It tests connect/retry, empty/disabled/invalid snapshots, JSON/review cancel, Manage expand/collapse, desktop width and empty-board setup. First-use import browser regressions, TypeScript and Web/storage regression checks pass; release packaging remains pending here.
+- User explicitly waived the below-30% usage stop for this turn only, to finish UI verification and publish without touching real data. The standing guardrail remains for later work. Unrelated extension edits are excluded from this Web release.
+
 ### 0.14.0 implementation / continuation
 
 - `canvas-prepare.ts` prepares a draft over the existing matcher/planner for both JSON and extension. Saved IDs win; eligible ordinary targets may be suggested using title/assignment label and supporting Sydney dates / explicit item-title percentages. Group weights and points possible are not item weights. Ties, competing sources, semantic role/number mismatches, retakes and recurring calculations do not become automatic overall links. No persistent write occurs during preparation.
