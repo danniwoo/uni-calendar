@@ -10,6 +10,7 @@ Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only
 - The existing grade/parts editors already acknowledged receipts; opening assessment details did not. Both now use the same guarded callback; the New badge is an explicit read button. Listing alone is not acknowledgement. Read persistence uses existing save/conflict handling.
 - TypeScript, prepared/history checks and synthetic mixed/inline/unread browser checks pass. Actual SemesterBoard is tested with a tab-local fake API that rejects non-history changes: title, badge, grade/parts editors, history deep link, cancel, reload, rearm and repeated-open no-op. No real account traffic. Grouping, counts, Cancel and Undo verified; screenshots inspected.
 - Usage guard waived for this turn. Concurrent extension edits excluded. Publication evidence follows after success; user acceptance is still pending.
+- Published as Sites 57, source `e732c709a60341c0e253d0cce668f85f6f46e60c`, deployment `appgdep_6ae153ff46e08191a8a12c2da3e53f1c` (succeeded, 2026-10-28 Sydney). Production build passed in an isolated release checkout; custom audience preserved. All Canvas pure checks, backup, TypeScript and mixed/inline/connection/unread browser suites passed. Website-only update; no extension reload or account-data changes.
 
 ### 0.14.5 implementation / continuation
 
