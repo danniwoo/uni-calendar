@@ -9,6 +9,7 @@ Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only
 - Inline-only compact CSS grid places result placement and calculation side by side, reduces spacing/control height and shortens visible labels. Full accessible radio descriptions remain; Apply to preview is still staging, not persistence. No calculation, mapping or save changes.
 - TypeScript, impact/prepared/rules regression scripts, inline and mixed browser suites pass. Simple editor measured 296px high at 1280px; 1024px has bounded height and no horizontal clipping. Visual screenshot checked. Tests include changed-rule cancellation, Undo, totals, special/drop rules, stale/new-batch guards, JSON and repeat import. Synthetic data only; no account writes. Unrelated extension edits excluded.
 - User waived usage guard for this turn only. Publication evidence follows after success; real-user acceptance remains pending.
+- Published 2026-10-28 Sydney as Sites 56, source `ab1fa501bc294de33810ba899b70bc3970df36df`, deployment `appgdep_6ae14f03fbe88191a54f8c0aeb74a7fc` (succeeded). Production build passed in the isolated release checkout. Existing custom audience preserved; website-only release with no live imports/data writes.
 
 ### 0.14.4 implementation / continuation
 
