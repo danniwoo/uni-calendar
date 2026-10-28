@@ -4,6 +4,13 @@ Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.14.6 implementation / continuation
+
+- Prepared view classifies only non-update rows into three disjoint groups: linked, unconnected and protected. Other Canvas items and subgroup lists are collapsed; no inference that absent grades are zero or missing submissions. Existing planner/calculation behavior is unchanged.
+- The existing grade/parts editors already acknowledged receipts; opening assessment details did not. Both now use the same guarded callback; the New badge is an explicit read button. Listing alone is not acknowledgement. Read persistence uses existing save/conflict handling.
+- TypeScript, prepared/history checks and synthetic mixed/inline/unread browser checks pass. Actual SemesterBoard is tested with a tab-local fake API that rejects non-history changes: title, badge, grade/parts editors, history deep link, cancel, reload, rearm and repeated-open no-op. No real account traffic. Grouping, counts, Cancel and Undo verified; screenshots inspected.
+- Usage guard waived for this turn. Concurrent extension edits excluded. Publication evidence follows after success; user acceptance is still pending.
+
 ### 0.14.5 implementation / continuation
 
 - Inline-only compact CSS grid places result placement and calculation side by side, reduces spacing/control height and shortens visible labels. Full accessible radio descriptions remain; Apply to preview is still staging, not persistence. No calculation, mapping or save changes.

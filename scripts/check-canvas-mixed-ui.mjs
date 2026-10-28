@@ -23,6 +23,17 @@ try{
   assert.equal(await row("Preparation 1").getByText(/No recorded result → Complete → 0.5/).isVisible(),false,"technical receipt collapsed");
   assert.equal(await row("Preparation 2").count(),0,"unchanged Complete is not a new update");
   assert.equal(await row("Preparation 3").count(),0,"protected no-op hidden from update list");
+  await page.getByText("Other Canvas items (3)",{exact:true}).click();
+  await shown(page.getByText("Linked · no update (1)",{exact:true}));
+  await page.getByText("Not connected (1)",{exact:true}).click();
+  await shown(page.locator(".canvas-other-group li").filter({hasText:"Preparation 4"}));
+  await shown(page.getByText(/Set up later; this does not block this import/));
+  await page.getByText("Manual entry kept (1)",{exact:true}).click();
+  await shown(page.locator(".canvas-other-group li").filter({hasText:"Preparation 3"}));
+  await page.getByText("Linked · no update (1)",{exact:true}).click();
+  await shown(page.locator(".canvas-other-group li").filter({hasText:"Preparation 2"}));
+  await page.screenshot({path:"/private/tmp/semester-other-items.png",fullPage:true});
+  await page.getByText("Other Canvas items (3)",{exact:true}).click();
   await row("Preparation 1").getByRole("button",{name:"Skip this check",exact:true}).click();
   await shown(page.getByRole("button",{name:"Import 1 update",exact:true}));
   await shown(row("Preparation 1").getByText("Skipped · no change",{exact:true}));

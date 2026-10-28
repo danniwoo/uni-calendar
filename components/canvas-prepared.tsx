@@ -17,7 +17,7 @@ export function CanvasPrepared({semester,afterSemester,bundle,prepared,choices,a
   const [editingKey,setEditingKey]=useState<string|null>(null);
   const editorTrigger=useRef<HTMLButtonElement|null>(null);
   function closeEditor(){setEditingKey(null);requestAnimationFrame(()=>editorTrigger.current?.focus());}
-  const {rows,useful,total,results,added,connections,extraChanges,dormant}=preparedCanvasView(semester,bundle,choices,actions,baselineActions);
+  const {rows,useful,total,results,added,connections,extraChanges,dormant,otherGroups}=preparedCanvasView(semester,bundle,choices,actions,baselineActions);
   const needChoice=useful.filter(r=>!r.choice&&!prepared.choices[r.key]).length;
   const protectedRows=rows.filter(r=>r.action?.kind==="protected");
   return <div className="canvas-prepared">
@@ -68,7 +68,20 @@ export function CanvasPrepared({semester,afterSemester,bundle,prepared,choices,a
       })}
     </>}
     {extraChanges.length>0&&<section className="rule-card"><h4>Additional updates to be saved</h4><ul>{extraChanges.map(a=><li key={a.key}>{a.text}</li>)}</ul><button onClick={()=>onManage("selected")}>Change these connections</button></section>}
-    {dormant>0&&<details className="rule-card" open={showSkipped} onToggle={e=>setShowSkipped(e.currentTarget.open)}><summary>Unchanged / not included ({dormant}) · no action needed</summary>{protectedRows.filter(r=>!r.action?.changed).map(r=><p key={r.key}>{r.a.name} · Your manual entry is kept. No update.</p>)}<button onClick={()=>onManage("all")}>Manage all connections & rules</button></details>}
+    {dormant>0&&<details className="rule-card canvas-other-items" open={showSkipped} onToggle={e=>setShowSkipped(e.currentTarget.open)}>
+      <summary>Other Canvas items ({dormant})</summary>
+      {([
+        ["linked","Linked · no update"],
+        ["unconnected","Not connected"],
+        ["protected","Manual entry kept"],
+      ] as const).map(([kind,label])=><details key={kind} className="canvas-other-group">
+        <summary>{label} ({otherGroups[kind].length})</summary>
+        {kind==="unconnected"&&<p className="hint">Set up later; this does not block this import. These items do not have a saved connection yet.</p>}
+        {kind==="protected"&&<p className="hint">Your manual values stay unchanged.</p>}
+        {otherGroups[kind].length===0?<p className="hint">No items in this group.</p>:<ul>{otherGroups[kind].map(r=><li key={r.key}><strong>{prepared.units[r.c.course.id]||r.c.course.code} · {r.a.name}</strong><small>{kind==="linked"&&!r.choice?"Skipped this check":canvasResultLabel(r.a).replace(" · text only","")}</small></li>)}</ul>}
+      </details>)}
+      <button disabled={!!editingKey} onClick={()=>onManage("all")}>Manage connections</button>
+    </details>}
     <p className="hint">Your manual grades, dates and weights stay unchanged. New assessments need a weight.</p>
     <div className="canvas-import-footer"><span>{editingKey?"Finish or cancel changes before importing":`${total} updates across all courses · nothing saved yet`}</span>{canUndo&&<button disabled={!!editingKey} onClick={onUndo}>Undo last change</button>}<button onClick={onClose}>Cancel</button><button className="primary" disabled={!total||total!==changed||!!error||stale||!!editingKey} onClick={onImport}>{total?`Import ${total} ${total===1?"update":"updates"}`:"Nothing to import"}</button></div>
   </div>;

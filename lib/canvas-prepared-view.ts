@@ -15,6 +15,12 @@ export function preparedCanvasView(s:Semester,b:CanvasBundle,choices:Record<stri
   const useful=rows.filter(r=>r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind==="attention"||r.action?.kind!=="protected"&&!r.prior&&!!canvasGrade(r.a));
   const changed=actions.filter(a=>a.changed);
   const visibleKeys=new Set(useful.map(r=>r.sourceKey));
+  const other=rows.filter(r=>!visibleKeys.has(r.sourceKey));
+  const otherGroups={
+    protected:other.filter(r=>r.action?.kind==="protected"),
+    linked:other.filter(r=>r.action?.kind!=="protected"&&!!r.prior),
+    unconnected:other.filter(r=>r.action?.kind!=="protected"&&!r.prior),
+  };
   return {rows,useful,total:changed.length,
     results:changed.filter(a=>a.kind==="grade").length,
     added:changed.filter(a=>a.kind==="added").length,
@@ -22,5 +28,5 @@ export function preparedCanvasView(s:Semester,b:CanvasBundle,choices:Record<stri
     // Defensive fallback: never omit an action that will be saved, even if a
     // future planner adds a change without a source-assignment row.
     extraChanges:changed.filter(a=>!visibleKeys.has(a.key)),
-    dormant:rows.length-useful.length};
+    otherGroups,dormant:other.length};
 }

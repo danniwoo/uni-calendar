@@ -328,6 +328,7 @@ export default function SemesterBoard() {
   function openTask(t: Task) {
     setStepRequest(undefined);
     if(isPersonal(t)){setDetail(null);setPersonal(t);return;}
+    seeCanvasGrade(t.id);
     setSplittingTask(false);
     setStepsDirty(false);
     setTaskFeedback("");
@@ -336,6 +337,12 @@ export default function SemesterBoard() {
     setDetail({ type: "task", task: t });
     setDraft({ ...t });
     setEditError("");
+  }
+  function seeCanvasGrade(id:string) {
+    const s=current.current;
+    if(!s||saveError||conflict)return;
+    const next=markCanvasGradeSeen(s,id);
+    if(next!==s)commit(next);
   }
   function closeAssessment() {
     if(unsavedAssessment.current){setDiscardAssessment("close");return;}
@@ -783,7 +790,7 @@ export default function SemesterBoard() {
       )}
       {semester && (
         <>
-          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} focusGrade={focusGrade} importedGradeView={importedGradeView} onHistory={()=>setCanvasHistory(true)} onGradeSeen={id=>{const s=current.current;if(!s||saveError||conflict)return;const next=markCanvasGradeSeen(s,id);if(next!==s)commit(next);}} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment} onGrade={(id,grade,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGrade(s,id,grade,expected));}} onGradePlan={(id,plan,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGradePlan(s,id,plan,expected));}}/></div>
+          <div hidden={view!=="assessments"}><AssessmentList key={`assessments-${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} focusGrade={focusGrade} importedGradeView={importedGradeView} onHistory={()=>setCanvasHistory(true)} onGradeSeen={seeCanvasGrade} onOpen={openTask} onToggle={toggleTask} onAdd={newAssessment} onGrade={(id,grade,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGrade(s,id,grade,expected));}} onGradePlan={(id,plan,expected)=>{const s=current.current;if(!s)throw new Error("Board is not available. Reopen this assessment.");commit(saveGradePlan(s,id,plan,expected));}}/></div>
           {view==="assessments" ? null : view==="week" ? <WeekCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} focusItem={calendarFocus} today={today} now={clock} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : calendarView ? <MonthCalendar key={`${semester.year}-${semester.session}-${semester.boardGeneration}`} semester={semester} today={today} onTask={openTask} onPreparation={openPreparation} onClass={event=>setDetail({type:"class",event})} onToggleTask={toggleTask} onToggleClass={toggleClass}/> : <>
           <div className="semester-controls"><select className="mobile-layout-choice" aria-label="Semester layout" value={focus?"focus":"full"} onChange={e=>chooseLayout(e.target.value==="focus")}><option value="focus">A · Focus</option><option value="full">B · Full overview</option></select><div className="layout-comparison" role="group" aria-label="Compare semester layouts">
             <button aria-pressed={focus} onClick={()=>chooseLayout(true)}>A · Focus</button>

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.6 — 2026-10-28
+
+- Replace the ambiguous unchanged/not-included bucket with Other Canvas items, separated into Linked · no update, Not connected, and Manual entry kept. Counts are mutually exclusive; unconnected items can be set up later without blocking this import.
+- Opening assessment details now acknowledges its Canvas update, matching the existing grade-editor behavior. The New badge also offers an explicit mark-as-read action. Only receipt read metadata changes; results, dates, rules and completion are untouched.
+- Synthetic browser coverage checks all acknowledgement routes, reload, new-result rearming, cancel, Undo, group counts and no real API traffic. Real-user acceptance remains pending.
+
 ## 0.14.5 — 2026-10-28
 
 - Compact the inline placement/calculation editor with reduced spacing, shorter visible labels and side-by-side placement/calculation fields. Apply to preview remains an unsaved action; Cancel changes and explicit rule checks are unchanged. Full management forms are unaffected.

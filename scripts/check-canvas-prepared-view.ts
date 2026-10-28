@@ -13,6 +13,13 @@ assert(view.useful.some(r=>r.a.name==="Preparation 1"&&r.action?.kind==="grade")
 assert(!view.useful.some(r=>r.a.name==="Preparation 2"),"unchanged Complete is not another update");
 assert(!view.useful.some(r=>r.a.name==="Preparation 3"),"protected no-op belongs in collapsed context");
 assert.equal(view.extraChanges.length,0);
+assert.equal(view.dormant,3);
+assert.deepEqual(view.otherGroups.linked.map(r=>r.a.name),["Preparation 2"]);
+assert.deepEqual(view.otherGroups.unconnected.map(r=>r.a.name),["Preparation 4"]);
+assert.deepEqual(view.otherGroups.protected.map(r=>r.a.name),["Preparation 3"]);
+const otherKeys=Object.values(view.otherGroups).flat().map(r=>r.sourceKey);
+assert.equal(new Set(otherKeys).size,view.dormant,"groups are disjoint and exhaustive");
+assert(!view.useful.some(r=>otherKeys.includes(r.sourceKey)),"updates are not duplicated as other items");
 const skip={...choices};delete skip["103:1"];
 const skippedPlan=planCanvasImport(board,bundle,Object.values(skip));
 const skipped=preparedCanvasView(board,bundle,skip,skippedPlan.actions,plan.actions);

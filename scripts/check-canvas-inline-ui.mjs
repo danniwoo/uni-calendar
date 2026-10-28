@@ -67,8 +67,8 @@ try{
   assert(await row().getByRole("button",{name:"Use this rule · not saved yet"}).isDisabled(),"explicit rule acknowledgement required");
   await row().getByRole("button",{name:"Cancel changes",exact:true}).click();
   // The full manager is still explicit, and review counts changes, not selections.
-  await page.getByText("Unchanged / not included (60) · no action needed",{exact:true}).click();
-  await page.getByRole("button",{name:"Manage all connections & rules"}).click();
+  await page.getByText("Other Canvas items (60)",{exact:true}).click();
+  await page.getByRole("button",{name:"Manage connections"}).click();
   await page.getByRole("button",{name:/^Review \d+ changes/}).click();
   await shown(page.getByText("4 changes will be saved when you click Import. Everything else stays unchanged.",{exact:true}));
   assert.equal(await page.getByText(/4 connected \/ staged/).isVisible(),false,"selection count collapsed");
