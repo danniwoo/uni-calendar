@@ -4,6 +4,12 @@ Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.14.5 implementation / continuation
+
+- Inline-only compact CSS grid places result placement and calculation side by side, reduces spacing/control height and shortens visible labels. Full accessible radio descriptions remain; Apply to preview is still staging, not persistence. No calculation, mapping or save changes.
+- TypeScript, impact/prepared/rules regression scripts, inline and mixed browser suites pass. Simple editor measured 296px high at 1280px; 1024px has bounded height and no horizontal clipping. Visual screenshot checked. Tests include changed-rule cancellation, Undo, totals, special/drop rules, stale/new-batch guards, JSON and repeat import. Synthetic data only; no account writes. Unrelated extension edits excluded.
+- User waived usage guard for this turn only. Publication evidence follows after success; real-user acceptance remains pending.
+
 ### 0.14.4 implementation / continuation
 
 - `canvas-preview-impact.ts` reads the unchanged board and planned next board, never parses receipt text. Individual status changes are distinct from completion points. Each parts assessment has one before/after total and batch delta; equal/weighted/best use percentages, completion uses explicit completion-point units, missing results remain unknown, and cap results may have no increase. Existing calculation functions are reused unchanged.

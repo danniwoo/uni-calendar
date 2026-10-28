@@ -1580,6 +1580,18 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .canvas-impact .canvas-result-change{margin:0 0 6px}
 .canvas-impact-difference{color:#2854ad;font-size:14px}
 .canvas-impact details{font-size:12px;color:#526580;margin-top:10px}
+.canvas-connection-editor.canvas-editor-compact{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px 18px;padding:12px 16px;margin:4px 0;font-size:13px}
+.canvas-editor-compact> *{grid-column:1/-1;min-width:0}
+.canvas-editor-compact>header{padding:0 0 8px;gap:12px}
+.canvas-editor-compact>header h3{font-size:16px;line-height:1.3}
+.canvas-editor-compact>label{margin:0;display:grid;gap:4px;font-size:13px}
+.canvas-editor-compact select,.canvas-editor-compact button{font-size:13px;min-height:36px;padding:7px 10px}
+.canvas-editor-compact>.canvas-placement{grid-column:1;margin:0;padding:4px 10px 6px}
+.canvas-editor-compact>.canvas-placement legend{font-size:13px}
+.canvas-editor-compact>.canvas-placement label{font-size:13px;margin:3px 0;gap:7px;min-height:26px}
+.canvas-editor-compact>.canvas-calculation-field{grid-column:2;align-self:start;padding-top:8px}
+.canvas-editor-compact>.primary{justify-self:end}
+@media(max-width:700px){.canvas-connection-editor.canvas-editor-compact{grid-template-columns:minmax(0,1fr)}.canvas-editor-compact>.canvas-calculation-field{grid-column:1;padding-top:0}}
 .canvas-prepared .canvas-import-footer{align-items:center}
 .canvas-prepared .canvas-import-footer>span{margin-right:auto;color:#60718c;font-size:12px}
 .canvas-newer-batch{border-left:4px solid #2856cf}

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.14.5 — 2026-10-28
+
+- Compact the inline placement/calculation editor with reduced spacing, shorter visible labels and side-by-side placement/calculation fields. Apply to preview remains an unsaved action; Cancel changes and explicit rule checks are unchanged. Full management forms are unaffected.
+- Synthetic browser checks verify a 296px simple editor at 1280px, bounded height/no clipping at 1024px, cancellation, Undo, totals, special/drop-rule guards and no writes before explicit in-memory import. No live data touched.
+
 ## 0.14.4 — 2026-10-28
 
 - Lead Canvas updates with actual before → after values. Complete remains a source status; completion points appear separately in one parent-total comparison with the whole batch's increase, no-change-at-cap and in-progress state.
