@@ -1,5 +1,5 @@
 import {addDays,type ClassEvent,type Task,type Semester} from "./semester";
-import {awaitingExamDate} from "./month-calendar";
+import {awaitingExamDate,calendarTaskVisible,weekOnlyTasks,type CalendarVisibility} from "./month-calendar";
 import {isPersonal,calendarOwns} from "./personal-items";
 import {activitiesInRange} from "./assessment-activity";
 
@@ -52,20 +52,21 @@ export function matchedClass(t:Task,classes:ClassEvent[]){
   const candidates=classes.filter(c=>c.unit===t.unit&&c.date===t.date&&c.time===t.time&&classRange(c));
   return candidates.length===1?candidates[0]:undefined;
 }
-export function weekData(s:Semester,start:string,unit="all",showClasses=true){
+export function weekData(s:Semester,start:string,unit="all",showClasses=true,visibility:Pick<CalendarVisibility,"assignments"|"personal">={assignments:true,personal:true}){
   const end=addDays(start,6),active=new Set(s.units.map(u=>u.code));
   const own=(code:string)=>active.has(code)&&(unit==="all"||unit===code);
   const classes=showClasses?s.classes.filter(c=>own(c.unit)&&c.date>=start&&c.date<=end):[];
-  const tasks=s.tasks.filter(t=>calendarOwns(s,t)&&(unit==="all"||unit===t.unit)&&!t.splitCount);
+  const owned=s.tasks.filter(t=>calendarOwns(s,t)&&(unit==="all"||unit===t.unit)&&calendarTaskVisible(t,visibility));
+  const tasks=owned.filter(t=>!t.splitCount);
   const dated=tasks.filter(t=>t.date&&t.date>=start&&t.date<=end);
   const linked=new Map<string,Task[]>();
   const events=dated.filter(t=>t.kind==="event"&&!t.allDay&&minutes(t.time)!==null&&minutes(t.endTime)!==null&&minutes(t.endTime)!>minutes(t.time)!);
   const due=dated.filter(t=>{if(events.includes(t))return false;const c=matchedClass(t,classes);if(!c)return true;linked.set(c.id,[...(linked.get(c.id)||[]),t]);return false;});
-  const weekOnly=tasks.filter(t=>!t.date&&!awaitingExamDate(t)&&t.week&&s.weeks.some(w=>w.number===t.week&&w.start<=end&&w.end>=start));
+  const weekOnly=weekOnlyTasks(s,tasks,start,end);
   const unknown=tasks.filter(t=>!isPersonal(t)&&!t.date&&!t.week&&!awaitingExamDate(t));
   const unscheduled=tasks.filter(t=>isPersonal(t)&&!t.date);
   const awaitingExams=tasks.filter(awaitingExamDate);
-  const activities=activitiesInRange(s,s.tasks.filter(t=>calendarOwns(s,t)&&(unit==="all"||unit===t.unit)),start,end);
+  const activities=activitiesInRange(s,owned,start,end);
   return {classes,due,events,linked,weekOnly,unknown,unscheduled,awaitingExams,activities};
 }
 export type PositionedClass={event:ClassEvent;start:number;end:number;lane:number;lanes:number};

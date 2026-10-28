@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.15.0 — 2026-10-28
+
+- Show teaching-week-only assessments, including tests, directly above the relevant Week / Month row, with titles and a Set date action. Do not invent a day or time; exams with no known week remain separate.
+- Put independent Assignments / quizzes, Classes and Personal toggles in the calendar toolbar. Reuse preferences across Month / Week and reloads; hiding classes does not hide in-class assessments. Keep existing filters and completed-item preferences.
+- Keep checked items in place in Keep visible mode, including crowded Month days. Add modest completion feedback and Undo, accessible inside day details too, with reduced-motion support. Explicit Hide / Collapse explain where completed items went; wrapped Week deadlines no longer clip the More action.
+- Synthetic calendar and whole-board browser checks cover cancellation, Undo, filters, persistence and desktop layout. No data migration, live imports or account edits; activity history remains deferred.
+
 ## 0.14.6 — 2026-10-28
 
 - Replace the ambiguous unchanged/not-included bucket with Other Canvas items, separated into Linked · no update, Not connected, and Manual entry kept. Counts are mutually exclusive; unconnected items can be set up later without blocking this import.

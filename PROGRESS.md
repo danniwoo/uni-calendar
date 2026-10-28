@@ -4,6 +4,14 @@ Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only
 
 ## Current source checkpoint
 
+### 0.15.0 implementation / continuation
+
+- Calendar week-only projection is shared by Week and Month; known-week exams use the visible strip, while unknown-week exams remain awaiting dates. No inferred dates or task/grade model changes. Set date opens the existing assessment editor; ordinary title opens details.
+- Shared device preferences now include independent assignments/classes/personal visibility, defaulting legacy fields to visible. In-class assessment links are projected as ordinary due entries when classes are hidden. Unscheduled and activity reminders respect category selection.
+- Keep visible uses completion-independent day ordering even above the preview limit. Ephemeral completion feedback/Undo uses existing board callbacks and current entities, not stored snapshots; does not create history or timestamps. Feedback is inside the day modal for accessible Undo. Explicit Collapse/Hide remain supported. Closed Week overflow no longer clips its More action when metadata wraps.
+- Validation: TypeScript, all pure Web regression scripts and backup storage; synthetic actual SemesterBoard harness rejects writes beyond completion and blocks real APIs. Calendar UI checks week-only visibility, Set date edit/cancel, eight-way filter logic plus shared/reloaded preferences, stable crowded-day position, class/task Undo, modal Undo, reduced motion and 1280/1024 layout. Screenshots inspected; publication recorded below only after success. Real-user acceptance remains pending under FLOW-01.
+- Concurrent extension edits are excluded from this website release. No real account/browser data was read or modified. Activity/deletion history, personal calendars and external calendar sync remain deferred as requested.
+
 ### 0.14.6 implementation / continuation
 
 - Prepared view classifies only non-update rows into three disjoint groups: linked, unconnected and protected. Other Canvas items and subgroup lists are collapsed; no inference that absent grades are zero or missing submissions. Existing planner/calculation behavior is unchanged.

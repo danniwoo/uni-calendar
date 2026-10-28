@@ -5,7 +5,9 @@ import {monthDays,monthEntries,shiftMonth,dayPreview,shortEntryTitle,entryBadge,
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
 import {CalendarOptions} from "@/components/calendar-options";
 import {AwaitingExams} from "@/components/awaiting-exams";
-import {awaitingExamDate} from "@/lib/month-calendar";
+import {awaitingExamDate,weekOnlyTasks,calendarTaskVisible} from "@/lib/month-calendar";
+import {CalendarWeekItems} from "./calendar-week-items";
+import {useCalendarCompletion} from "./calendar-completion";
 import {learningScope} from "@/lib/learning-scope";
 import {isPersonal,calendarOwns,personalWhen} from "@/lib/personal-items";
 import {UnscheduledTasks} from "@/components/unscheduled-tasks";
@@ -14,7 +16,7 @@ import {AvailabilitySummary} from "@/components/assessment-availability";
 import {ActivityReminders} from "@/components/assessment-activity";
 import {activitiesInRange} from "@/lib/assessment-activity";
 
-type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
+type Props={semester:Semester;today:string;onTask:(t:Task)=>void;onPreparation:(t:Task)=>void;onSchedule:(t:Task)=>void;onClass:(c:ClassEvent)=>void;onToggleTask:(t:Task)=>void;onToggleClass:(c:ClassEvent)=>void};
 function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEntry;color:string;onOpen:(e:MonthEntry)=>void;onToggle:(e:MonthEntry)=>void;full?:boolean}) {
   const when=e.task&&isPersonal(e.task)?personalWhen(e.task):e.task?.timing.startsWith("Before")?"Before "+(e.time || "class"):e.task?.timeBasis==="class"?(e.time || "")+" in class":e.time || "Time TBC";
   const badge=entryBadge(e),routine=e.task&&(isPersonal(e.task)||e.task.routine&&!e.task.hurdle);
@@ -28,11 +30,11 @@ function CalendarItem({entry:e,color,onOpen,onToggle,full=false}:{entry:MonthEnt
     </button>
   </div>;
 }
-export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onToggleTask,onToggleClass}:Props) {
+export function MonthCalendar({semester,today,onTask,onPreparation,onSchedule,onClass,onToggleTask,onToggleClass}:Props) {
   const firstMonth=semester.weeks[0].start.slice(0,7),lastMonth=semester.weeks[semester.weeks.length-1].end.slice(0,7);
   const initial=today.slice(0,7)<firstMonth?firstMonth:today.slice(0,7)>lastMonth?lastMonth:today.slice(0,7);
   const codes=semester.units.map(u=>u.code).sort().join(","),preferenceKey=["month-view",semester.year,semester.session,codes].join(":");
-  const [prefs,setPrefs]=useState<MonthPreferences>({month:initial,classes:true,completedMode:"show",unit:"all"});
+  const [prefs,setPrefs]=useState<MonthPreferences>({month:initial,classes:true,assignments:true,personal:true,completedMode:"show",unit:"all"});
   const [readyKey,setReadyKey]=useState("");
   const [day,setDay]=useState<string|null>(null),[pendingOpen,setPendingOpen]=useState(false);
   useEffect(()=>{
@@ -41,39 +43,39 @@ export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onTog
   },[preferenceKey,initial,firstMonth,lastMonth,codes]);
   useEffect(()=>{if(readyKey===preferenceKey)try{localStorage.setItem(preferenceKey,JSON.stringify(prefs));}catch{}},[prefs,readyKey,preferenceKey]);
   const {month,classes,completedMode,unit}=prefs;
+  const completion=useCalendarCompletion(semester,completedMode,onToggleTask,onToggleClass);
   const showCompleted=completedMode!=="hide";
   function change(next:Partial<MonthPreferences>){setPrefs(p=>({...p,...next}));}
   const dates=monthDays(month),weeks=Array.from({length:dates.length/7},(_,i)=>dates.slice(i*7,i*7+7));
   const allEntries=monthEntries(semester).filter(e=>unit==="all" || e.unit===unit);
-  const entries=allEntries.filter(e=>(classes || e.task) && (showCompleted || !e.done));
-  const activeCodes=new Set(semester.units.map(u=>u.code));
-  const ownTasks=semester.tasks.filter(t=>calendarOwns(semester,t)&&(unit==="all"||t.unit===unit));
+  const entries=allEntries.filter(e=>(e.task?calendarTaskVisible(e.task,prefs):classes) && (showCompleted || !e.done));
+  const ownTasks=semester.tasks.filter(t=>calendarOwns(semester,t)&&(unit==="all"||t.unit===unit)&&calendarTaskVisible(t,prefs));
   const personal=ownTasks.filter(t=>isPersonal(t)&&!t.date);
   const undated=ownTasks.filter(t=>!isPersonal(t) && !t.splitCount && !t.date && (showCompleted || !t.done));
-  const weekOnly=undated.filter(t=>!awaitingExamDate(t)&&t.week && semester.weeks.some(w=>w.number===t.week && w.start<=dates[dates.length-1] && w.end>=dates[0]));
-  const unknown=undated.filter(t=>!t.week&&!awaitingExamDate(t)),pendingCount=weekOnly.length+unknown.length;
+  const unknown=undated.filter(t=>!t.week&&!awaitingExamDate(t)),pendingCount=unknown.length;
   const awaitingExams=undated.filter(awaitingExamDate);
   const retainedCount=semester.tasks.filter(t=>!calendarOwns(semester,t)).length;
   const title=new Intl.DateTimeFormat("en-AU",{month:"long",year:"numeric",timeZone:"UTC"}).format(new Date(month+"-01T12:00:00Z"));
   const dayTitle=day?new Intl.DateTimeFormat("en-AU",{weekday:"long",day:"numeric",month:"long",timeZone:"UTC"}).format(new Date(day+"T12:00:00Z")):"Day";
   function color(code:string){return code?COLORS[Math.max(0,semester.units.findIndex(u=>u.code===code))%COLORS.length]:"#64748b";}
   function open(e:MonthEntry){setDay(null);if(e.task)onTask(e.task);else if(e.event)onClass(e.event);}
-  function toggle(e:MonthEntry){if(e.task)onToggleTask(e.task);else if(e.event)onToggleClass(e.event);}
+  function toggle(e:MonthEntry){if(e.task)completion.toggleTask(e.task);else if(e.event)completion.toggleClass(e.event);}
   function item(e:MonthEntry,full=false){return <div key={e.id}><CalendarItem entry={e} color={color(e.unit)} onOpen={open} onToggle={toggle} full={full}/>{full&&e.task&&<AvailabilitySummary task={e.task}/ >}{full&&e.task?.coverage?.length&&!e.done?<button className="preparation-link" onClick={()=>{setDay(null);onPreparation(e.task!);}}>{learningScope(e.task,semester).status} → View preparation</button>:null}</div>;}
   const dayItems=entries.filter(e=>e.date===day);
   return <section className="month-view" aria-label="Month calendar">
     <div className="month-toolbar">
       <div className="month-navigation"><h2 aria-live="polite">{title}</h2><div className="month-nav-actions"><button aria-label="Previous month" disabled={month<=firstMonth} onClick={()=>change({month:shiftMonth(month,-1)})}>‹</button><button onClick={()=>change({month:initial})}>{today.slice(0,7)===initial?"Today":"Semester start/end"}</button><button aria-label="Next month" disabled={month>=lastMonth} onClick={()=>change({month:shiftMonth(month,1)})}>›</button></div></div>
-      <div className="month-filters"><select aria-label="Filter calendar by unit" value={unit} onChange={e=>change({unit:e.target.value})}><option value="all">All units</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select><button className={"month-pending-trigger "+(pendingCount?"has-pending":"")} aria-expanded={pendingOpen} aria-controls="month-pending" onClick={()=>setPendingOpen(!pendingOpen)}>Needs dates ({pendingCount}) {pendingOpen?"−":"+"}</button><CalendarOptions classes={classes} completedMode={completedMode} onChange={change} retainedCount={retainedCount}/></div>
+      <div className="month-filters"><select aria-label="Filter calendar by unit" value={unit} onChange={e=>change({unit:e.target.value})}><option value="all">All units</option>{semester.units.map(u=><option key={u.code}>{u.code}</option>)}</select><button className={"month-pending-trigger "+(pendingCount?"has-pending":"")} aria-expanded={pendingOpen} aria-controls="month-pending" onClick={()=>setPendingOpen(!pendingOpen)}>Needs dates ({pendingCount}) {pendingOpen?"−":"+"}</button></div>
+      <CalendarOptions assignments={prefs.assignments} personal={prefs.personal} classes={classes} completedMode={completedMode} onChange={change} retainedCount={retainedCount}/>
     </div>
-    {!!personal.length&&<div className="week-status-bar"><UnscheduledTasks tasks={personal} onTask={onTask} onToggle={onToggleTask}/></div>}
-    {pendingOpen && <div className="month-unscheduled" id="month-pending">{[{title:"Week known · shown weeks",tasks:weekOnly},{title:"Date unknown · semester",tasks:unknown}].map(group=><section key={group.title}><h3>{group.title} <span>{group.tasks.length}</span></h3>{group.tasks.length?group.tasks.map(t=><div className={"month-pending-row "+(t.done?"entry-done":"")} key={t.id}><input type="checkbox" aria-label={[t.done?"Uncheck":"Complete",t.unit,t.title].join(" ")} checked={!!t.done} onChange={()=>onToggleTask(t)}/><button onClick={()=>onTask(t)}>{t.week && <b>W{t.week} · </b>}{t.unit} · {t.title}</button></div>):<p>Nothing to schedule here.</p>}</section>)}</div>}
+    {!!personal.length&&<div className="week-status-bar"><UnscheduledTasks tasks={personal} onTask={onTask} onToggle={completion.toggleTask}/></div>}
+    {pendingOpen && <div className="month-unscheduled" id="month-pending">{[{title:"Date unknown · semester",tasks:unknown}].map(group=><section key={group.title}><h3>{group.title} <span>{group.tasks.length}</span></h3>{group.tasks.length?group.tasks.map(t=><div className={"month-pending-row "+(t.done?"entry-done":"")} key={t.id}><input type="checkbox" aria-label={[t.done?"Uncheck":"Complete",t.unit,t.title].join(" ")} checked={!!t.done} onChange={()=>completion.toggleTask(t)}/><button onClick={()=>onTask(t)}>{t.week && <b>W{t.week} · </b>}{t.unit} · {t.title}</button></div>):<p>Nothing to schedule here.</p>}</section>)}</div>}
     <AwaitingExams tasks={awaitingExams} onTask={onTask}/>
     <div className="month-scroll" tabIndex={0} role="region" aria-label="Monthly calendar. Click a date for all items; checkboxes record completion."><div className="month-grid">
       <div className="month-day-headings">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map(d=><strong key={d}>{d}</strong>)}</div>
       {weeks.map(row=>{
         const teaching=semester.weeks.find(w=>row[0]>=w.start && row[0]<=w.end);
-        return <div key={row[0]}><ActivityReminders tasks={activitiesInRange(semester,ownTasks.filter(t=>showCompleted||!t.done),row[0],row[6])} onOpen={onTask}/><div className="month-week">
+        return <div key={row[0]}><CalendarWeekItems tasks={weekOnlyTasks(semester,ownTasks,row[0],row[6])} week={teaching?.number} mode={completedMode} onOpen={onTask} onSchedule={onSchedule} onToggle={completion.toggleTask}/><ActivityReminders tasks={activitiesInRange(semester,ownTasks.filter(t=>showCompleted||!t.done),row[0],row[6])} onOpen={onTask}/><div className="month-week">
           <div className={"month-week-label "+(teaching?.kind==="break"?"is-break":"")} title={teaching?.label || "Outside semester"}><span>{teaching?.number?"W"+teaching.number:teaching?.kind==="break"?"Break":teaching?.kind==="study"?"Study":teaching?.kind==="exam"?"Exam":"—"}</span></div>
           <div className="month-week-days">{row.map(date=>{
             const items=entries.filter(e=>e.date===date),preview=dayPreview(items,3,completedMode),mobile=dayPreview(items,3,completedMode),hiddenTasks=preview.overflow.filter(e=>e.task&&!e.done).length;
@@ -86,6 +88,7 @@ export function MonthCalendar({semester,today,onTask,onPreparation,onClass,onTog
         </div></div>;
       })}
     </div></div>
-    <Sheet open={!!day} onOpenChange={o=>{if(!o)setDay(null);}}><SheetContent className="detail-panel month-day-panel"><SheetHeader><SheetTitle>{dayTitle}</SheetTitle><SheetDescription>Tick to record completion · Open a title for details. Personal tasks and events appear only in Month & Week.</SheetDescription></SheetHeader><div className="month-agenda">{[{name:"Tasks, events & assessments",items:dayItems.filter(e=>e.task&&(completedMode==="show"||!e.done))},{name:"Classes",items:dayItems.filter(e=>e.event&&(completedMode==="show"||!e.done))},{name:"Completed ("+dayItems.filter(e=>e.done).length+")",items:completedMode==="collapse"?dayItems.filter(e=>e.done):[]}].filter(g=>g.items.length).map(group=><section key={group.name}><h3>{group.name}</h3>{group.items.map(e=>item(e,true))}</section>)}{!dayItems.length && <p>No items with these filters.</p>}</div></SheetContent></Sheet>
+    {!day&&completion.feedback}
+    <Sheet open={!!day} onOpenChange={o=>{if(!o)setDay(null);}}><SheetContent className="detail-panel month-day-panel"><SheetHeader><SheetTitle>{dayTitle}</SheetTitle><SheetDescription>Tick to record completion · Open a title for details. Personal tasks and events appear only in Month & Week.</SheetDescription></SheetHeader><div className="month-agenda">{completion.feedback}{[{name:"Tasks, events & assessments",items:dayItems.filter(e=>e.task&&(completedMode==="show"||!e.done))},{name:"Classes",items:dayItems.filter(e=>e.event&&(completedMode==="show"||!e.done))},{name:"Completed ("+dayItems.filter(e=>e.done).length+")",items:completedMode==="collapse"?dayItems.filter(e=>e.done):[]}].filter(g=>g.items.length).map(group=><section key={group.name}><h3>{group.name}</h3>{group.items.map(e=>item(e,true))}</section>)}{!dayItems.length && <p>No items with these filters.</p>}</div></SheetContent></Sheet>
   </section>;
 }

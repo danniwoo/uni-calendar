@@ -1,7 +1,12 @@
 import {addDays,type Semester,type Task,type ClassEvent} from "./semester";
-import {calendarOwns} from "./personal-items";
+import {calendarOwns,isPersonal} from "./personal-items";
 export type MonthEntry = {id:string;date:string;unit:string;title:string;time?:string;done:boolean;task?:Task;event?:ClassEvent};
-export function awaitingExamDate(t:Task){return t.kind==="exam"&&!t.date;}
+export function awaitingExamDate(t:Task){return t.kind==="exam"&&!t.date&&!t.week;}
+export type CalendarVisibility={assignments:boolean;classes:boolean;personal:boolean};
+export function calendarTaskVisible(t:Task,visibility:Pick<CalendarVisibility,"assignments"|"personal">){return isPersonal(t)?visibility.personal:visibility.assignments;}
+export function weekOnlyTasks(s:Semester,tasks:Task[],start:string,end:string){
+  return tasks.filter(t=>!isPersonal(t)&&!t.splitCount&&!t.date&&t.week&&s.weeks.some(w=>w.number===t.week&&w.start<=end&&w.end>=start));
+}
 export function monthDays(month:string):string[] {
   const start=`${month}-01`,first=new Date(`${start}T12:00:00Z`);
   const offset=(first.getUTCDay()+6)%7;
@@ -26,11 +31,9 @@ export type CompletedMode="show"|"collapse"|"hide";
 export function dayPreview(entries:MonthEntry[],limit=3,mode:CompletedMode="show"){
   const sorted=[...entries].sort(compareMonthEntries),active=sorted.filter(e=>!e.done);
   if(mode!=="show")return {visible:active.slice(0,limit),overflow:active.slice(limit),completed:mode==="collapse"?sorted.filter(e=>e.done):[]};
-  // Completion never changes the ordinary order. Only crowded days give
-  // unfinished work priority when choosing which entries fit in the preview.
-  const candidates=sorted.length>limit?[...active,...sorted.filter(e=>e.done)]:sorted;
-  const chosen=new Set(candidates.slice(0,limit).map(e=>e.id));
-  return {visible:sorted.filter(e=>chosen.has(e.id)),overflow:sorted.filter(e=>!chosen.has(e.id)),completed:[]};
+  // Keep visible means stable positions, including crowded days. A checkbox
+  // must not silently move its row into +more.
+  return {visible:sorted.slice(0,limit),overflow:sorted.slice(limit),completed:[]};
 }
 // Shorten display labels only; never change the stored title or detail view.
 export function shortEntryTitle(e:MonthEntry,mobile=false){
@@ -38,9 +41,9 @@ export function shortEntryTitle(e:MonthEntry,mobile=false){
   return mobile?title.replace(/\bWorkshop\b/gi,"W/shop").replace(/\bScientific\b/gi,"Sci.").replace(/\bComputational\b/gi,"Comp."):title;
 }
 export function entryBadge(e:MonthEntry){return e.task?.hurdle?"Hurdle":e.task?.kind==="quiz"&&!/\bquiz(?:zes)?\b/i.test(e.title)?"Quiz":"";}
-export type MonthPreferences={month:string;unit:string;classes:boolean;completedMode:CompletedMode};
+export type MonthPreferences=CalendarVisibility&{month:string;unit:string;completedMode:CompletedMode};
 export function restoreMonthPreferences(value:unknown,initial:string,first:string,last:string,units:string[]):MonthPreferences{
   const p=(value && typeof value==="object"?value:{}) as Partial<MonthPreferences>&{completed?:boolean};
   const completedMode=p.completedMode==="show"||p.completedMode==="collapse"||p.completedMode==="hide"?p.completedMode:p.completed===false?"hide":"show";
-  return {month:typeof p.month==="string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(p.month) && p.month>=first && p.month<=last?p.month:initial,unit:typeof p.unit==="string" && units.includes(p.unit)?p.unit:"all",classes:typeof p.classes==="boolean"?p.classes:true,completedMode};
+  return {month:typeof p.month==="string" && /^\d{4}-(0[1-9]|1[0-2])$/.test(p.month) && p.month>=first && p.month<=last?p.month:initial,unit:typeof p.unit==="string" && units.includes(p.unit)?p.unit:"all",classes:typeof p.classes==="boolean"?p.classes:true,assignments:typeof p.assignments==="boolean"?p.assignments:true,personal:typeof p.personal==="boolean"?p.personal:true,completedMode};
 }

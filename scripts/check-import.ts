@@ -171,8 +171,8 @@ for(const title of ["SQL Quiz","weekly quizzes","Lecture Knowledge Quiz"])
 assert.equal(entryBadge({...completedDeadline,task:{...completedDeadline.task,hurdle:false}}),"Quiz");
 assert.equal(shortEntryTitle({...activeDeadline,title:"SQL Online Quiz"}),"SQL Quiz");
 assert.equal(shortEntryTitle({...activeClass,title:"Tutorial"}),"Tut");
-assert.deepEqual(restoreMonthPreferences({month:"2026-09",unit:"TEST1001",classes:false,completed:false},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-09",unit:"TEST1001",classes:false,completedMode:"hide"});
-assert.deepEqual(restoreMonthPreferences({month:"2026-99",unit:"OLD1001",classes:"false"},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-10",unit:"all",classes:true,completedMode:"show"});
+assert.deepEqual(restoreMonthPreferences({month:"2026-09",unit:"TEST1001",classes:false,completed:false},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-09",unit:"TEST1001",classes:false,assignments:true,personal:true,completedMode:"hide"});
+assert.deepEqual(restoreMonthPreferences({month:"2026-99",unit:"OLD1001",classes:"false"},"2026-10","2026-08","2026-11",["TEST1001"]),{month:"2026-10",unit:"all",classes:true,assignments:true,personal:true,completedMode:"show"});
 assert.equal(restoreMonthPreferences({month:"2025-09"},"2026-10","2026-08","2026-11",[]).month,"2026-10");
 console.log("PASS: unfinished deadline/routine/class priority, completed grouping, immutable projection, persistent hurdle/quiz labels, compact titles and validated view preferences.");
 
@@ -181,8 +181,11 @@ const beforeTick=dayPreview(stableEntries).visible.map(e=>e.id);
 assert.deepEqual(dayPreview(stableEntries.map(e=>({...e,done:true}))).visible.map(e=>e.id),beforeTick);
 assert.equal(dayPreview([completedDeadline]).visible[0].done,true);
 assert.equal(dayPreview([completedDeadline],3,"hide").visible.length,0);
-assert.equal(dayPreview(previewInput,2,"show").visible.some(e=>e.done),false);
-assert.equal(dayPreview(previewInput,2,"show").overflow.some(e=>e.id==="complete"),true);
+assert.equal(dayPreview(previewInput,2,"show").visible.some(e=>e.done),true);
+assert.equal(dayPreview(previewInput,2,"show").overflow.some(e=>e.id==="complete"),false);
+const crowdedBefore=dayPreview(previewInput.map(e=>({...e,done:false})),2,"show");
+assert.deepEqual(dayPreview(previewInput,2,"show").visible.map(e=>e.id),crowdedBefore.visible.map(e=>e.id));
+assert.deepEqual(dayPreview(previewInput,2,"show").overflow.map(e=>e.id),crowdedBefore.overflow.map(e=>e.id));
 for(const mode of ["show","collapse","hide"] as const)assert.equal(restoreMonthPreferences({completedMode:mode},"2026-10","2026-08","2026-11",[]).completedMode,mode);
 assert.equal(restoreMonthPreferences({completed:true},"2026-10","2026-08","2026-11",[]).completedMode,"show");
 assert.equal(restoreMonthPreferences({completedMode:"invalid"},"2026-10","2026-08","2026-11",[]).completedMode,"show");
