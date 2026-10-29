@@ -1,8 +1,15 @@
 # Engineering handoff
 
-Updated: 2026-10-28. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-29. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
+
+### Unreleased — 2026-10-29 activity conflict safety / DATA-01
+
+- Reproduced a silent invalid merge: from a single activity date without a time, one tab selects a teaching week (or date range), while another adds a start time. Both edits validate independently, but the old recursive merge combines their fields without a conflict. The existing save API then rejects that impossible schedule.
+- `reconcile` now treats `.activity` atomically, like `.grade` / `.gradePlan`. The existing conflict flow requires one complete activity choice; unrelated notes/completion still merge, and due dates/grades remain unchanged. Explicit removal, identical edits and single-sided changes keep their existing behavior. No schema/API/UI change.
+- `check-assessment-activity.ts` failed on the old implementation, then passed after the fix. It covers week/range conflicts, both resolutions, backup round-trip, removals, identical edits and immutable inputs. All 22 `scripts/check-*.ts`, TypeScript `--noEmit` and SQL backup/storage checks passed. No browser test or production build run for this pure merge increment; no deployment or live data access.
+- Daily inspection retained CONNECT-02/T11's exact Chrome reload → authorized four-course check → preview-only next action. Existing extension edits remain untouched; duplicate Canvas-target guards and deletion/Undo protections were inspected before selecting this independently reproducible DATA-01 issue. User-facing week-plus-class scheduling and missing-details flow remain discussion items, not implemented here.
 
 ### 0.15.0 implementation / continuation
 

@@ -15,8 +15,10 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
       const left = new Map(l.map(x=>[x[key],x])); const right = new Map(r.map(x=>[x[key],x]));
       return [...new Set([...right.keys(), ...left.keys()])].map(id=>merge(before.get(id),left.get(id),right.get(id),`${path}.${id}`)).filter(x=>x !== undefined);
     }
-    // Keep scores and calculation plans atomic: mixed edits could invent a result.
-    if (!path.endsWith(".grade") && !path.endsWith(".gradePlan") && object(l) && object(r) && (object(b) || b == null)) {
+    // Keep grades/plans and activity timing atomic. Mixing independently valid
+    // activity edits can invent a week + time or a multi-day range + time.
+    const atomic = [".grade", ".gradePlan", ".activity"].some(field=>path.endsWith(field));
+    if (!atomic && object(l) && object(r) && (object(b) || b == null)) {
       const out: Record<string, unknown> = {};
       for (const key of new Set([...Object.keys(l),...Object.keys(r)]))
         out[key] = merge(object(b) ? b[key] : undefined,l[key],r[key],path ? `${path}.${key}` : key);

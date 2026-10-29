@@ -49,5 +49,37 @@ const local={...withActivity,tasks:[confirmed]},remote={...withActivity,tasks:[{
 const merged=reconcile(withActivity,local,remote);
 assert.deepEqual(merged.conflicts,[]);assert.deepEqual(merged.semester.tasks[0].activity,confirmed.activity);
 assert.equal(merged.semester.tasks[0].description,"Separate notes edit");assert.equal(merged.semester.tasks[0].done,true);
+
+// Each tab has a valid activity, but field-by-field merging can invent a week
+// plus a time, or a multi-day range plus a time. Resolve the activity as a whole.
+const datedActivity={label:"Demo",startDate:"2026-10-28"};
+const concurrentBase={...s,tasks:[{...t,activity:datedActivity}]};
+const remoteTime={...concurrentBase,tasks:[{...concurrentBase.tasks[0],
+  activity:{...datedActivity,time:"12:00"},description:"Keep the other tab's note",done:true}]};
+for(const nextActivity of [{label:"Demo",week:13},{...datedActivity,endDate:"2026-10-30"}]) {
+  const localTiming={...concurrentBase,tasks:[{...concurrentBase.tasks[0],activity:nextActivity}]};
+  const snapshots=JSON.stringify([concurrentBase,localTiming,remoteTime]);
+  assert.equal(activityError(nextActivity,s),"");
+  assert.equal(activityError(remoteTime.tasks[0].activity,s),"");
+  for(const prefer of ["local","remote"] as const) {
+    const resolved=reconcile(concurrentBase,localTiming,remoteTime,prefer);
+    assert.deepEqual(resolved.conflicts,["tasks.demo.activity"],"concurrent activity changes need one explicit choice");
+    assert.deepEqual(resolved.semester.tasks[0].activity,prefer==="local"?nextActivity:remoteTime.tasks[0].activity,
+      "never combine fields from two different schedules");
+    assert.equal(activityError(resolved.semester.tasks[0].activity,s),"");
+    assert.equal(resolved.semester.tasks[0].description,remoteTime.tasks[0].description);
+    assert.equal(resolved.semester.tasks[0].done,true);
+    assert.equal(resolved.semester.tasks[0].date,t.date,"activity conflict does not change the submission deadline");
+    assert.deepEqual(resolved.semester.tasks[0].grade,t.grade);
+    assert.deepEqual(readBackup(backupText(resolved.semester)).tasks[0].activity,resolved.semester.tasks[0].activity);
+  }
+  assert.equal(JSON.stringify([concurrentBase,localTiming,remoteTime]),snapshots,"merge leaves all input snapshots untouched");
+}
+const sameTiming={...concurrentBase,tasks:[{...concurrentBase.tasks[0],activity:remoteTime.tasks[0].activity}]};
+assert.deepEqual(reconcile(concurrentBase,sameTiming,remoteTime).conflicts,[],"identical activity edits do not conflict");
+const removedActivity={...concurrentBase,tasks:[{...concurrentBase.tasks[0],activity:null}]};
+assert.deepEqual(reconcile(concurrentBase,removedActivity,remoteTime).conflicts,["tasks.demo.activity"]);
+assert.equal(reconcile(concurrentBase,removedActivity,remoteTime).semester.tasks[0].activity,null,"explicit removal is preserved when chosen");
+assert.deepEqual(reconcile(concurrentBase,removedActivity,remoteTime,"remote").semester.tasks[0].activity,remoteTime.tasks[0].activity);
 assert.equal(s.tasks[0].activity,undefined); // No automatic mutation of source records.
-console.log("PASS: optional activity week/range/date, validation, calendar reminders, one assessment/grade, unchanged deadlines, backup, refresh, removal and concurrent edits.");
+console.log("PASS: optional activity week/range/date, validation, calendar reminders, one assessment/grade, unchanged deadlines, backup, refresh, removal and atomic concurrent activity edits.");
