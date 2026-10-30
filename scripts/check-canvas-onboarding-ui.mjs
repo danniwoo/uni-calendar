@@ -30,13 +30,13 @@ try{
   await shown(page.getByRole("button",{name:"Edit grade for Assignment 1",exact:true}));
   assert.match(await page.getByRole("button",{name:"Edit grade for Assignment 1",exact:true}).innerText(),/12 \/ 20/);
   await page.getByRole("button",{name:"Reopen import"}).click();
-  await shown(page.getByRole("heading",{name:"You’re up to date"}));
-  assert(await page.getByRole("button",{name:"Nothing to import"}).isDisabled());
+  await shown(page.getByRole("heading",{name:"No changes in this check"}));
+  assert(await page.getByRole("button",{name:"No changes to import"}).isDisabled());
   await page.getByRole("button",{name:"Cancel",exact:true}).click();
   await page.getByRole("button",{name:"Use JSON next time"}).click();
   await page.getByRole("button",{name:"Reopen import"}).click();
   await page.getByLabel("Choose Connect import file").setInputFiles({name:"synthetic.json",mimeType:"application/json",buffer:Buffer.from(JSON.stringify(onboardingBundle))});
-  await shown(page.getByRole("heading",{name:"You’re up to date"}));
+  await shown(page.getByRole("heading",{name:"No changes in this check"}));
   await page.goto(base+"&existing");
   await shown(page.getByRole("heading",{name:"4 updates ready to import"}));
   await page.getByText("Why this match?",{exact:true}).first().click();

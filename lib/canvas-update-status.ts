@@ -1,8 +1,9 @@
 import type {Semester} from "./semester";
 import {canvasGrade,canvasKey,canvasResultLabel,type CanvasBundle,type CanvasChoice} from "./canvas-import";
+import type {SourceRuleReview} from "./canvas-source-rules";
 
 export type CanvasActionKind="grade"|"protected"|"attention"|"mapping"|"added"|"unchanged"|"summary";
-export type CanvasAction={key:string;text:string;changed:boolean;kind?:CanvasActionKind};
+export type CanvasAction={key:string;text:string;changed:boolean;kind?:CanvasActionKind;targetId?:string;sourceReview?:SourceRuleReview};
 
 // Offer already-confirmed rules as explicit choices, never as automatic matches.
 // The planner still checks manual edits, slot capacity and source rule changes.
@@ -29,9 +30,16 @@ export function isNewerCanvasBatch(current:CanvasBundle,incoming:CanvasBundle){
   return incoming.courses.some(c=>{const old=current.courses.find(o=>o.course.id===c.course.id);return !old||Date.parse(c.fetchedAt)>Date.parse(old.fetchedAt);});
 }
 
-export function canvasResultsHeadline(grades:number,unconnected:number){
+export function canvasResultsHeadline(grades:number,unconnected:number,attention=0){
   const total=grades+unconnected;
-  return total?`${total} Canvas ${total===1?"result":"results"} to review`:"No new results to review";
+  return [total?`${total} Canvas ${total===1?"result":"results"} to review`:"",attention?`${attention} ${attention===1?"assessment needs":"assessments need"} review`:""].filter(Boolean).join(" · ")||"No changes in last check";
+}
+
+export function canvasCheckFreshness(b:CanvasBundle|null,expected:number,now=Date.now()){
+  const times=b?.courses.map(c=>Date.parse(c.fetchedAt))||[];
+  const complete=expected>0&&times.length===expected;
+  const latest=times.length?Math.max(...times):null,oldest=times.length?Math.min(...times):null;
+  return {complete,latest,oldest,needsCheck:!complete||oldest===null||oldest>now||now-oldest>=60000};
 }
 
 // Status comes from the planner, never from matching English warning strings.

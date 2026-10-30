@@ -8,6 +8,12 @@ const week=(s:string)=>words(s).match(/\bweek\s*(\d+)\b/)?.[1];
 const roles=(s:string):string[]=>words(s).match(/\b(?:report|presentation|demo|quiz|exam)\b/g)||[];
 const tokens=(s:string)=>new Set(words(s).split(" ").filter(w=>w.length>2&&!/^(the|and|for|due|week|submission|requires|respondus|lockdown|browser)$/.test(w)));
 export const canvasDay=(s:string|null)=>s?new Intl.DateTimeFormat("en-CA",{timeZone:"Australia/Sydney",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(s)):"";
+// Suggest placement only. A matching quiz number never chooses a calculation rule.
+export function canvasAttemptTargets(s:Semester,unit:string,a:CanvasAssignment){
+  if(!isCanvasRetake(a))return [];
+  const number=a.name.match(/\bquiz\s*(\d+)\b/i)?.[1];
+  return number?canvasTargets(s,unit).filter(t=>t.title.match(/\bquiz\s*(\d+)\b/i)?.[1]===number):[];
+}
 // Only an explicit percentage in the item title is evidence. Points possible
 // and a category's weight are NOT the assessment's weight.
 const percent=(s:string)=>{const all=[...s.matchAll(/\b(\d+(?:\.\d+)?)\s*%/g)].map(m=>Number(m[1]));return all.length===1&&all[0]<=100?all[0]:undefined;};
@@ -58,7 +64,7 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
       if(choices[key])continue;
       if(!canvasGrade(a))continue; // No 50-item ungraded onboarding backlog.
       if(!unit){issues[key]="Choose the Semester unit for this shared Canvas course.";continue;}
-      if(isCanvasRetake(a)){issues[key]="Retake: choose the assessment’s rule; attempts are not separate overall grades.";continue;}
+      if(isCanvasRetake(a)){issues[key]="Result found · not yet included in your total. Confirm which assessment and calculation to use.";continue;}
       const allCandidates=preparedCandidates(s,unit,a);
       const candidates=allCandidates.filter(v=>!s.canvasImports?.some(r=>r.targetId===v.target.id));
       if(allCandidates.length&&!candidates.length){issues[key]="The similar assessment already has another Canvas connection. Review it before creating a duplicate.";continue;}

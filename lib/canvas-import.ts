@@ -9,7 +9,7 @@ export const CANVAS_SOURCE="https://canvas.sydney.edu.au";
 export type CanvasAssignment={id:string;name:string;groupId:string|null;dueAt:string|null;opensAt:string|null;closesAt:string|null;pointsPossible:number|null;omitted:boolean;result?:"complete"|"incomplete";submission:null|{released:boolean;excused:boolean;score:number|null;releaseEvidence:string|null;currentAttemptGraded:boolean|null}};
 export type CanvasCourse={course:{id:string;name:string;code:string;term:string;weighted:boolean|null};fetchedAt:string;groupsUnavailable:boolean;marksPageUnavailable:boolean;assignments:CanvasAssignment[];groups:{id:string;name:string;weight:number|null;rules:{dropLowest:number|null;dropHighest:number|null;neverDrop:string[]}}[]};
 export type CanvasBundle={format:"semester-connect";schemaVersion:1;source:typeof CANVAS_SOURCE;accountId:string;exportedAt:string;courses:CanvasCourse[]};
-export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal";rule?:CanvasRule;outcome?:"missed"|"not_taken"};
+export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal";rule?:CanvasRule;outcome?:"missed"|"not_taken";reviewedSourceRules?:string};
 export type CanvasImportRecord=NonNullable<Semester["canvasImports"]>[number];
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==="object"&&!Array.isArray(x);
 const id=(x:unknown):x is string=>typeof x==="string"&&/^[1-9]\d{0,19}$/.test(x);

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.15.1 — 2026-10-31
+
+- On arrival/return to Semester, request one fresh read of already-authorized courses when the last batch is incomplete or older than a minute. Show course read freshness and failures on the homepage; never auto-import or replace an open review. Existing Connect still needs one signed-in Canvas course tab in the same Chrome profile.
+- Separate results awaiting setup, updates ready to import, and saved assessments needing review. A new numbered quiz attempt suggests the matching quiz and opens its calculation setup directly; it is not labelled skipped and no calculation rule is guessed.
+- Group source-setting warnings by assessment. Ignore display-name changes and never-drop ordering; show actual weight/drop-rule differences. Explicitly keeping the saved calculation updates only reviewed source baselines, with manual/stale/excused/maximum guards intact. Missing source information remains blocked.
+- Preserve exact Import counts, numeric/Complete before-after totals, cancellation and Undo. Synthetic browser checks cover fresh/failed reads, frozen review, one-result import, repeat no-op and grouped settings. No real data or extension edits included.
+- Includes the previously tested eight-unit Canvas import limit and atomic activity conflict fixes from 29–30 October.
+
 ## 0.15.0 — 2026-10-28
 
 - Show teaching-week-only assessments, including tests, directly above the relevant Week / Month row, with titles and a Set date action. Do not invent a day or time; exams with no known week remain separate.

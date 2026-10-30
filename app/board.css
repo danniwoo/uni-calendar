@@ -1612,6 +1612,15 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .calendar-visibility button span{width:12px;font-weight:700}
 .calendar-completion-filter{display:flex;align-items:center;gap:7px;margin-left:auto;font-size:12px;color:#607088}
 .calendar-completion-filter select{background:white;border:1px solid #dce3ef;color:#34465e}
+.canvas-source-review{border:1px solid #d8e0ee;border-radius:10px;background:#fff;padding:14px 18px;margin:10px 0}
+.canvas-review-heading{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.canvas-review-heading strong,.canvas-review-heading small{display:block}.canvas-review-heading small{color:#65738a;font-size:12px;margin-top:4px}
+.canvas-source-review table{width:100%;text-align:left;font-size:13px;margin:14px 0;border-collapse:collapse}
+.canvas-source-review td,.canvas-source-review th{padding:8px;border-bottom:1px solid #e4e9f1;overflow-wrap:anywhere}
+.canvas-source-review details{font-size:12px;color:#65738a;margin-top:12px}
+.canvas-source-review p{font-size:13px;margin:12px 0}.canvas-source-review .canvas-confirm{font-size:13px;margin:12px 0}
+.canvas-review-groups{margin:20px 0}.canvas-review-groups h4{font-size:14px;margin:0}
+.canvas-connect-status small{font-size:12px;color:#65738a}.canvas-check-message{margin:8px 0 0;font-size:13px;color:#8b4c14}
 .calendar-filters-empty{flex-basis:100%;margin:2px 0;font-size:12px;color:#607088}
 .calendar-week-items{padding:10px 18px;background:#fffaf0;border-top:1px solid #eee1c5;border-bottom:1px solid #eee1c5}
 .calendar-week-items h3{display:flex;align-items:center;gap:7px;font-size:12px;line-height:1.4;color:#77551a;margin:0 0 7px;font-weight:650}

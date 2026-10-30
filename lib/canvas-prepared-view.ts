@@ -12,16 +12,21 @@ export function preparedCanvasView(s:Semester,b:CanvasBundle,choices:Record<stri
     const sourceKey=canvasKey(b,c.course.id,a.id),key=`${c.course.id}:${a.id}`;
     return {c,a,key,sourceKey,choice:choices[key],prior:records.get(sourceKey),action:byKey.get(sourceKey)};
   }));
-  const useful=rows.filter(r=>r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind==="attention"||r.action?.kind!=="protected"&&!r.prior&&!!canvasGrade(r.a));
+  const attention=rows.filter(r=>r.action?.kind==="attention");
+  const reviewGroups=[...new Set(attention.map(r=>`${r.c.course.id}:${r.choice?.targetId||r.prior?.targetId||r.key}`))].map(id=>{
+    const items=attention.filter(r=>`${r.c.course.id}:${r.choice?.targetId||r.prior?.targetId||r.key}`===id);
+    return {id,items,targetId:items[0].choice?.targetId||items[0].prior?.targetId};
+  });
+  const useful=rows.filter(r=>r.action?.kind!=="attention"&&(r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind!=="protected"&&!r.prior&&!!canvasGrade(r.a)));
   const changed=actions.filter(a=>a.changed);
-  const visibleKeys=new Set(useful.map(r=>r.sourceKey));
+  const visibleKeys=new Set([...useful,...attention].map(r=>r.sourceKey));
   const other=rows.filter(r=>!visibleKeys.has(r.sourceKey));
   const otherGroups={
     protected:other.filter(r=>r.action?.kind==="protected"),
     linked:other.filter(r=>r.action?.kind!=="protected"&&!!r.prior),
     unconnected:other.filter(r=>r.action?.kind!=="protected"&&!r.prior),
   };
-  return {rows,useful,total:changed.length,
+  return {rows,useful,reviewGroups,total:changed.length,
     results:changed.filter(a=>a.kind==="grade").length,
     added:changed.filter(a=>a.kind==="added").length,
     connections:changed.filter(a=>a.kind!=="grade"&&a.kind!=="added").length,

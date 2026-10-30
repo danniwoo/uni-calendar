@@ -35,7 +35,7 @@ const parsed=readCanvasBundle(JSON.stringify(raw));assert.equal(parsed.courses[0
 console.log("Canvas update statuses passed: new results, unmatched, protected, repeat, account guard and raw transport.");
 assert.equal(canvasResultsHeadline(0,1),"1 Canvas result to review");
 assert.equal(canvasResultsHeadline(2,1),"3 Canvas results to review");
-assert.equal(canvasResultsHeadline(0,0),"No new results to review");
+assert.equal(canvasResultsHeadline(0,0),"No changes in last check");
 const fresh=structuredClone(newer);fresh.courses.forEach(c=>c.fetchedAt="2026-10-25T00:00:00Z");
 assert.equal(isNewerCanvasBatch(newer,fresh),true);
 assert.equal(isNewerCanvasBatch(fresh,newer),false,"older snapshots cannot replace a newer review");

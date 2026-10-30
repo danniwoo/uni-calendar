@@ -102,8 +102,8 @@ try{
   await shown(page.getByText("Test writes: 1",{exact:true}));
   await shown(page.getByText("Saved individual records: 1",{exact:true}));
   await page.getByRole("button",{name:"Reopen import"}).click();
-  await shown(page.getByRole("heading",{name:"You’re up to date"}));
-  assert(await page.getByRole("button",{name:"Nothing to import"}).isDisabled());
+  await shown(page.getByRole("heading",{name:"No changes in this check"}));
+  assert(await page.getByRole("button",{name:"No changes to import"}).isDisabled());
   assert.deepEqual(errors,[]);
   console.log("PASS inline part UI: one card, destination retained, no guessed rule, cancel/focus, stage/undo, special/drop-rule guards, concise review, stale refresh; zero writes before explicit in-memory import, one child saved and repeat no-op.");
 }finally{await browser.close();}

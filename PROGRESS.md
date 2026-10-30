@@ -1,8 +1,17 @@
 # Engineering handoff
 
-Updated: 2026-10-30. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-31. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
+
+### 0.15.1 implementation / continuation
+
+- Homepage distinguishes pending results and grouped rule attention from no changes in the last check. A bounded arrival/focus check reuses the existing consent-bound bridge command; no polling, course IDs, credentials, saves or extension changes. Oldest course read/partial status and failures remain visible. An open review suppresses automatic checks and retains its batch.
+- New quiz attempts suggest only an exact same-unit quiz number (ambiguous candidates stay unselected). The inline setup reuses a confirmed target rule or requires explicit highest-attempt/count confirmation; manual child plans remain protected. No new rule inference or manual-link migration.
+- Source rule comparison ignores names and set ordering, preserves unknown versus zero, and exposes structured differences grouped per assessment. The transient acknowledgement is bound to the exact current snapshot. Confirmed metadata-only updates count as connections, not grade updates; changed denominator, excused items, missing group data, stale batches and manual edits remain guarded. JSON/direct use the same planner.
+- All 24 pure Web regression scripts, TypeScript and in-memory SQL storage checks passed. Synthetic CUA browser checks: new attempt setup/cancel/Undo, grouped source review/cancel/Undo, one-result in-memory import and repeat no-op, numeric + Complete skip/Undo/cancel, homepage initial/return refresh, duplicate-message no-loop, review suppression and visible failure. Test fixtures are `?attention`, `?freshness`, `?mixed`; fake saves stay in memory. Legacy UI script text assertions updated; those headless runners were not executed this turn.
+- No live account, Canvas export or user grades were read or changed. Existing dirty extension files were excluded using an isolated Sites source checkout. Production build/publication evidence is recorded only after success. T11 real Chrome lifecycle/four-course acceptance still pending: keep one signed-in Canvas course tab in the same Chrome profile, return to Semester, verify fresh read times and result/setup/settings counts, then cancel. Dashboard-only/background reading is not claimed.
+- The previously committed 29–30 October activity conflict and unit-limit fixes are included in this release candidate. Week-plus-class editing, activity history and automatic saving remain out of scope.
 
 ### Unreleased — 2026-10-30 Canvas unit-limit safety / CONNECT-01
 

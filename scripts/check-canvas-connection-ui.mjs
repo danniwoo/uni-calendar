@@ -47,7 +47,7 @@ try{
   await entry.getByRole("button",{name:"Hide details",exact:true}).click();
   await page.screenshot({path:"/private/tmp/semester-connect-manage.png",fullPage:true});
   await incoming(enabled);
-  await shown(entry.getByText("Connected · no pending preview",{exact:true}));
+  await shown(entry.getByText("Not checked yet",{exact:true}));
   await shown(entry.getByRole("button",{name:"Check all 4 courses",exact:true}));
   assert(!await entry.getByRole("button",{name:"Review updates",exact:true}).count());
   await entry.getByRole("button",{name:"Check all 4 courses",exact:true}).click();

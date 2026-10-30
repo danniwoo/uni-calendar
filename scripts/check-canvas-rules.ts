@@ -50,7 +50,7 @@ for(const mutate of [(p:any)=>p.items[0].grade=null,(p:any)=>p.items[0].outcome=
 }
 const changedRules=structuredClone(bundle);changedRules.courses[2].groups[0].rules.dropLowest=1;
 assert.equal(planCanvasImport(first.semester,changedRules,suggested).changed,0);
-assert(planCanvasImport(first.semester,changedRules,suggested).actions.some(a=>a.text.includes("rules changed")));
+assert(planCanvasImport(first.semester,changedRules,suggested).actions.some(a=>a.sourceReview?.changes.some(c=>c.label==="Drop lowest")));
 const changedMax=structuredClone(newer);changedMax.courses[2].assignments[0].pointsPossible=20;
 const maximumReview=planCanvasImport(first.semester,changedMax,suggested);
 assert.equal(maximumReview.semester.tasks[2].gradePlan!.items[0].maximum,10);

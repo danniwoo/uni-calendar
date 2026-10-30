@@ -60,8 +60,8 @@ try{
   await shown(page.getByText("No live account. Test writes: 1",{exact:true}));
   await page.getByRole("button",{name:"Reopen preview",exact:true}).click();
   await page.getByLabel("Choose Connect import file").setInputFiles({name:"synthetic-mixed.json",mimeType:"application/json",buffer:Buffer.from(mixedUpdatesFixture().raw)});
-  await shown(page.getByRole("heading",{name:"You’re up to date"}));
-  assert(await page.getByRole("button",{name:"Nothing to import",exact:true}).isDisabled());
+  await shown(page.getByRole("heading",{name:"No changes in this check"}));
+  assert(await page.getByRole("button",{name:"No changes to import",exact:true}).isDisabled());
   assert.deepEqual(errors,[]);
   console.log("PASS mixed UI: numeric + Complete listed, exact global import count, unchanged/protected no-ops excluded, Complete skip/Undo, total explanation, JSON parity, cancel zero writes, explicit in-memory import and repeat no-op.");
 }finally{await browser.close();}

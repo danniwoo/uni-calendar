@@ -2,6 +2,7 @@ import type {CanvasRule,GradePlan,Semester} from "./semester";
 import {validGrade,validGradePlan} from "./grade-value";
 import {canvasGrade,canvasKey,canvasTargets,type CanvasBundle,type CanvasChoice,type CanvasImportRecord} from "./canvas-import";
 import {partGrade} from "./grades";
+import {canvasSourceRules,canvasSourceRuleReview} from "./canvas-source-rules";
 
 const same=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
 export function validCanvasRule(value:unknown):value is CanvasRule {
@@ -47,12 +48,14 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       const keep=(reason:string,kind:import("./canvas-update-status").CanvasActionKind="unchanged")=>actions.push({key,text:`${target.title} → ${a.name}: ${reason}; unchanged`,changed:false,kind});
       if(prior&&(prior.targetId!==targetId||prior.mode!=="part"||!same(prior.rule,rule)))throw new Error("This Canvas item is already linked with a different target or rule. Existing mapping preserved.");
       if(blocked){keep("manual / existing grade or rule setup protected","protected");continue;}
-      const sourceRules=JSON.stringify({unavailable:course.groupsUnavailable,group:course.groups.find(g=>g.id===a.groupId)||null});
-      if(prior?.sourceRules!==undefined&&prior.sourceRules!==sourceRules){keep("Canvas group rules changed — review required","attention");continue;}
       if(prior?.readAt&&Date.parse(course.fetchedAt)<Date.parse(prior.readAt)){keep("older source ignored");continue;}
       const current=plan.items.find(i=>i.id===itemId);
       if(prior&&(!prior.readAt||prior.manual||!current||!same(current,prior.lastItem))){keep("manual / removed entry protected","protected");continue;}
       if(current&&!prior){keep("existing entry has no source baseline","protected");continue;}
+      const sourceRules=canvasSourceRules(course,a.groupId);
+      const sourceReview=prior?.sourceRules!==undefined?canvasSourceRuleReview(prior.sourceRules,sourceRules):null;
+      const reviewed=!!sourceReview&&sourceReview.canKeep&&choice.reviewedSourceRules===sourceRules;
+      if(sourceReview&&!reviewed){actions.push({key,targetId,sourceReview,text:`${target.title}: Canvas source settings need review; saved results kept`,changed:false,kind:"attention"});continue;}
       const grade=canvasGrade(a);
       const complete=a.result==="complete"&&a.submission?.released&&!a.submission.excused&&a.submission.currentAttemptGraded!==false&&!a.omitted;
       if(choice.outcome&&!["missed","not_taken"].includes(choice.outcome))throw new Error("Invalid explicit outcome.");
@@ -64,7 +67,11 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       if(rule.method==="highest"&&grade)item.grade=grade;
       if(rule.method==="completion"&&complete)item.outcome="submitted";
       if(choice.outcome)item.outcome=choice.outcome;
-      if(current&&same(current,item)){keep("no new applicable result");continue;}
+      if(current&&same(current,item)){
+        if(reviewed&&prior){records.set(key,{...prior,sourceRules,readAt:course.fetchedAt});actions.push({key,targetId,text:`${target.title}: source settings reviewed; saved calculation and result kept`,changed:true,kind:"mapping"});}
+        else keep("no new applicable result");
+        continue;
+      }
       if(!current) {
         const index=plan.items.findIndex(i=>i.id.startsWith(`canvas-rule-empty:${targetId}:`)&&same(i,placeholder(targetId,Number(i.id.split(":").at(-1)))));
         if(index<0){keep("no untouched slot available — review the count / entries","attention");continue;}
