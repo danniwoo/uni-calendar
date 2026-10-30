@@ -1,8 +1,15 @@
 # Engineering handoff
 
-Updated: 2026-10-29. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-10-30. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
 ## Current source checkpoint
+
+### Unreleased — 2026-10-30 Canvas unit-limit safety / CONNECT-01
+
+- Reproduced using invented data: a valid eight-unit board received a prepared ninth course, and the planner returned a changed board that backup validation and the save API reject. The planner now checks the evolving unit count before adding a course, so preview and confirmation share the persistence boundary. Existing-course grades and multiple items in the eighth course remain allowed; no automatic deletion or course reassignment.
+- `check-canvas-limits.ts` failed before the fix and passed afterwards. It covers the eighth/ninth unit, cumulative two-course overflow when either fits alone, same-course additions, repeat import, JSON/direct preparation parity, backup round-trip, confirmation rejection and unchanged source/board snapshots on failure. On a full board, preparation leaves extra-course results for review while retaining usable existing-course results; a collectively oversized batch is rejected rather than silently choosing which new course to keep.
+- All 23 `scripts/check-*.ts`, TypeScript `--noEmit --incremental false` and in-memory SQL backup/storage checks passed. Pure planner change only; no browser QA, production build, deployment or real-data access. Existing extension edits remain excluded.
+- T11 still requires the existing real Chrome reload/authorized four-course/preview-only acceptance. Independent backup validation and saved-rule guards were inspected; the reproducible planner/persistence mismatch was selected for this increment. Neither T11 nor the new week-plus-class UI is marked complete.
 
 ### Unreleased — 2026-10-29 activity conflict safety / DATA-01
 

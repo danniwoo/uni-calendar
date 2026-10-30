@@ -141,6 +141,9 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       const codes=[...new Set(c.course.code.toUpperCase().match(/[A-Z]{4}\d{4}/g)||[])];
       const term=c.course.term.match(/Semester\s*([12])\D+(20\d{2})/i);
       if(choice.targetId!=="new"||codes.length!==1||codes[0]!==choice.unit||!term||Number(term[2])!==s.year||`S${term[1]}C`!==s.session)throw new Error("Choose an existing unit, or a single-code Canvas course in this board’s semester.");
+      // Check the evolving batch before adding a course: per-row preparation
+      // alone cannot enforce the same eight-unit limit as backup/API storage.
+      if(next.units.length>=8)throw new Error("This board supports up to 8 units. Skip results from additional courses or choose an existing unit.");
       next.units.push({code:choice.unit,name:c.course.name,session:s.session,outline:"",status:"Canvas results only",summary:"Assessment weights and teaching schedule not supplied by Canvas.",assessments:[],topics:[]});
     }
     const key=canvasKey(b,c.course.id,a.id),prior=records.get(key),grade=canvasGrade(a);
