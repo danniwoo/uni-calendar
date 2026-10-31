@@ -1,25 +1,40 @@
-// Isolated-world bridge. Only the explicitly permitted Semester origin receives
-// pending source data; no credentials, tokens, or automatic save commands.
+// Isolated-world bridge for the explicitly permitted Semester origin only.
 (() => {
-  const origin="https://usyd-semester-board.earthy-trout-5263.chatgpt.site";
-  if (location.origin!==origin || window!==window.top || globalThis.__semesterConnectBridge) return;
-  globalThis.__semesterConnectBridge=true;
-  let busy=false,again=false;
+  const origin = "https://usyd-semester-board.earthy-trout-5263.chatgpt.site";
+  if (location.origin !== origin || window !== window.top) return;
+  const runtime = chrome.runtime;
+  const version = runtime.getManifest().version;
+  const previous = globalThis.__semesterConnectBridge;
+  if (previous?.version === version && previous.alive?.()) { void previous.send(); return; }
+  previous?.dispose?.();
+  let busy = false, again = false, disposed = false;
+  const alive = () => { try { return !disposed && runtime.getManifest().version === version; } catch { return false; } };
+  const unavailable = message => { if (!disposed) window.postMessage({type:"semester-connect-inbox-v1",inbox:{enabled:false,raw:null,message}},origin); };
   async function send() {
-    if (busy) {again=true;return;}
-    busy=true;
+    if (disposed) return;
+    if (busy) { again = true; return; }
+    busy = true;
     try {
-      const inbox=await chrome.runtime.sendMessage({type:"connect-inbox"});
-      window.postMessage({type:"semester-connect-inbox-v1",inbox},origin);
-    } catch {window.postMessage({type:"semester-connect-inbox-v1",inbox:{enabled:false,raw:null,message:"Connect reloaded or unavailable. Reload Semester, or use JSON."}},origin);}
-    finally {busy=false;if(again){again=false;void send();}}
+      const inbox = await runtime.sendMessage({type:"connect-inbox"});
+      if (!disposed) window.postMessage({type:"semester-connect-inbox-v1",inbox},origin);
+    } catch { unavailable("Connect reloaded or unavailable. Reopen Connect from Canvas, then reload Semester if needed."); }
+    finally { busy = false; if (again && !disposed) { again = false; void send(); } }
   }
-  window.addEventListener("message",e=>{if(e.source===window&&e.origin===origin&&e.data?.type==="semester-connect-request-v1")void send();});
-  window.addEventListener("message",async e=>{
-    if(e.source!==window||e.origin!==origin||e.data?.type!=="semester-connect-check-all-v1")return;
-    try {await chrome.runtime.sendMessage({type:"connect-check-all"});await send();}
-    catch {window.postMessage({type:"semester-connect-inbox-v1",inbox:{enabled:false,raw:null,message:"Connect unavailable. Reload Semester and Connect, or use JSON."}},origin);}
-  });
-  chrome.runtime.onMessage.addListener(message=>{if(message?.type==="semester-connect-changed")void send();});
+  async function receive(event) {
+    if (disposed || event.source !== window || event.origin !== origin) return;
+    if (event.data?.type === "semester-connect-request-v1") { void send(); return; }
+    if (event.data?.type !== "semester-connect-check-all-v1") return;
+    try { await runtime.sendMessage({type:"connect-check-all"}); await send(); }
+    catch { unavailable("Connect unavailable. Reopen Connect from Canvas and reload Semester, or use manual import."); }
+  }
+  const changed = message => { if (message?.type === "semester-connect-changed") void send(); };
+  const dispose = () => {
+    disposed = true;
+    window.removeEventListener("message",receive);
+    try { runtime.onMessage.removeListener(changed); } catch { /* Previous extension context may be invalid. */ }
+  };
+  window.addEventListener("message",receive);
+  runtime.onMessage.addListener(changed);
+  globalThis.__semesterConnectBridge = {version,alive,send,dispose};
   void send();
 })();

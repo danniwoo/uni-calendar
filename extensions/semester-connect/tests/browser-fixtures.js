@@ -82,8 +82,16 @@ export async function runChecks(report) {
 }
 export function installPreviewFixture() {
   // Test-only adapter loaded solely by qa-server.mjs, never by the extension.
+  let config = new URL(location.href).searchParams.has("connected") ? {enabled:true,accountId:"91",courseIds:["12","13"]} : null;
   window.chrome = {
-    runtime: { getManifest: () => ({ version: new URL(location.href).searchParams.has("stale") ? "0.1.0" : READER_VERSION }), sendMessage: async () => ({enabled:false,raw:null,message:"Synthetic fixture: reload checks off."}) },
+    runtime: { getManifest: () => ({ version: new URL(location.href).searchParams.has("stale") ? "0.1.0" : READER_VERSION }), sendMessage: async message => {
+      if(message.type==="connect-enable") { config=message.config;return {ok:true}; }
+      if(message.type==="connect-reconnect") return {ok:true};
+      if(message.type==="connect-disable") { config=null;return {ok:true}; }
+      return {enabled:Boolean(config),accountId:config?.accountId,courseCount:config?.courseIds.length,raw:null,message:"Synthetic connection status."};
+    } },
+    storage: {local:{get:async()=>({reloadConfig:config})},onChanged:{addListener(){}}},
+    permissions: {request:async()=>true,remove:async()=>true},
     tabs: { get: async () => ({ url: "https://canvas.sydney.edu.au/courses/12/grades" }),
       onRemoved: { addListener() {} }, onUpdated: { addListener() {} } },
     scripting: { executeScript: async ({ args }) => [{ result: await readFixture(args[0]) }] },

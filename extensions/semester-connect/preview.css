@@ -10,3 +10,30 @@
 .course-check:has(input:disabled) { cursor:not-allowed; opacity:.65; }
 .batch-actions { display:flex; gap:10px; margin:18px 0; }
 #batch-status { white-space:pre-line; line-height:1.8; }
+
+.topbar-actions { display:flex; align-items:center; gap:16px; }
+.open-semester { font-size:14px; }
+.connect-panel { padding:22px; margin-bottom:18px; }
+.connect-panel p { color:var(--muted); }
+.connect-panel .batch-actions { flex-wrap:wrap; }
+.connect-panel button { padding:10px 16px; border-radius:8px; border:1px solid #cfd9e8; background:#fff; color:var(--ink); font-weight:600; }
+.connect-panel button:hover:not(:disabled) { background:#eef2fa; }
+.connect-panel #enable-reload { background:var(--blue); border-color:var(--blue); color:#fff; }
+.connect-panel #enable-reload:hover:not(:disabled) { background:#1c42af; }
+.semester-next { display:flex; align-items:center; justify-content:space-between; gap:20px; margin-top:16px; padding:16px; border:1px solid #cdddfd; border-radius:9px; background:#edf3ff; }
+.semester-next p { margin:3px 0 0; }
+@media (max-width:650px) { .topbar { height:auto; min-height:76px; padding:14px 18px; flex-wrap:wrap; gap:12px; } .topbar-actions { gap:10px; flex-wrap:wrap; } .readonly { display:none; } .semester-next { align-items:flex-start; flex-direction:column; } .picker label { min-width:0; } }
+
+.route-label { margin:0 0 7px; color:var(--blue)!important; font-size:11px; font-weight:700; letter-spacing:1px; }
+.connection-options { margin-top:18px; font-size:12px; color:var(--muted); }
+.connection-options summary { cursor:pointer; font-weight:600; }
+.connection-options p { max-width:900px; }
+.connect-action { margin-top:20px; padding-top:16px; border-top:1px solid var(--line); }
+.connect-action #enable-hint { margin:0 0 12px; }
+.connect-action .scope-note { margin:10px 0 0; }
+.manual-import { margin-top:18px; }
+.manual-import>summary { padding:18px 22px; font-weight:600; cursor:pointer; }
+.manual-import>summary span { display:block; margin-top:4px; font-size:12px; color:var(--muted); font-weight:400; }
+.manual-content { padding:0 22px 22px; }
+.manual-content>p { color:var(--muted); }
+.manual-content .picker { margin-top:18px; }

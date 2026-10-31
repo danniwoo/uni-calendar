@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import {reloadController,bundleFromSnapshots,courseFromUrl,validConfig,senderAccess,ORIGINS,SEMESTER} from "../reload-check.js";
+import {reloadController,bundleFromSnapshots,courseFromUrl,batchSourceUrl,validConfig,senderAccess,ORIGINS,SEMESTER} from "../reload-check.js";
 import {READER_VERSION} from "../reader.js";
 const config={enabled:true,accountId:"91",courseIds:["12","13"]};
 const time=Date.parse("2026-10-24T00:00:00Z");
@@ -110,6 +110,33 @@ test("batch requires consent, grants and an open Canvas tab",async()=>{
   await m.controller.enable(config);m.tabs.clear();await m.controller.checkAll();assert.equal(m.reads.length,0);assert.match((await m.controller.inbox()).message,/Open one signed-in/);
   m.setAllowed(false);await m.controller.checkAll();assert.equal((await m.controller.inbox()).enabled,false);
 });
+test("all-course check works from the Canvas dashboard without opening a course",async()=>{
+  const m=mock();await m.controller.enable({...config,courseIds:["12","13","14","15"]});
+  m.tabs.clear();m.tabs.set(1,{id:1,url:"https://canvas.sydney.edu.au/"});
+  m.setReader(async args=>source(args.args[0].courseId));
+  await m.controller.checkAll();
+  assert.equal(m.reads.length,4,"a signed-in dashboard is sufficient to read the consented courses");
+  assert.equal(JSON.parse((await m.controller.inbox()).raw).courses.length,4);
+});
+test("dashboard source remains exact-origin, explicit, account-checked and navigation-safe",async()=>{
+  for(const url of ["https://canvas.sydney.edu.au/","https://canvas.sydney.edu.au/dashboard","https://canvas.sydney.edu.au/dashboard/","https://canvas.sydney.edu.au/courses/12/grades"])assert.equal(batchSourceUrl(url),true);
+  for(const url of ["https://canvas.sydney.edu.au.evil.test/","http://canvas.sydney.edu.au/","https://canvas.sydney.edu.au/login","https://canvas.sydney.edu.au/dashboard-extra","not a url"])assert.equal(batchSourceUrl(url),false);
+  for(const mode of ["login","account","navigate","permission"]){
+    const m=mock();await m.controller.enable(config);m.tabs.clear();m.tabs.set(1,{id:1,url:"https://canvas.sydney.edu.au/dashboard"});
+    m.reload();await m.controller.idle();assert.equal(m.reads.length,0,"dashboard load alone does not trigger background reads");
+    m.setReader(async args=>{
+      if(mode==="login")return {ok:false,code:"LOGIN_REQUIRED"};
+      if(mode==="account")return {...source(),user:{id:"92"}};
+      if(mode==="navigate")m.controller.updated(1,{status:"loading"},{id:1,url:"https://example.test"});
+      if(mode==="permission")m.setAllowed(false);
+      return source(args.args[0].courseId);
+    });
+    await m.controller.checkAll();const inbox=await m.controller.inbox();
+    assert.equal(inbox.raw,null);assert.equal(m.reads.length,1);
+    if(mode==="login")assert.match(inbox.message,/login expired/);
+    if(mode==="account"||mode==="permission")assert.equal(inbox.enabled,false);
+  }
+});
 test("batch failure never publishes partial or stale snapshots",async()=>{
   for(const failure of ["LOGIN_REQUIRED","FORBIDDEN","ACCOUNT_CHANGED","wrong-course","wrong-version"]){
     const m=mock();await m.controller.enable(config);
@@ -140,4 +167,25 @@ test("interrupted batch after worker restart is explicit; reload preserves batch
   m.reload();await m.controller.idle();
   await m.controller.checkAll();assert.equal(m.reads.length,1);
   assert.match((await m.controller.inbox()).message,/once a minute/);
+});
+
+test("reconnect restores the website bridge without clearing consent, previews or throttles",async()=>{
+  const m=mock();await m.controller.enable(config);m.reload();await m.controller.idle();
+  const before=structuredClone({local:m.local,session:m.session}),reads=m.reads.length,registrations=m.registrations.length;
+  const injected=[];const execute=m.api.scripting.executeScript;
+  m.api.scripting.executeScript=async args=>{if(args.files)injected.push(args);return execute(args);};
+  await m.controller.reconnect();
+  assert.deepEqual({local:m.local,session:m.session},before);
+  assert.equal(m.reads.length,reads,"reconnect does not read grades");
+  assert.equal(m.registrations.length,registrations+1);
+  assert.deepEqual(injected,[{target:{tabId:9},files:["semester-bridge.js"]}]);
+  assert.equal(m.messages.at(-1)[1].type,"semester-connect-changed");
+  m.reload();await m.controller.idle();assert.equal(m.reads.length,reads,"rate limit preserved");
+});
+test("reconnect requires existing consent and both permissions",async()=>{
+  const m=mock();await assert.rejects(m.controller.reconnect(),/enable the connection first/);
+  assert.equal(m.registrations.length,0);
+  await m.controller.enable(config);const registrations=m.registrations.length;
+  m.setAllowed(false);await assert.rejects(m.controller.reconnect(),/Site access is missing/);
+  assert.equal(m.registrations.length,registrations);
 });

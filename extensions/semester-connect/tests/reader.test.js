@@ -44,7 +44,7 @@ async function run(options = {}) {
 test("extension version and least-privilege manifest are consistent", async () => {
   const manifest = JSON.parse(await readFile(new URL("../manifest.json", import.meta.url)));
   const pkg = JSON.parse(await readFile(new URL("../package.json", import.meta.url)));
-  assert.equal(manifest.version, "0.4.0");
+  assert.equal(manifest.version, "0.4.4");
   assert.equal(pkg.version, manifest.version);
   assert.equal(READER_VERSION, manifest.version);
   assert.equal((await run()).result.readerVersion, manifest.version);

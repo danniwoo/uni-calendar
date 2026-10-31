@@ -1,6 +1,8 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-更新：2026-10-31 · Web **0.15.1** 已發布（Sites 59）；本次來源 Connect **0.4.0**，未納入既有 extension 改動。29–30 日的 unit-limit／activity conflict 修正一併發布。
+更新：2026-11-01 · Web **0.15.1** 已發布（Sites 59）；該網站發布來源包含 Connect **0.4.0**，未納入當時既有 extension 改動。29–30 日的 unit-limit／activity conflict 修正一併發布。
+
+10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
 
 0.14.0：首次匯入直接呈現準備好的成績、可改的建議連結／新增作業，一次 Import；未出分 backlog 收起。使用者明確要求修復朋友首次使用的阻斷，不代表跳過 M1 或宣布 M2 完成。Synthetic 首次、重複匯入與保護檢查通過；T11／新使用者試用仍待驗收。
 
@@ -203,7 +205,7 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 | **T08 / M2** | 新使用者自行設定自己的學期，完成找作業／更新，再使用一週 | 哪裡需要開發者解說？下次打開能續接嗎？不用抄錄私人對話 | 待 M1 核心問題解除 |
 | **T09 / FLOW-01-F1** | Web 0.4.1 → 開一份可丟棄的手動 assessment → Delete assessment → 取消，再確認 → Undo | 入口可見？取消不改資料？group 提示範圍？Undo 還原？確認 Saved 後才 reload；Undo 本身不跨 reload 保留 | 已通過 synthetic QA；待你回測 |
 | **T10 / GRADE-01** | Show grades → 現有 Quiz 的 Individual grades / rules → 最高分與門檻；再測 10 次 prework 取最佳 8 | 未考不是 0？完成／未交／未確認容易分辨？2/4 secured 和平均分不同？Apply count、取消、保存重開是否清楚？ | Web 0.6.0 開發測試通過；待使用者試用。先手動確認，不自動匯入特殊規則 |
-| **T11 / CONNECT-02** | Web 0.9.0、reload Connect 0.4.0 → 已授權四科 → 同一 Chrome 保持一個 Canvas 課程頁 → Check all 4 → pending preview | 不自動保存；新項目 Skip；手動值保護；一次四科時間清楚；失敗不提供半批預覽；單科 reload／JSON 保留 | 開發回測通過；前版單科傳送已觀察到；本版四科實機與取消零寫入待驗證 |
+| **T11 / CONNECT-02** | Web 0.15.1、安裝／reload Connect 0.4.4 → 核對授權選課 → 同一 Chrome 只留登入的 Canvas 首頁 → 回 Semester／Check all → pending preview | 各科讀取時間與結果正確；建議可修改、未知規則不猜；Cancel／Undo 不保存；手動值保留；失敗不提供半批；單科 reload／JSON 仍可用 | 2026-10-31 假資料回測通過；首次安裝權限／worker 實機與四科傳送仍待驗證，先取消不匯入真實資料 |
 
 ### 每次測完只補這張紀錄
 

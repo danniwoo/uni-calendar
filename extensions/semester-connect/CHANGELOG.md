@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.4.4 — 2026-10-31 (unpacked trial)
+
+- Check all can use a signed-in Canvas dashboard as well as a course tab. Returning to Semester no longer requires opening a specific course first. No additional permissions, background polling or automatic imports.
+- Preserve selected-course/account validation, one-minute throttling, atomic batch delivery and cancellation on navigation, login or permission changes. Dashboard navigation alone does not trigger a read.
+- Reproduced the dashboard rejection before the fix; 57 Node tests pass afterwards. Real installed-Chrome permission/worker delivery remains a trial acceptance check, not proven by mocks.
+
+## 0.4.3 — 2026-10-27 (unpacked)
+
+- Reattach already-permitted Semester tabs when opening Connect after an extension reload. Keep a Reconnect to Semester action available for unchanged course selections without resetting pending previews or rate limits.
+- Replace stale bridge instances and reuse healthy ones; describe saved consent as Connection enabled rather than implying that a website tab has confirmed receipt.
+- All 55 Node checks pass, including stale-context reinjection, listener cleanup, reconnect permission requirements and preservation of previews/throttles. Real installed-Chrome recovery still needs a user check.
+
+## 0.4.2 — 2026-10-27 (unpacked)
+
+- Put the connection action directly after course selection. Explain setup once, later Canvas reloads and all-course checks.
+- Collapse the manual read/download route under Manual import instead, with its own explanation. Restore connected selections for the same account and identify unsaved selection changes.
+- Verified the setup, enabled state, changed selection, restored selection and manual read in a synthetic Chrome preview. All 50 Node extension checks pass.
+
+## 0.4.1 — 2026-10-27 (unpacked)
+
+- Add an always-visible Open Semester button and a next step after course checks are enabled. The manual JSON link stays available.
+
 ## 0.4.0 — 2026-10-24 (unpacked; live batch acceptance pending)
 
 - Accept the fixed Semester website's **Check all N courses** request, restricted to the account/course IDs already explicitly enabled in Connect. One existing Canvas course tab is enough; no new tabs, arbitrary URLs, new permissions or automatic confirmation.

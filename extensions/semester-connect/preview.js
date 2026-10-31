@@ -7,6 +7,7 @@ const params = new URL(location.href).searchParams;
 const sourceTab = /^\d+$/.test(params.get("tab") || "") ? Number(params.get("tab")) : null;
 let user = null, courses = [], snapshot = null, generation = 0, busy = false;
 const snapshots = new Map();
+let connectionState = null, connectedConfig = null;
 const selectedCourses = () => [...document.querySelectorAll('#course-checks input:checked')].map(el => el.value);
 const version = chrome.runtime.getManifest().version;
 $("version").textContent = version;
@@ -31,7 +32,13 @@ function controls() {
   $("read-many").disabled = busy || !user || !selected.length;
   $("export").disabled = busy || !selected.length || selected.length>8 || selected.some(id => !snapshots.has(id));
   $("enable-reload").disabled = busy || !user || !selected.length || selected.length>8;
-  $("enable-hint").textContent=busy?"Wait for the current read to finish.":!user?"First click Read my courses below, then select your teaching courses.":!selected.length?"Select at least one course in the checklist below to enable.":selected.length>8?"Choose no more than eight courses.":`Enable checks for these ${selected.length} courses, then use Check all in Semester. Nothing imports automatically.`;
+  const sameAccount = Boolean(user && connectionState?.enabled && connectedConfig?.accountId === user.id && Array.isArray(connectedConfig.courseIds));
+  const savedIds = sameAccount ? connectedConfig.courseIds : [];
+  const matchesConnection = sameAccount && selected.length === savedIds.length && selected.every(id => savedIds.includes(id));
+  $("enable-reload").textContent = matchesConnection ? "Reconnect to Semester" : sameAccount ? "Update connected courses" : "Enable for selected courses";
+
+  $("selection-next").hidden = !matchesConnection;
+  $("enable-hint").textContent = busy ? "Wait for the current read to finish." : !user ? "Read your course list first, then select your teaching courses." : !selected.length ? "Select at least one teaching course to connect." : selected.length > 8 ? "Choose no more than eight courses." : matchesConnection ? `${selected.length} ${selected.length === 1 ? "course is" : "courses are"} connected. Open Semester to check all courses and review updates.` : sameAccount ? `Your selection has changed. Update the connection to use ${selected.length} ${selected.length === 1 ? "course" : "courses"}.` : `Connect ${selected.length} ${selected.length === 1 ? "course" : "courses"} once, then check for updates from Canvas or Semester.`;
   document.querySelectorAll('#course-checks input').forEach(el => {el.disabled = busy;});
 }
 function discardResults() {
@@ -90,6 +97,8 @@ async function read(operation) {
     const result = await execute(request);
     if (ownGeneration !== generation) return;
     if (operation === "courses") {
+      await reloadStatus();
+      if (ownGeneration !== generation) return;
       user = result.user;
       courses = result.courses;
       $("identity").textContent = user.name;
@@ -99,13 +108,14 @@ async function read(operation) {
       for (const c of courses) {
         const label = element("label", null, "course-check"), input = document.createElement("input");
         input.type = "checkbox"; input.value = c.id;
+        input.checked = Boolean(connectionState?.enabled && connectedConfig?.accountId === user.id && connectedConfig.courseIds.includes(c.id));
         input.addEventListener("change", controls);
         label.append(input, element("span", `${c.code || c.name} · ${c.term || "Term unknown"}`));
         $("course-checks").append(label);
       }
       $("workspace").hidden = false;
       $("start").hidden = true;
-      message(courses.length ? `${courses.length} active student courses found. Select one to read its assignments and marks.` : "No active student courses were returned. Check your Canvas account and enrollment; this is not proof that you have no coursework.");
+      message(courses.length ? `${courses.length} active student courses found. ${connectionState?.enabled && connectedConfig?.accountId === user.id ? "Your connected courses are selected. Open Semester, or change the selection to update the connection." : "Select your teaching courses, then enable the connection below."}` : "No active student courses were returned. Check your Canvas account and enrollment; this is not proof that you have no coursework.");
     } else {
       snapshot = result;
       snapshots.set(result.course.id, result);
@@ -247,13 +257,32 @@ if (sourceTab === null) {
 }
 controls();
 async function reloadStatus() {
-  try {const state=await chrome.runtime.sendMessage({type:"connect-inbox"});$("reload-status").textContent=`${state.enabled?`On · account ${state.accountId} · ${state.courseCount} selected courses. `:"Off. "}${state.message}`;}
-  catch {$("reload-status").textContent="Reload Connect and reopen this preview to use reload checks. JSON export is still available.";}
+  try {
+    const state = await chrome.runtime.sendMessage({type:"connect-inbox"});
+    connectionState = state;
+    connectedConfig = (await chrome.storage?.local?.get("reloadConfig"))?.reloadConfig || null;
+    $("semester-next").hidden = !state.enabled;
+    $("reload-status").textContent = `${state.enabled ? `Connection enabled · account ${state.accountId} · ${state.courseCount} courses. ` : "Not connected. "}${state.message}`;
+  } catch {
+    connectionState = null;
+    connectedConfig = null;
+    $("semester-next").hidden = true;
+    $("reload-status").textContent = "Reload Connect and reopen this preview to connect. Manual import is available below.";
+  }
+  controls();
 }
 $("enable-reload").addEventListener("click",async()=>{
   if(busy||!user||!selectedCourses().length||selectedCourses().length>8)return;
   const config={enabled:true,accountId:user.id,courseIds:selectedCourses()};
   try {
+    const sameSelection = connectionState?.enabled && connectedConfig?.accountId === user.id && config.courseIds.length === connectedConfig.courseIds.length && config.courseIds.every(id=>connectedConfig.courseIds.includes(id));
+    if (sameSelection) {
+      const result = await chrome.runtime.sendMessage({type:"connect-reconnect"});
+      if (!result?.ok) throw new Error(result?.error || "Could not reconnect. Reload Semester and try again.");
+      await reloadStatus();
+      $("enable-hint").textContent = "Connection refreshed. Open Semester; if its banner is still missing, reload the Semester page.";
+      return;
+    }
     // Request only from this deliberate user gesture, never on page load.
     if(!await chrome.permissions.request({origins:ORIGINS})){$("reload-status").textContent="Not enabled. You can keep using JSON without granting site access.";return;}
     const result=await chrome.runtime.sendMessage({type:"connect-enable",config});
@@ -267,4 +296,4 @@ $("disable-reload").addEventListener("click",async()=>{
   await reloadStatus();
 });
 void reloadStatus();
-chrome.storage?.onChanged?.addListener((changes,area)=>{if(area==="session"&&changes.reloadState)void reloadStatus();});
+chrome.storage?.onChanged?.addListener((changes,area)=>{if((area==="session"&&changes.reloadState)||(area==="local"&&changes.reloadConfig))void reloadStatus();});

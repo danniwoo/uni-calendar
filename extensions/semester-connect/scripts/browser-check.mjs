@@ -10,7 +10,7 @@ import path from "node:path";
 const require = createRequire(import.meta.url);
 const { chromium } = require(process.env.PLAYWRIGHT_PACKAGE || "playwright");
 const root = fileURLToPath(new URL("../", import.meta.url));
-const allowed = new Set(["preview.html", "preview.css", "preview.js", "reader.js", "model.js"]);
+const allowed = new Set(["preview.html", "preview.css", "preview.js", "reader.js", "model.js", "reload-check.js"]);
 const server = createServer(async (request, response) => {
   const name = new URL(request.url, "http://localhost").pathname.slice(1);
   if (!allowed.has(name)) { response.writeHead(404).end(); return; }
@@ -47,7 +47,7 @@ try {
     ];
     window.fixture = { calls: [], pending: false, nextError: null, release: null, removed: null, updated: null };
     window.chrome = {
-      runtime: { getManifest: () => ({ version: "0.4.0" }), sendMessage: async () => ({enabled:false,raw:null,message:"Synthetic fixture: reload checks off."}) },
+      runtime: { getManifest: () => ({ version: "0.4.4" }), sendMessage: async () => ({enabled:false,raw:null,message:"Synthetic fixture: reload checks off."}) },
       tabs: { get: async () => ({ url: "https://canvas.sydney.edu.au/courses/12/grades" }),
         onRemoved: { addListener: (fn) => { window.fixture.removed = fn; } },
         onUpdated: { addListener: (fn) => { window.fixture.updated = fn; } },
@@ -57,7 +57,7 @@ try {
         window.fixture.calls.push(request);
         if (window.fixture.pending) await new Promise((resolve) => { window.fixture.release = resolve; });
         if (window.fixture.nextError) { const code = window.fixture.nextError; window.fixture.nextError = null; return [{ result: { ok: false, code } }]; }
-        const common = { ok: true, readerVersion: "0.4.0", user: profile, source: "https://canvas.sydney.edu.au", fetchedAt: "2026-10-18T05:00:00Z" };
+        const common = { ok: true, readerVersion: "0.4.4", user: profile, source: "https://canvas.sydney.edu.au", fetchedAt: "2026-10-18T05:00:00Z" };
         return [{ result: request.operation === "courses" ? { ...common, courses: [course, other] } : { ...common,
           course: request.courseId === "12" ? course : other, assignments,
           groups: [{ id: "3", name: "Weekly quizzes", weight: 21, rules: { dropLowest: 1, dropHighest: 0, neverDrop: ["1"] } }], groupsUnavailable: false } }];
@@ -72,6 +72,7 @@ try {
   await page.getByRole("button", { name: "Read my courses" }).click();
   await page.locator("#workspace").waitFor({ state: "visible" });
   assert.equal(await page.locator("#read").isDisabled(), true);
+  await page.locator("#manual-import > summary").click();
   await page.locator("#course").selectOption("12");
   await page.locator("#read").click();
   await page.locator("#results").waitFor({ state: "visible" });

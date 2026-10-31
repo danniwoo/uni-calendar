@@ -1,17 +1,29 @@
-# Semester Connect 0.4.0
+# Semester Connect 0.4.4
 
 Local unpacked Chrome extension. Canvas stays read-only. Not a Chrome Web Store release.
-Compatible website: Semester Web 0.4.0 or later for JSON; **Web 0.9.0 for Check all and compact updates** (Web 0.8.0 supports single-course delivery). Import format stays version 1. Git push does not deploy the website.
+Trial target: **Semester Web 0.15.1**. Older versions support JSON (Web 0.4.0+) and Check all (Web 0.9.0+), but do not have the current trial flow. Import format stays version 1. Git push does not deploy the website.
 
 <a id="reload-checks"></a>
+## Recommended connection and manual alternative
+
+First open Semester with your invited email. A new account needs its own USYD timetable subscription link to **Build my semester**; an existing board does not need rebuilding. Keep Semester and Canvas in the same Chrome profile.
+
+**Read my courses** → select teaching units (up to eight, not portals) → **Enable for selected courses** directly below the checklist → allow the two displayed site permissions → **Open Semester**, then reload it once. This is a one-time connection setup. In Connect 0.4.4, a signed-in Canvas **dashboard or course tab** is enough for Semester's **Check all courses**. You do not need to refresh each Marks page. Opening/reloading one selected course can also check that course.
+
+Semester Web 0.15.1 requests a fresh check on arrival/return when the previous check is old and no review is open. This is not continuous background monitoring. Checks are rate-limited to once a minute. Review the proposed before/after results, adjust or skip incorrect suggestions, then **Import N updates** once. Saved links are reused. Retakes and unfamiliar calculation rules may still need setup; pending setup does not block other ready updates. No real grades are saved until you click Import.
+
+The separate **Manual import instead** section is collapsed by default. Expand it, **Read selected courses**, compare results, then **Download import file**. Open Semester's Canvas connection details and choose the JSON fallback. It uses the same matching, rules and import preview as direct connection. It does not require enabling the connection; each refresh requires another read/download/import. JSON contains private grades: never put it in the shared trial folder.
+
+The same account's connected courses are checked when its course list is read again. Editing the checklist shows **Update connected courses** until the new selection is enabled. For an unchanged selection, **Reconnect to Semester** repairs the website link without clearing pending previews. After an extension update, reopen Connect from Canvas and reload the Semester page if its banner is missing.
+
 ## Reload 更新檢查（可選，先預覽）
 
-1. 網站先部署 Web 0.9.0；Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.4.0**，並 reload Semester 網頁以載入新 bridge。
+1. 試用網站為 Web 0.15.1；Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.4.4**，並 reload Semester 網頁以載入新 bridge。
 2. **Read my courses** → 核對帳戶及學期 → 勾四科 → **Enable for selected courses**。Chrome 會要求 Canvas 與 Semester 兩個固定網站權限；不授權仍可用 JSON。
 3. 在**同一個 Chrome profile** 開 Semester 網站。Codex 內建瀏覽器不會自動取得 Chrome 的 extension 連線。
-4. 保持一個已登入 Canvas `/courses/<id>/…` 分頁開著，在 Semester 按 **Check all 4 courses**（數字依已啟用科目數）。自動依序讀完四科，只在全部成功後提供預覽；中途失敗會清 pending、提示重試，不冒充完整四科。批次最多每分鐘一次。也可只 reload 某科檢查該科；兩者都不需再次打開 extension。
-5. 按 **Review Canvas updates**：日常更新先顯示新結果、待配對與逐筆手動保護，未變更及 JSON 入口收起。**Resolve unmatched items** 會打開並聚焦配對區；選對現有 assessment／已確認規則後，按 **Review → 勾核對 → Confirm**。未知 prework 不變成 0，也不建重複作業。目前試用先停在 preview，不確認真實資料。
-6. 驗收：同樣結果再次讀取不重複新增；新項目仍為 Skip；手動值/清空不變；開著 review 收到新 snapshot 不替換它；帳戶不同停止、登入失效清掉 pending 並提示；關閉後 reload 不再讀取。
+4. 保持一個已登入 Canvas 首頁（`/` 或 `/dashboard`）或 `/courses/<id>/…` 分頁開著，在 Semester 按 **Check all 4 courses**（數字依已啟用科目數）。自動依序讀完四科，只在全部成功後提供預覽；中途失敗會清 pending、提示重試，不冒充完整四科。批次最多每分鐘一次。也可只 reload 某科檢查該科；兩者都不需再次打開 extension。
+5. 按 **Review updates**：先顯示本次結果更新前後及合計變化，舊結果收在 Other Canvas items。建議配對可修改或略過；新的重考／未知規則按 **Set up this result** 核對，不自動猜最高分規則。若正確，按一次 **Import N updates**，等到 **Saved**。未知 prework 不變成 0，也不建重複作業。
+6. 驗收先停在 preview：修改配對再 Undo、進設定再 Cancel changes、取消整個預覽，均不保存。再由使用者自行決定是否 Import。同樣結果再次讀取不重複新增；手動值/清空不變；開著 review 收到新 snapshot 不替換它；帳戶不同停止、登入失效清掉 pending 並提示；關閉連線後 reload 不再讀取。
 7. **Turn off & clear pending previews** 停止檢查、移除選課設定、清 session preview 並撤回兩個 optional host grants。不影響已確認的網站資料或已下載 JSON。
 
 只記住啟用設定與 account/course IDs；來源成績在 extension session storage，關閉瀏覽器、extension reload/disable 會清除。超過 24 小時的 snapshot 不再提供，於下次讀取/存取清理；無定時背景工作。失敗後重新登入並等一分鐘再 reload，或使用 JSON。不是推播、不是關閉瀏覽器後繼續同步，也不會回寫 Canvas。
@@ -21,17 +33,17 @@ Compatible website: Semester Web 0.4.0 or later for JSON; **Web 0.9.0 for Check 
 ## 更新與測試
 
 1. 到 Chrome 的 `chrome://extensions`，對 **Semester Connect — Local Preview** 按重新載入。
-2. 關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.4.0**。舊預覽可能仍記著舊版本；必須重新讀取、下載才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
-3. 按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。按 **Read selected courses**。
+2. 先把新 ZIP 解壓後的檔案放入原本 Load unpacked 的資料夾，再 Reload。關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.4.4**。舊預覽可能仍記著舊版本；必須重新讀取才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
+3. 手動 JSON 路徑：按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。展開 **Manual import instead**，按 **Read selected courses**。
 4. 每科會分別顯示筆數與已公布成績。單科失敗不清掉其他成功資料；從 Course 選失敗那科，再按 **Read selected course** 重試。所有勾選科目成功才可匯出。
 5. 用 Course 選單檢查每科，與 **Compare in Canvas** 的 Marks 頁比對。未公布、隱藏、免計分不等於零分。
 6. 確認後按 **Download import file**。這是含成績的私人 JSON，請勿公開分享。
-7. 回到 Semester 網站 **Manage → Import from Semester Connect**，選剛下載的檔案。檔案先在瀏覽器本機解析，不立即上傳。
-8. **Match assessments**：核對帳戶、學期及四科配對。已確認的配對會帶回，唯一同名／相同 Canvas 連結會提供建議；相似名稱／A1 等標籤只列候選，點選才配對。不確定的項目保持 **Skip**：
+7. 回到 Semester 網站 Canvas 連線詳情／匯入預覽中的 JSON 入口，選剛下載的檔案。檔案先在瀏覽器本機解析，不立即上傳。
+8. 核對帳戶、學期及四科配對。已確認的配對會帶回；新項目根據名稱、種類及日期等提供可修改的建議。建議不等於已確認的計分規則，不確定的項目可以 **Skip**：
    - 已有 assessment：選對應項目，填空白成績或檢查既有 Canvas 成績的更新差異。
    - Recurring / multi-part：展開該區，把 Canvas group 配到既有 assessment，明確選依總分或每項等權才會選入。含重考名稱或 drop rules 的群組禁止整組平均；按課程規則選適用結果，不自動假設最高／最近一次。
    - 真正沒有的項目才選 **Add new assessment**；新項目權重留空，避免把 group 權重誤當每次 quiz 權重。
-9. 按 **Review selected items →**，查看哪些變更會套用、哪些保留。可返回配對，返回後須重新確認。資料若被其他分頁修改，舊確認會失效。確認後按 **Confirm**，等網站顯示 **Saved**；取消不保存。
+9. 查看哪些變更會套用、哪些保留，再按 **Import N updates**，等網站顯示 **Saved**；取消不保存。資料若被其他分頁修改，舊預覽不能覆蓋較新的資料。
 10. 匯入的 individual grades 暫列 provisional。到 **Show grades → Edit individual grades** 檢查計算與完整項目清單（Canvas 可能還沒有未來項目），儲存後才作為已確認設定。
 
 首次安裝：Chrome → Extensions → Developer mode → Load unpacked，選：
@@ -85,7 +97,7 @@ Clear／關頁清空記憶體，不刪除已下載檔案。原 Canvas 分頁導�
 
 `npm test` 在此資料夾執行零依賴 Node 測試。網站另有 `node --import tsx scripts/check-canvas-import.ts`。
 可重現的瀏覽器解析測試：在此資料夾執行 `node scripts/qa-server.mjs`，開啟列出的 **Synthetic reader QA** URL，按 **Run browser checks**；0.2.3 的 89 項斷言使用真實 DOMParser 與原始 serialized reader，四科資料全為虛構。第二個 URL 測 preview；加上 `&stale=1` 可驗證版本不一致提示。伺服器僅監聽 localhost，不連 Canvas、不讀瀏覽器 profile。測完 Ctrl+C 停止。
-本次通過 34 項 Node 測試、上述 81 項瀏覽器斷言、preview 四科勾選/讀取/篩選/舊版本阻擋與網站匯入保護測試。實際 Chrome extension 頁受工具限制，**不是四科 live acceptance 已通過**；T01 仍待更新後逐項核對。
+0.4.4 的 Node 測試含僅開 Canvas 首頁的四科批次讀取、固定來源、登入失效、帳戶不符、權限撤回、導覽中斷及不提供半批結果；瀏覽器測試使用真正 DOMParser 與假資料。實際 Chrome extension 頁受工具限制，**不是四科 live acceptance 已通過**；首次安裝授權及真實帳戶傳送仍需試用者驗收。
 0.2.0 的既有驗證另在 localhost 用原始 reader/preview 與 synthetic Chrome adapter 測試四科、單科失敗重試、Marks HTML 可見／隱藏／待審核／What-If、下載、網站檔案選擇、明確配對、確認及重複匯入。該次測試不連真實 Canvas，也不寫帳戶資料庫；不是此次重新驗證所有上述 UI 流程。
 舊版可選 `test:browser`／`test:extension` 腳本保留為 0.1.0 整合測試起點；0.2.0 的完整新流程以上述測試為準，未重新驗證真實 Chrome unpacked integration。
 

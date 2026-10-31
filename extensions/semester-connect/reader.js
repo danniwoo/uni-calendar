@@ -2,10 +2,10 @@
  * Only fixed GET endpoints. No cookies are read, exported or copied. Browser
  * credentials stay on Canvas. Do not add generic URL or HTTP-method parameters.
  */
-export const READER_VERSION = "0.4.0";
+export const READER_VERSION = "0.4.4";
 export async function readCanvas(request) {
   // Keep inside the function too: Chrome serializes this function without imports.
-  const readerVersion = "0.4.0";
+  const readerVersion = "0.4.4";
   const ORIGIN = "https://canvas.sydney.edu.au";
   const started = Date.now();
   const id = (v) => (typeof v === "number" && Number.isSafeInteger(v) && v > 0) ||
