@@ -61,6 +61,7 @@ export function seedGradePlan(s:Semester,t:Task):GradePlan {
 
 export function saveGradePlan(s:Semester,id:string,plan:GradePlan,expected:GradePlan|null|undefined):Semester {
   if (!validGradePlan(plan)) throw new Error("Check item names, scores and maximum marks. Blank scores mean unrecorded, not zero.");
+  if(s.tasks.some(t=>t.parentId===id&&t.attemptId&&!plan.items.some(i=>i.id===t.attemptId)))throw new Error("An attempt still has a calendar schedule. Keep its result entry, or remove its schedule before removing the entry.");
   const t=s.units.flatMap(u=>subjectAssessments(s,u.code)).find(t=>t.id===id&&!isPersonal(t));
   if (!t) throw new Error("This assessment was removed. Reopen the grade list.");
   if (JSON.stringify(t.gradePlan??null)!==JSON.stringify(expected??null)) throw new Error("Individual grades changed elsewhere. Cancel and reopen to review the latest entries.");

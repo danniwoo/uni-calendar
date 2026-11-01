@@ -71,6 +71,8 @@ export type Task = {
   rules?: AssessmentRules;
   routine?: boolean;
   parentId?: string;
+  // Exact grade-item identity; never inferred from a title or attempt order.
+  attemptId?: string;
   endTime?: string;
   timeBasis?: "class" | "deadline";
   passed?: boolean;

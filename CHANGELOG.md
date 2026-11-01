@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.18.0 — 2026-11-01
+
+- One Attempts & schedule editor for retakes: each result has its own optional schedule, reminders and marks. Highest-attempt scoring must already be configured or explicitly chosen. Separate graded components keep their existing editor.
+- Show each scheduled attempt in Semester's teaching-week column, Week and Month; calendar children carry no additional assessment weight. Reuse an existing schedule explicitly rather than guessing from names or order. Preserve any original unassigned time.
+- Cancel discards draft changes; Save applies results and schedules together, with conflict-aware Undo. Exact grade-item links survive reload, backup, timetable refresh and existing linked Canvas updates. Unknown incoming sources cannot silently replace a scheduled placeholder.
+- No migration of existing user records or reminder permission changes. Synthetic interaction and regression verification; real-user acceptance remains pending.
+
 ## 0.17.0 — 2026-11-01
 
 - Put two clear scheduling choices in the assessment editor: **Date & time** and **Week & class**. A unique timetable class fills its actual date/start/end; multiple classes require a choice and missing classes retain the known week without inventing a date.

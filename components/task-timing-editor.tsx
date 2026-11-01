@@ -4,7 +4,7 @@ import {shortDate, weekFor, type Semester, type Task} from "@/lib/semester";
 import {dateInputPatch} from "@/lib/assessment-schedule";
 import {classKind, classKinds, classTimingPatch, deadlineTimingPatch, taskClassChoices} from "@/lib/task-timing";
 
-export function TaskTimingEditor({task,semester,onChange}:{task:Task;semester:Semester;onChange:(t:Task)=>void}) {
+export function TaskTimingEditor({task,semester,onChange,purpose}:{task:Task;semester:Semester;onChange:(t:Task)=>void;purpose?:"attempt"}) {
   const [mode,setMode]=useState(task.timeBasis==="class" || (!task.date&&task.week) ? "class" : "date");
   const [kind,setKind]=useState(task.timeBasis==="class" ? classKinds.find(k=>new RegExp(k==="Lab"?"lab|practical":k,"i").test(task.timing)) || "" : "");
   const [error,setError]=useState("");
@@ -19,8 +19,8 @@ export function TaskTimingEditor({task,semester,onChange}:{task:Task;semester:Se
       <button type="button" aria-pressed={mode==="class"} onClick={()=>{if(mode==="class")return;setMode("class");pick(semester.weeks.some(w=>w.kind==="teaching"&&w.number===task.week)?task.week:undefined,kind);}}>Week &amp; class</button>
     </div>
     {mode==="date"?<>
-      <div className="field-pair"><label>Due date<input type="date" value={task.date||""} onInput={e=>onChange({...task,...deadlineTimingPatch(task),...dateInputPatch(task,"date",e.currentTarget.value),week:e.currentTarget.value?weekFor(e.currentTarget.value,semester.weeks):task.week})}/></label>
-      <label>Due time · Sydney<input type="time" value={task.time||""} onInput={e=>onChange({...task,...deadlineTimingPatch(task),time:e.currentTarget.value||undefined})}/></label></div>
+      <div className="field-pair"><label>{purpose==="attempt"?"Date":"Due date"}<input type="date" value={task.date||""} onInput={e=>onChange({...task,...deadlineTimingPatch(task),...dateInputPatch(task,"date",e.currentTarget.value),week:e.currentTarget.value?weekFor(e.currentTarget.value,semester.weeks):task.week})}/></label>
+      <label>{purpose==="attempt"?"Start time":"Due time"} · Sydney<input type="time" value={task.time||""} onInput={e=>onChange({...task,...deadlineTimingPatch(task),time:e.currentTarget.value||undefined})}/></label></div>
       {!task.date&&<small>Date not confirmed? Choose Week &amp; class to keep it visible in that week.</small>}
     </>:<>
       <div className="field-pair"><label>Teaching week<select aria-label="Teaching week" value={task.week||""} onChange={e=>pick(Number(e.target.value)||undefined,kind)}><option value="">Choose week…</option>{semester.weeks.filter(w=>w.kind==="teaching").map(w=><option key={w.id} value={w.number}>Week {w.number}</option>)}</select></label>

@@ -25,6 +25,7 @@ export function initialAssessmentSteps(s:Semester,task:Task):AssessmentStep[] {
 }
 export function submissionStep():AssessmentStep {return {title:"Submission",mode:"date",time:"23:59",scheduleEdited:true};}
 export function assessmentTiming(t:Task):string {
+  if(t.attemptId&&t.timeBasis!=="class")return t.date?`${shortDate(t.date)}${t.time?` · ${t.time}`:" · time TBC"}`:t.week?`W${t.week} · day & time TBC`:"Time not set";
   if(t.splitCount)return `${t.splitCount} steps`;
   if(t.timing.startsWith("Before"))return `Due ${timingLabel(t)}`;
   if(t.timeBasis==="class")return t.date?`${shortDate(t.date)} · ${classTimingName(t.timing)}${t.time?` ${t.time}${t.endTime?`–${t.endTime}`:""}`:" · time not set"}`:t.week?`W${t.week} · day & time TBC`:"Class date/time not set";

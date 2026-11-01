@@ -1,5 +1,7 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
+本輪狀態（2026-11-01）：Web 0.18.0 shared-attempt editor 已完成假資料三 view、取消／Undo、27 項回歸與型別／儲存檢查，待發布收據。承接 0.17.0（Sites 61）的日期／時間、週次＋課堂表單。使用者驗收仍待完成；最新續接點見 FLOW-01、GRADE-01 與 PROGRESS。下列 0.15.x／Connect 記錄為先前試用背景，不是目前網站版本。
+
 更新：2026-11-01 · Web **0.15.1** 已發布（Sites 59）；該網站發布來源包含 Connect **0.4.0**，未納入當時既有 extension 改動。29–30 日的 unit-limit／activity conflict 修正一併發布。
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
@@ -139,6 +141,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 ### FLOW-01
 
+- 2026-11-01 / Web 0.18.0 candidate: retake 的 **Attempts & schedule** 共用一筆 attempt 身分；日期／時間或週次＋課堂、提醒、成績放同張卡。Semester W13、Week 與 Month 投影同一排程；原有 schedule 必須明確選擇沿用，不按名稱／順序猜配對。合計仍只計 parent 權重一次。Synthetic 取消、保存、Undo、reload 與三 view 已實際操作；使用者回測待完成。發布收據見 PROGRESS。
+
 - 2026-11-01／0.17.0：作業編輯新增明顯 Date & time／Week & class 切換；Week 13＋Tutorial 從本人的課表帶入日期／開始／結束，多堂需選、缺課表只保留週次。保存不把課堂時段轉回 deadline；跨分頁時程整組處理衝突。假資料核對取消、保存／重載、缺課與多堂、提醒換算及手動成績／筆記保留。下一步：使用者確認編輯入口與兩種選擇是否直覺；不宣稱整體 T03／FLOW-01 已驗收。發布證據見 PROGRESS。
 
 **作業新增／編輯／回到原位置** · P1 · **待驗證** · Next
@@ -180,6 +184,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 證據：產品方向已討論；**具體方案、實作與試用尚未完整確認**。
 
 ### GRADE-01
+
+- 0.18.0 的整合範圍為 highest-attempt retakes；普通加總 parts／週週提交保留既有功能。本輪沒有把所有 item 類型強行合併。既有 Canvas source ID 可延續更新；尚無 source ID 的已排程 attempt 不會按位置自動接入新結果，後續配對 UX 仍需補齊。使用者下一步：Quiz → Attempts & schedule → Attempt 2 選 W13 tutorial（有既有 Part 2 時明確沿用），核對三 view，先 Cancel，再自行決定是否保存。
 
 **個別成績 → 合計 → 單科目標** · P1 · **待驗證** · Next
 

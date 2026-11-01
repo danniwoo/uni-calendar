@@ -4,6 +4,7 @@ import { validGrade, validGradePlan } from "./grade-value";
 import {activityError} from "./assessment-activity";
 import {validCanvasMetadata} from "./canvas-import";
 import {reminderError} from "./reminders";
+import {attemptLinksError} from "./assessment-attempts";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const strings = (v: Record<string, unknown>, keys: string[]) => keys.every(k => typeof v[k] === "string");
@@ -46,7 +47,7 @@ export function readBackup(text: string): Semester {
     || !object(s.completed) || !Object.values(s.completed).every(v=>typeof v === "boolean")
     || !Array.isArray(s.warnings) || !s.warnings.every(v=>typeof v === "string")
     || typeof s.importedAt !== "string"
-    || !validCanvasMetadata(s))
+    || !validCanvasMetadata(s) || attemptLinksError(s as unknown as Semester))
     throw new Error("This backup is incomplete or invalid. Nothing has been changed.");
   // Never inherit the currently open feed, nor trust a URL embedded in an uploaded file.
   return {...s, feedUrl:""} as Semester;
