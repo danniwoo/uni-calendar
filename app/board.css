@@ -1652,8 +1652,25 @@ main.week-layout { height:100dvh;min-height:0;display:flex;flex-direction:column
 .reminder-row small,.reminder-summary small{display:block;margin-top:3px}
 .reminder-row button,.reminder-editor>button,.reminder-delivery button{min-height:34px;padding:6px 10px;font-size:13px;flex-shrink:0}
 .reminder-editor>button{justify-self:start}
+.task-timing-editor{display:grid;gap:12px;border:1px solid #d7e0ef;border-radius:12px;padding:16px;background:#fff}
+.task-timing-editor label{display:grid;gap:6px;font-size:14px}
+.task-timing-editor input,.task-timing-editor select{min-width:0;width:100%;min-height:40px;padding:8px 10px;font-size:14px}
+.task-timing-editor .task-mode button{min-height:40px;font-size:14px}
+.task-time-preview{display:grid;gap:4px;font-size:14px;color:#203455;background:#f1f5fd;padding:10px 12px;border-radius:8px}
+.task-timing-editor small{font-size:12px;color:#617491}
+.reminder-row>span{font-size:14px;flex-shrink:0}
+.reminder-editor>.reminder-row{display:flex;align-items:center;gap:12px}
 .reminder-delivery{display:grid;gap:6px;border-top:1px solid #e1e7f1;padding-top:10px;font-size:12px;color:#506585}
 .reminder-delivery button{justify-self:start}
+.reminder-editor .reminder-choice{border:0;padding:0}
+.reminder-editor .reminder-remove{border:0;padding:4px;min-width:36px;font-size:24px;background:transparent;color:#617491}
+.reminder-editor .reminder-add{border:0;background:transparent;color:var(--blue,#2852c8);padding:4px 0}
+.reminder-delivery-compact{display:grid;gap:4px;border-top:1px solid #e1e7f1;padding-top:8px;font-size:12px;color:#617491}
+.reminder-delivery-compact>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.reminder-delivery-compact button{border:0;background:transparent;color:var(--blue,#2852c8);font-size:12px;padding:4px;min-height:32px}
+.reminder-delivery-compact details{border:0;margin:0;padding:0;font-size:12px}
+.reminder-delivery-compact summary{font-size:12px;font-weight:400;padding:0;min-height:24px}
+.reminder-delivery-compact details>div{display:grid;gap:6px;padding:6px 0}
 @keyframes calendar-feedback-in{from{opacity:0;translate:0 6px}to{opacity:1;translate:0 0}}
 @media(max-width:700px){.calendar-completion-filter{margin-left:0}.calendar-visibility-controls{gap:6px}.calendar-week-items{padding:8px 10px}.calendar-completion-feedback{bottom:12px}}
 @media(prefers-reduced-motion:reduce){.calendar-completion-feedback{animation:none}.month-entry,.week-task,.week-class-main,.calendar-week-items li,.month-check input,.week-task input,.week-class-main input,.calendar-week-items input{transition:none}.month-check input:active,.week-task input:active,.week-class-main input:active,.calendar-week-items input:active{transform:none}}

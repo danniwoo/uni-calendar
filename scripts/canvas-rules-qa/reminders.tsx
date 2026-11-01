@@ -10,6 +10,11 @@ let installed=false;
 export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test · no real account or OS notifications"),[fail,setFail]=useState(sessionStorage.getItem("qa-reminder-fail")==="true");if(!installed){installed=true;
  const owner="a".repeat(64),key="qa-reminders-board",native=window.fetch.bind(window);
  const fixture=structuredClone(calendarFixture);fixture.tasks=[{...fixture.tasks[0],id:"reminder-report",title:"Synthetic reminder report",date:"2026-11-10",time:"14:00",week:14},{...fixture.tasks[4],id:"unknown-date",title:"Synthetic week-only assignment",week:13}, {...fixture.tasks.at(-2)!,id:"personal-reminder",title:"Synthetic personal task",date:"2026-11-11",time:"15:00"}];
+ fixture.classes.push(...[
+  {id:"week13-tutorial",unit:"TEST1001",activity:"Tutorial",week:13,date:"2026-11-03",time:"12:00",end:"14:00",location:"Synthetic room"},
+  {id:"week13-lecture",unit:"TEST1001",activity:"Lecture",week:13,date:"2026-11-04",time:"09:00",end:"10:00",location:"Synthetic theatre"},
+  ...[1,2].map(i=>({id:`week12-tutorial-${i}`,unit:"TEST1001",activity:"Tutorial",week:12,date:"2026-10-27",time:i===1?"10:00":"14:00",end:i===1?"12:00":"16:00",location:"Synthetic room"}))
+ ]);
  if(!sessionStorage.getItem(key))sessionStorage.setItem(key,JSON.stringify(fixture));
  localStorage.setItem("semester-view","assessments");
  window.fetch=async(input,init)=>{const url=new URL(typeof input==="string"?input:input instanceof URL?input.href:input.url,location.href);

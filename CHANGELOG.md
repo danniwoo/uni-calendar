@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.17.0 — 2026-11-01
+
+- Put two clear scheduling choices in the assessment editor: **Date & time** and **Week & class**. A unique timetable class fills its actual date/start/end; multiple classes require a choice and missing classes retain the known week without inventing a date.
+- Compact reminder rows start with **Alert · None**, offer familiar minute/hour and day-at-clock presets, and support additional/custom reminders and individual removal. Device status stays visible; delivery instructions expand only when needed.
+- Preserve saved choices on cancellation, keep reminder previews in sync with date edits, and preserve class timing on save/reload/backup/refresh. Conflicting schedule edits from two tabs resolve as one schedule rather than mixing unrelated fields.
+- Synthetic UI and data-safety tests only; this release does not alter existing assignments or notification permissions. Connect remains 0.5.0.
+
 ## 0.16.0 — 2026-11-01
 
 - Apple Calendar–style reminders in assessment and personal task/event editors: up to five, editable presets/custom days/time or minutes before, plus exact Sydney send-time previews. Add/Edit reminders opens the relevant controls directly.

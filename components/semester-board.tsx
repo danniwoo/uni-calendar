@@ -52,6 +52,8 @@ import {CanvasHistory} from "./canvas-history";
 import {confirmCanvasImport,markCanvasGradeSeen,unreadCanvasGrades} from "@/lib/canvas-history";
 import { PersonalEditor } from "@/components/personal-editor";
 import {ReminderEditor} from "./reminder-editor";
+import {TaskTimingEditor} from "./task-timing-editor";
+import {taskTimingKeys,timingEdited} from "@/lib/task-timing";
 import {reminderError,reminderLabel,reminderPreview} from "@/lib/reminders";
 import {ReminderDeliveryContext,ReminderDeliveryStatus,useReminderDelivery,type SavedReminders} from "./reminder-delivery";
 import { isPersonal,calendarOwns } from "@/lib/personal-items";
@@ -64,7 +66,7 @@ import { AssessmentConfirm } from "@/components/assessment-confirm";
 import {AssessmentDelete} from "@/components/assessment-delete";
 import {deleteAssessment,undoAssessmentDeletion} from "@/lib/assessment-delete";
 import { AssessmentAvailability, AvailabilitySummary } from "@/components/assessment-availability";
-import { availabilityError, dateInputPatch, assessmentTiming, assessmentMetadataError } from "@/lib/assessment-schedule";
+import { availabilityError, assessmentTiming, assessmentMetadataError } from "@/lib/assessment-schedule";
 import {activityError} from "@/lib/assessment-activity";
 import {ActivityEditor,ActivitySummary} from "@/components/assessment-activity";
 import {version as appVersion} from "@/package.json";
@@ -465,7 +467,7 @@ export default function SemesterBoard() {
       return;
     }
     const originalTask = semester.tasks.find(t=>t.id===draft.id);
-    const preservedDueWeek = draft.date === originalTask?.date && draft.time === originalTask?.time ? draft.dueWeek : undefined;
+    const preservedDueWeek = !timingEdited(originalTask,draft) ? draft.dueWeek : undefined;
     const week = preservedDueWeek || (draft.date ? weekFor(draft.date, semester.weeks) : draft.week);
     if (!draftGroup && draft.startWeek && week && draft.startWeek > week) {
       setEditError("Your planned start must be before the due week.");
@@ -477,8 +479,8 @@ export default function SemesterBoard() {
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
       JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
-    const timingChanged = ["date","time","week"].some(k=>JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]));
-    const next = { ...edited, manual: true, overrides:timingChanged ? [...new Set([...overrides,"timeBasis","timing","endTime"])] : overrides, ...(timingChanged ? {timeBasis:"deadline" as const,timing:"Date entered by you",endTime:undefined} : {}) };
+    const timingChanged = timingEdited(previous,edited);
+    const next = { ...edited, manual: true, overrides:timingChanged ? [...new Set([...overrides,...taskTimingKeys])] : overrides };
     const exists = semester.tasks.some((t) => t.id === next.id);
     commit({
       ...semester,
@@ -1151,7 +1153,7 @@ export default function SemesterBoard() {
                 <strong>{weightLabel(draft)}</strong>
                 <AvailabilitySummary task={draft}/>
                 <ActivitySummary task={draft}/>
-                {!draftGroup&&<div className="reminder-summary"><strong>Reminders{!draft.reminders?.length?" · None":""}</strong>{draft.reminders?.map(r=><p key={r.id}>{reminderLabel(r)}<small>{reminderPreview(draft,r)}</small></p>)}<button onClick={()=>{focusReminders.current=true;setTaskFeedback("");setEditingTask(true);}}>{draft.reminders?.length?"Edit reminders":"Add reminders"}</button>{!!draft.reminders?.length&&<ReminderDeliveryStatus/>}</div>}
+                {!draftGroup&&<div className="reminder-summary"><strong>Reminders{!draft.reminders?.length?" · None":""}</strong>{draft.reminders?.map(r=><p key={r.id}>{reminderLabel(r)}<small>{reminderPreview(draft,r)}</small></p>)}<button onClick={()=>{focusReminders.current=true;setTaskFeedback("");setEditingTask(true);}}>{draft.reminders?.length?"Edit reminders":"Add reminders"}</button>{!!draft.reminders?.length&&<ReminderDeliveryStatus compact/>}</div>}
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
                 {(draft.series || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
@@ -1179,39 +1181,16 @@ export default function SemesterBoard() {
                   }
                 />
               </label>
+              <div className="field-pair">
               <label>
                 Unit
                 {draftGroup||draft.parentId?<span>{draft.unit} · shared with this assessment’s steps</span>:<Choice
                   label="Unit"
                   value={draft.unit}
-                  onChange={(unit) => setDraft({ ...draft, unit })}
+                  onChange={(unit) => setDraft({ ...draft, unit, ...(draft.timeBasis==="class"?{date:undefined,time:undefined,endTime:undefined,dueWeek:undefined,timing:"During class · date/time unconfirmed"}:{}) })}
                   options={semester.units.map((u) => [u.code, u.code])}
                 />}
               </label>
-              <div className="field-pair">
-                {!draftGroup&&!(draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class")&&<label>
-                  Teaching week
-                  <Choice
-                    label="Teaching week"
-                    value={String(draft.week || "unknown")}
-                    onChange={(v) =>
-                      setDraft({
-                        ...draft,
-                        week: v === "unknown" ? undefined : +v,
-                        date: undefined,
-                        time: undefined,
-                      })
-                    }
-                    options={[
-                      ["unknown", "Not known"],
-                      ...Array.from(
-                        { length: 13 },
-                        (_, i) =>
-                          [String(i + 1), `Week ${i + 1}`] as [string, string],
-                      ),
-                    ]}
-                  />
-                </label>}
                 <label>
                   Weight
                   <input
@@ -1223,39 +1202,7 @@ export default function SemesterBoard() {
                   />
                 </label>
               </div>
-              {!draftGroup&&!(draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class")&&<><div className="field-pair">
-                <label>
-                  {draft.timeBasis==="class"?"Class appointment date":"Due date"}
-                  <input
-                    type="date"
-                    value={draft.date || ""}
-                    onInput={(e) =>
-                      setDraft({
-                        ...draft,
-                        ...dateInputPatch(draft, "date", e.currentTarget.value),
-                        week: e.currentTarget.value
-                          ? weekFor(e.currentTarget.value, semester.weeks)
-                          : draft.week,
-                      })
-                    }
-                  />
-                </label>
-                <label>
-                  {draft.timeBasis==="class"?"Class start · Sydney":"Due time · Sydney"}
-                  <input
-                    type="time"
-                    value={draft.time || ""}
-                    onInput={(e) =>
-                      setDraft({ ...draft, time: e.currentTarget.value || undefined })
-                    }
-                  />
-                </label>
-              </div>
-              <p className="hint">
-                {draft.timeBasis==="class"?"This is a class appointment. Use Edit steps on the assessment to change its tutorial; add a separate submission for a hand-in deadline.":"New deadlines suggest 23:59. Change or clear the time before saving."}
-                A week without an exact date stays marked “Day & time TBC”.
-              </p></>}
-              {!!draft.parentId&&!draft.series&&!draft.routine&&draft.timeBasis==="class"&&<p className="hint">{assessmentTiming(draft)}. To change this appointment, cancel back to its summary and choose “Edit step schedule”. A submission deadline is a separate step.</p>}
+              {!draftGroup&&<TaskTimingEditor key={`${draft.id}-${draft.unit}-${editingTask}`} task={draft} semester={semester} onChange={t=>{setDraft(t);setEditError("");}}/>}
               {draftGroup&&<p className="hint">Each step keeps its own schedule. Open an individual step to change its date. Editing these assessment details does not change your steps.</p>}
               {!draftGroup&&<ReminderEditor key={draft.id} task={draft} onChange={t=>{setDraft(t);setEditError("");}}/>}
               <ActivityEditor task={draft} semester={semester} onChange={t=>{setDraft(t);setEditError("");}}/>

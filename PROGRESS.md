@@ -2,6 +2,14 @@
 
 Updated: 2026-11-01. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-01 clearer scheduling and reminder form / Web 0.17.0
+
+- Resumed the explicitly approved isolated draft after the user supplied Apple/Google form references. `TaskTimingEditor` puts Date & time / Week & class above reminders. `classTimingPatch` resolves only matching unit/week/class occurrences, requires a choice for ambiguity, clears obsolete dates when no class resolves and preserves week-only visibility. Saving now respects class start/end instead of forcing every schedule edit back to a deadline. No automatic move on later timetable refresh.
+- Reminder controls show Alert · None, compact per-alert rows, presets/custom timing and removal; notification delivery instructions collapse behind a short status. The existing five-alert limit, explicit permission, successful-save-only device scheduling and Chrome-running requirement remain unchanged. No n8n, calendar sync, new permissions or real data writes.
+- `reconcile` keeps task schedule fields atomic. Synthetic regression covers ambiguity, missing/invalid classes, deadline conversion, reminder rescheduling, backup/refresh, unchanged grades/notes and both conflict resolutions. All 26 Web regression scripts and SQL storage checks passed. Initial direct Node test invocation could not resolve extensionless imports; rerun with the documented `node --import tsx` runner passed. TypeScript passed; production packaging follows the Sites workflow.
+- Actual synthetic-board browser QA: date/class switch, invalid old teaching week cleared, Week 13 tutorial resolution, two Week 12 tutorials require selection, missing lab retains week without a date, direct date/time edits immediately update reminder previews, multiple/custom minute and clock alerts, removal to None, Cancel/Discard restores the saved task, save/reload persists timing and explicit reminder clearing. These tests use only localhost fake account and scheduler adapters. User confirmed the earlier real test notification banner; scheduled closed-tab delivery and sound are not certified by this release.
+- Original repository's concurrent mobile/reminder work remains untouched. Site custom audience and Connect 0.5.0 are preserved. Publication result is reported only after terminal deployment success; user usability acceptance remains pending.
+
 ### 2026-11-01 reminders / Web 0.16.0 + Connect 0.5.0
 
 - User approved Chrome-running system notifications with Semester settings, not Apple Calendar sync or n8n. Implemented in isolated `/private/tmp/semester-reminders.ZwCpq6` based on approved commit `8415932`; no live account/API, Canvas, permissions or real reminder state was changed during QA.

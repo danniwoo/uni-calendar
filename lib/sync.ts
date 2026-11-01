@@ -1,4 +1,5 @@
 import type { Semester } from "./semester";
+import {taskTimingKeys} from "./task-timing";
 
 // Three-way merge: never overwrite another tab's unrelated edits. Conflicting
 // fields require an explicit choice; the caller retains both source snapshots.
@@ -17,10 +18,16 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
     }
     // Keep grades/plans and activity timing atomic. Mixing independently valid
     // activity edits can invent a week + time or a multi-day range + time.
-    const atomic = [".grade", ".gradePlan", ".activity"].some(field=>path.endsWith(field));
+    const atomic = [".grade", ".gradePlan", ".activity", ".schedule"].some(field=>path.endsWith(field));
     if (!atomic && object(l) && object(r) && (object(b) || b == null)) {
       const out: Record<string, unknown> = {};
+      const task = typeof l.id === "string" && path === `tasks.${l.id}`;
+      if (task) {
+        const schedule = (v: unknown) => Object.fromEntries(taskTimingKeys.map(k=>[k,object(v)?v[k]:undefined]));
+        Object.assign(out,merge(schedule(b),schedule(l),schedule(r),`${path}.schedule`));
+      }
       for (const key of new Set([...Object.keys(l),...Object.keys(r)]))
+        if (!task || !taskTimingKeys.includes(key as typeof taskTimingKeys[number]))
         out[key] = merge(object(b) ? b[key] : undefined,l[key],r[key],path ? `${path}.${key}` : key);
       return out;
     }

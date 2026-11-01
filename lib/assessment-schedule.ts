@@ -1,4 +1,4 @@
-import {addDays, shortDate, timingLabel, weekFor, type Semester, type Task} from "./semester";
+import {addDays, shortDate, timingLabel, classTimingName, weekFor, type Semester, type Task} from "./semester";
 
 export const validDate = (value:string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+"T00:00:00Z")) && new Date(value+"T00:00:00Z").toISOString().slice(0,10)===value;
 const validTime = (value:string) => /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value);
@@ -27,7 +27,7 @@ export function submissionStep():AssessmentStep {return {title:"Submission",mode
 export function assessmentTiming(t:Task):string {
   if(t.splitCount)return `${t.splitCount} steps`;
   if(t.timing.startsWith("Before"))return `Due ${timingLabel(t)}`;
-  if(t.timeBasis==="class")return t.date?`${shortDate(t.date)} · ${/lecture/i.test(t.timing)?"Lecture":/lab|practical/i.test(t.timing)?"Lab":"Tutorial"}${t.time?` ${t.time}${t.endTime?`–${t.endTime}`:""}`:" · time not set"}`:"Class date/time not set";
+  if(t.timeBasis==="class")return t.date?`${shortDate(t.date)} · ${classTimingName(t.timing)}${t.time?` ${t.time}${t.endTime?`–${t.endTime}`:""}`:" · time not set"}`:t.week?`W${t.week} · day & time TBC`:"Class date/time not set";
   return t.date?`Due ${shortDate(t.date)}${t.time?` · ${t.time}`:" · time not set"}`:t.week?`W${t.week} · due date not set`:"Due date not set";
 }
 export function assessmentMetadataError(s:Semester,draft:Task):string {

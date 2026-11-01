@@ -203,9 +203,12 @@ export function shortDate(date: string) {
     timeZone: "UTC",
   });
 }
+export function classTimingName(timing: string) {
+  return /lecture/i.test(timing)?"Lecture":/practical|lab/i.test(timing)?"Lab":/workshop/i.test(timing)?"Workshop":/seminar/i.test(timing)?"Seminar":/tutorial/i.test(timing)?"Tutorial":"Class";
+}
 export function timingLabel(t: Task) {
   if (t.date && t.timeBasis === "class")
-    return `${shortDate(t.date)} · ${t.timing.startsWith("Before") ? "before" : "in"} ${/lecture/i.test(t.timing) ? "lecture" : /practical|lab/i.test(t.timing) ? "lab" : "tutorial"}${t.time ? ` ${t.time}${t.endTime ? `–${t.endTime}` : ""}` : ""}`;
+    return `${shortDate(t.date)} · ${t.timing.startsWith("Before") ? "before" : "in"} ${classTimingName(t.timing).toLowerCase()}${t.time ? ` ${t.time}${t.endTime ? `–${t.endTime}` : ""}` : ""}`;
   return t.date
     ? `${shortDate(t.date)}${t.time ? ` · ${t.time}` : " · time TBC"}`
     : t.kind === "exam"
