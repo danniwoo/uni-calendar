@@ -71,8 +71,9 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 實機修正：SDK 55 widget plugin 即使關閉 push 仍加入 `aps-environment`，造成 personal team signing 失敗；local config plugin 僅移除未使用的 push entitlement，保留 App Group。重複 non-clean prebuild 另會產生重複 widget targets，已重新生成乾淨 native project；之後變更 native config 使用 clean prebuild。
 - 離開條件：實際原生 app 可開、課堂／assessment 導覽正確、preparation 重開後保留、widget 顯示與點擊符合 sample、學生完成無教學短試用並回報 widget 是否有價值。Simulator 通過不代表實機或學生驗收。
 - 第一輪使用者回饋：技術可行，但無法一眼理解今天、下一堂、assignment 到期、這週／下週及目前 teaching week。卡片佔位過大；next-class hero 與 agenda 重複同一課堂，deadline 被推到畫面下方。使用者認可第一階段成果，但 glanceability 尚未達標。
-- 下一輪設計方向（尚未實作）：compact overview，頂部顯示日期／teaching-week context；Today 使用緊湊時間列，突出下一堂與今日到期；Due this week／Next week 顯示 assignment 名稱、unit、到期日時間及相對剩餘時間，preparation 分開；週導覽可回 Today，未知日期保留獨立入口。減少大 hero、重複卡片及過多留白，保留可讀字級與點擊區域。Sample teaching weeks 必須標示為示例，不從目前日期猜真實校曆。
-- 續接：先做 overview 密度／資訊優先序的設計迭代與短試用，確認使用者能快速回答現在是哪週、下一堂在哪、今天到期什麼、下週有什麼。Stage 2 才驗證 Sites／獨立 hosting 的 native auth、isolated test board 與 narrow writes；本階段不假設目前 Sites 可接受 native session。
+- 版本保留：使用者要求可比較／rollback；目前 sample 原型已 commit 為 `6f544ba` 並建立 local tag `ios-preview-v0.1.0`，包含 mobile source、lockfile、native config plugin 及 shared timezone helper。未 push／部署；可用獨立 worktree 重建基線，操作見 mobile README。
+- 下一輪先從 user flows／資訊需求出發，不鎖定 week grid、Work dashboard 或 tab 結構。流程假設、glance／detail／action 分層與比較情境見 [VISION → Mobile user flows](VISION.md#mobile-user-flows)。使用者特別關心跨科、跨週的整體圖像與不漏資訊；class/location 保留為輔助情境，不再預設最大首頁卡片。
+- 續接：用相同 synthetic 情境比較 baseline、week-by-unit 與 week agenda，先驗證今天、這週／下週、各科考核及未知資訊能否快速正確辨識，再決定實作。減少重複卡片／留白但保留可讀性與點擊區域；sample 週次不可冒充真實校曆。Stage 2 才驗證 hosting/native auth/live sync 與 narrow writes。
 
 ### REMIND-01
 

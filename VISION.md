@@ -36,6 +36,37 @@ Semester 幫助大學生把分散的課表、考核、準備進度與成績放�
 
 同一資料可以出現在不同視角；不代表重複儲存或重複計分。新增頁面前，先確認現有 view 為什麼無法完成該任務。
 
+<a id="mobile-user-flows"></a>
+
+## Mobile user flows / iPhone design exploration
+
+2026-11-01: user wants to start with student situations and information needs before choosing a layout. These are design hypotheses for the next sample prototype, not implemented features or validated research. The current sample app is preserved as `ios-preview-v0.1.0`. Delivery status remains in ROADMAP → IOS-01.
+
+The central mobile need is **understand the academic picture quickly, then inspect or act without losing context**. A deadline list alone does not show coverage across units or future weeks; a dense matrix alone may make today's exact obligations harder to read. Compare both against the same flows. Do not fix tabs or remove class access before this comparison.
+
+| Student situation | Information needed immediately | Flow and useful outcome |
+| --- | --- | --- |
+| First opening / returning after setup | Which semester and units are included; where data came from; what is missing or stale | Check coverage → resolve or acknowledge missing information → see a populated overview. Existing users should not recreate their web board on the phone. Live onboarding/sync belongs to later integration; use explicit sample coverage now. |
+| Brief check between activities | Current date and teaching week; overdue items, today's deadlines/events and chosen preparation; any unresolved dates | Open app/widget → understand today's obligations and nearby deadlines → optionally inspect one item. No assumption that unrecorded work is unfinished. |
+| Weekly planning / checking the bigger picture | All included units, this week and coming weeks, exact dated items versus known-week/unknown-date work, concentration of deadlines | Move across weeks → notice a cluster or uncertainty → inspect an assessment → return to the same week/filter. Counts measure events/deadlines, not effort. |
+| Choosing what to work on tonight | Upcoming due dates, requirements, known preparation scope, recorded progress and the student's chosen next action | Inspect relevant work → choose or write one preparation action → keep it linked to its assessment. Do not force a task breakdown, infer work hours, or automatically equate weight/urgency with priority. |
+| Checking one assignment or quiz | Unit, exact due date/time, activity time, requirements/weight, source link, scope and unknowns | Open from any overview → read enough to act → inspect original source if needed → return with overview context preserved. Keep exam/demo time separate from submission deadline. |
+| Finishing a small piece of work | The specific preparation action, current state and whether the change was saved | Record → clear save feedback → Undo if needed → later resume consistently. Preparation completion is not submission, grade, or verified learning. Current preview saves locally; cross-device sync is a later dependency. |
+| Checking progress within one unit | Related assessments, upcoming milestones, known learning scope and records; optional grades/targets | Narrow to unit → connect preparation to assessment → return to cross-unit view. Missing records do not establish that material was not studied. |
+| Returning after information changes / while offline | Freshness, known changes/conflicts, pending saves, missing source coverage | See a compact trust/status cue → inspect changes or retry → retain unsaved work and honest last-known information. Live change detection is future work, not a current guarantee. |
+
+Information should have three levels:
+
+- **At a glance:** date/teaching week, active range, all-unit coverage, today's/overdue obligations, upcoming deadline distribution and visible unknowns. Prioritize a few answers, not every field at once.
+- **One tap:** exact times, assessment requirements/source, preparation scope, progress and quick actions.
+- **Deeper inspection:** full semester/unit records, grading rules, imports and complex editing. Phone access may still be useful; the web can remain the more comfortable place for lengthy setup.
+
+Classes remain available as supporting context. Students who already use Apple/Google Calendar may gain more from academic work coverage than a large next-class card; do not assume this is true for every student. The widget's next job is also open: next deadline, a chosen action or a compact workload summary may be more useful than the baseline class widget.
+
+Prototype comparison: use identical invented records in the preserved baseline, a week-by-unit overview and a week agenda with unit labels. Include four units, a deadline cluster next week, an unknown-date assessment, a unit with no dated deadlines, a completed preparation action with an upcoming submission, and an older source timestamp. Keep fixtures separate from real student data.
+
+Ask a student, without coaching: “Which week is this?”, “What is due today?”, “Which week has several deadlines?”, “What does this unit have coming up?”, “What still needs confirmation?” Then ask them to inspect one assignment, choose/record a preparation action and return. Observe time to correct answer, missed items, confusion, taps and recovery; speed alone is not success. This experiment should determine the layout and navigation, rather than using a layout to dictate the tasks.
+
 ## 設計原則
 
 - 重要資訊能直接掃到；細節漸進展開，不為了整潔把必要內容全部藏起來。
