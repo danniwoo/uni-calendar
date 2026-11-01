@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-更新：2026-11-01 · Web **0.15.1** 已發布（Sites 59）；該網站發布來源包含 Connect **0.4.0**，未納入當時既有 extension 改動。29–30 日的 unit-limit／activity conflict 修正一併發布。
+更新：2026-11-01 · Web **0.16.0** 已發布（Sites 60）；包含可選多提醒與 Connect **0.5.0** 下載。通知需更新擴充套件、使用者明確授權並保持 Chrome 運行；真實系統通知驗收待 REMIND-01。原四科試用 gate 不變。
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
 
@@ -61,7 +61,7 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 - 2026-11-01：使用者選擇設定留在 Semester、Connect 發系統通知、Chrome 必須運行；不使用 n8n、不做 Apple Calendar 匯出／同步，也不擴大到分類或歷史紀錄。
 - 已實作 Web 0.16.0／Connect 0.5.0：每個 dated assessment step／personal task/event 最多五個提醒、準確 Sydney 時刻、取消不改排程、保存失敗保留舊排程、完成／刪除撤銷未來提醒；日期改動與 Undo 重建未來排程。週次未定日期不猜時間；提醒設定沿用帳戶／backup／refresh／conflict 保護。
-- Synthetic UI／純函式／mock Chrome 測試與發布證據見 PROGRESS。**未代表已驗證使用者電腦真正收到通知。** T11 四科試用與 M1/M2 gates 不因此完成。
+- 已發布 Sites 60；25 個 Web regression scripts、TypeScript、SQL、66 個 extension tests、production build 與 synthetic UI 通過，發布證據見 PROGRESS。**未代表已驗證使用者電腦真正收到通知。** T11 四科試用與 M1/M2 gates 不因此完成。
 - 下一步：使用者更新 unpacked Connect 0.5.0、Reload、在同一 Chrome profile 開 Semester → Desktop reminders 明確授權 → Send test notification；用自己選的測試項目設定近時提醒，關 Semester 分頁但不退出 Chrome，核對一次通知／點回正確項目／修改時間／取消與重啟。其他電腦修改需重新開 Semester 才更新本機；Sleep/Focus 不保證準點。
 
 ### CONNECT-01
