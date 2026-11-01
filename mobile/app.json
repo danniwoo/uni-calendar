@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "Semester Preview",
+    "slug": "semester-preview",
+    "version": "0.1.0",
+    "scheme": "semester-preview",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "dev.semester.preview",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "plugins": [
+      "expo-dev-client",
+      "./plugins/withLocalWidgets",
+      [
+        "expo-widgets",
+        {
+          "enablePushNotifications": false,
+          "widgets": [
+            {
+              "name": "SemesterNextClass",
+              "displayName": "Next class \u00b7 Sample",
+              "description": "Try Semester with a sample schedule. Tap to see class details.",
+              "supportedFamilies": [
+                "systemMedium"
+              ]
+            }
+          ]
+        }
+      ]
+    ]
+  }
+}

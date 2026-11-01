@@ -1,10 +1,11 @@
 import type {Task,Semester} from "./semester";
+import {sydneyInstant} from "./sydney-time";
+export {sydneyInstant} from "./sydney-time";
 
 /** User choices only. Delivery receipts and permissions do not belong in backups. */
 export type Reminder = {id:string;kind:"before";minutes:number} | {id:string;kind:"day";days:number;time:string};
 export const MAX_REMINDERS = 5;
 const clock = /^([01]\d|2[0-3]):[0-5]\d$/;
-const parts = new Intl.DateTimeFormat("en-CA",{timeZone:"Australia/Sydney",year:"numeric",month:"2-digit",day:"2-digit",hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
 const day = (value:string) => /^\d{4}-\d{2}-\d{2}$/.test(value) && Number.isFinite(Date.parse(value+"T12:00:00Z")) && new Date(value+"T12:00:00Z").toISOString().slice(0,10)===value;
 export function reminderKey(r:Reminder) {return r.kind==="before"?`before:${r.minutes}`:`day:${r.days}:${r.time}`;}
 export function reminderError(value:unknown):string|undefined {
@@ -17,17 +18,6 @@ export function reminderError(value:unknown):string|undefined {
     const key=reminderKey(r);if(settings.has(key))return "This reminder is already added.";
     ids.add(r.id);settings.add(key);
   }
-}
-/** Resolve Sydney wall time, not the computer's zone. Reject DST gaps/ambiguity. */
-export function sydneyInstant(date:string,time:string):number|undefined {
-  if(!day(date)||!clock.test(time))return;
-  const nominal=Date.parse(`${date}T${time}:00Z`),matches:number[]=[];
-  for(const hours of [10,11]) {
-    const instant=nominal-hours*3600000;
-    const p=Object.fromEntries(parts.formatToParts(instant).map(x=>[x.type,x.value]));
-    if(`${p.year}-${p.month}-${p.day}`===date&&`${p.hour}:${p.minute}`===time)matches.push(instant);
-  }
-  return matches.length===1?matches[0]:undefined;
 }
 export function reminderTime(t:Pick<Task,"date"|"time"|"allDay">,r:Reminder):number|undefined {
   if(!t.date||!day(t.date))return;

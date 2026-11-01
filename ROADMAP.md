@@ -17,7 +17,8 @@
 | **本次交付** | FLOW-01：Week／Month 直接列出週次作業、頂部分類切換、完成留在原位＋Undo | Web 0.15.0 已發布（Sites 58）；假資料測試通過，待使用者試用。歷史紀錄延後，本次未改 Connect 或真實資料；CONNECT-01／T11、T09／T10 續接保留 |
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
-| **之後再決定** | 自動 Canvas 更新、iOS、Friends、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
+| **原生實驗** | IOS-01：使用者批准 Stage 1，獨立 sample-only iPhone app／widget | [IOS-01](#ios-01)；不改 M1、Canvas 試用或正式發布 gate |
+| **之後再決定** | 自動 Canvas 更新、Friends、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
 
 CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並存；Now 同時推進最多 1–3 條，其餘留續接點。
 
@@ -54,6 +55,24 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 | 回顧結果 | 個別／總成績、單科摘要與目標估算 | recurring/parts 合計、未知分數與目標文案是否容易理解 | GRADE-01 |
 
 ## 工作卡：每條線的續接點
+
+<a id="ios-01"></a>
+### IOS-01
+
+**iPhone Stage 1 · 原生用途實驗** · P2 · **進行中** · 2026-11-01 使用者批准
+
+- 決策：直接做 React Native／Expo 原生小實驗，不先重做 mobile web。Schedule → class／assessment details → 一個本機 preparation action，以及 read-only next-class Home Screen widget。先測每日用途；不承諾完整 iOS 產品。
+- 範圍：`mobile/` 為獨立依賴／build；僅 synthetic sample，明確標示 sample／Sydney time／device-only。沒有登入、API、Canvas、真實學生資料、網站部署或 migration。原有 assessment steps 的「準備 ≠ 提交／成績」語意保留。
+- 已寫：七日 agenda、空日、dated／week-only assessment、儲存／Undo／重新開啟本機準備紀錄、sample reset 確認、widget start/end timeline／empty state／class deep link。只抽出既有純 `sydneyInstant`，web reminders 繼續共用；未重組整個 repository。
+- 驗證：mobile TypeScript、5 個 sample timeline／link／persistence／DST checks、iOS JS production bundle、web TypeScript／reminder regression／production build 已通過。Xcode 26.2 的 Release Simulator build 通過；實際 UI 已確認 Schedule、class／report details、空日、未定日期 quiz、refresh cancel／confirm、準備紀錄在關閉 app 後保留與 Undo，無需 Metro。
+- Widget 實機試用：使用者回覆「yes it works」並提供 Home Screen 截圖，確認 sample widget 顯示課堂、時間及地點；使用者回報操作正常。這不代表 background refresh／跨日更新皆已驗證。
+- Toolchain：本機用 Node 24、Expo SDK 55 配合 Xcode 26.2。SDK 58 需要較新 Xcode，曾在原生 framework compile 失敗；未 patch framework。SDK 55 的 widget module 為 alpha，公開版本前需重新評估。
+- 2026-11-01 實機進度：使用者已連接 iPhone 16 Pro；paired／Developer Mode 已啟用。Release device build 通過並安裝 `Semester Preview 0.1.0`，`devicectl` 確認存在；app／widget provisioning 都保留同一 App Group。使用者已確認 app 可開啟並顯示 sample Schedule，後續回報 widget 正常並提供截圖。preparation 實機 persistence／Undo 與快速理解的用途驗收仍未完成。操作與 sample 試用路徑見 [mobile README](mobile/README.md)。
+- 實機修正：SDK 55 widget plugin 即使關閉 push 仍加入 `aps-environment`，造成 personal team signing 失敗；local config plugin 僅移除未使用的 push entitlement，保留 App Group。重複 non-clean prebuild 另會產生重複 widget targets，已重新生成乾淨 native project；之後變更 native config 使用 clean prebuild。
+- 離開條件：實際原生 app 可開、課堂／assessment 導覽正確、preparation 重開後保留、widget 顯示與點擊符合 sample、學生完成無教學短試用並回報 widget 是否有價值。Simulator 通過不代表實機或學生驗收。
+- 第一輪使用者回饋：技術可行，但無法一眼理解今天、下一堂、assignment 到期、這週／下週及目前 teaching week。卡片佔位過大；next-class hero 與 agenda 重複同一課堂，deadline 被推到畫面下方。使用者認可第一階段成果，但 glanceability 尚未達標。
+- 下一輪設計方向（尚未實作）：compact overview，頂部顯示日期／teaching-week context；Today 使用緊湊時間列，突出下一堂與今日到期；Due this week／Next week 顯示 assignment 名稱、unit、到期日時間及相對剩餘時間，preparation 分開；週導覽可回 Today，未知日期保留獨立入口。減少大 hero、重複卡片及過多留白，保留可讀字級與點擊區域。Sample teaching weeks 必須標示為示例，不從目前日期猜真實校曆。
+- 續接：先做 overview 密度／資訊優先序的設計迭代與短試用，確認使用者能快速回答現在是哪週、下一堂在哪、今天到期什麼、下週有什麼。Stage 2 才驗證 Sites／獨立 hosting 的 native auth、isolated test board 與 narrow writes；本階段不假設目前 Sites 可接受 native session。
 
 ### REMIND-01
 
@@ -239,7 +258,7 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 | --- | --- | --- |
 | CONNECT-03 | 可選自動保存已確認配對且沒有手動衝突的成績 | Later；目前 CONNECT-02 只送待確認預覽。T11 穩定後再討論，沒有授權自動保存。 |
 | DIST-01 | Chrome Web Store 發行與自動更新 | Later；先完成讀取驗收、安全／隱私與發行準備，目前仍 unpacked。 |
-| IOS-01 | 原生 iOS app | Later 方向；desktop 核心流程穩定後選原生 MVP，不做手機 web 專項重設計。 |
+| IOS-01 | 原生 iOS app | Stage 1 sample-only 實驗已獲批准，見上方工作卡；live sync／public app 仍未承諾。不做手機 web 專項重設計。 |
 | SOCIAL-01 | Friends：看朋友修哪些 units | Idea；先定自願分享、可見範圍與撤回。現有登入不代表已有社交功能。 |
 | PLATFORM-01 | 帳戶／後端與資料平台演進 | Idea／需求待釐清；已有 sign-in + D1，不預設必須重建或遷移。由 iOS、分享、可攜性需求決定。 |
 | EXPLORE-01 | 獨立 Today、大型 Dashboard、廣泛跨校／PDF/Ed 匯入 | 暫不投入；先說明現有 view 的具體缺口，再評估價值。 |

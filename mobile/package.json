@@ -1,0 +1,34 @@
+{
+  "name": "semester-mobile-preview",
+  "version": "0.1.0",
+  "main": "index.ts",
+  "dependencies": {
+    "@expo/ui": "~55.0.17",
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "expo": "~55.0.32",
+    "expo-dev-client": "~55.0.41",
+    "expo-linking": "~55.0.17",
+    "expo-status-bar": "~55.0.6",
+    "expo-widgets": "55.0.20",
+    "react": "19.2.0",
+    "react-native": "0.83.10",
+    "react-native-safe-area-context": "~5.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "~19.2.0",
+    "tsx": "^4.23.15",
+    "typescript": "~5.9.2"
+  },
+  "scripts": {
+    "start": "expo start --dev-client",
+    "ios": "expo run:ios",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test src/*.test.ts",
+    "export:ios": "expo export --platform ios"
+  },
+  "private": true,
+  "engines": {
+    "node": "^22.13.0 || ^24.3.0 || >=26.0.0"
+  }
+}

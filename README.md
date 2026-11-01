@@ -15,6 +15,7 @@ Current source versions: **Semester Web 0.15.0** · **Semester Connect 0.4.0**. 
 | [CHANGELOG.md](CHANGELOG.md) | Versioned web changes; not a to-do list. |
 | [PROGRESS.md](PROGRESS.md) | Concise engineering handoff, code map, checks and safety constraints. |
 | [Connect guide](extensions/semester-connect/README.md) | Chrome installation/reload, reading Canvas and reviewed import. |
+| [iPhone experiment](mobile/README.md) | Sample-only native preview, local build and student trial instructions. |
 | [Connect changelog](extensions/semester-connect/CHANGELOG.md) | Independently versioned extension changes. |
 | [Canvas matching user stories](docs/CANVAS-MATCHING-USER-STORIES.md) | User needs, matching behaviour, acceptance checks and remaining limitations. |
 | [Historical milestones](docs/archive/IMPLEMENTATION-2026-10-20.md) | Short digest of past implementation milestones; not current priorities or proof of user acceptance. |
