@@ -1,4 +1,5 @@
 import {type Task,type Semester,type ClassEvent,weekFor} from "./semester";
+import {reminderError} from "./reminders";
 
 export const isPersonal = (t:Task) => t.kind === "task" || t.kind === "event";
 export const calendarOwns = (s:Semester,t:Task) => (isPersonal(t) && !t.unit) || s.units.some(u=>u.code===t.unit);
@@ -8,6 +9,7 @@ export function personalWhen(t:Task) {
   return t.time?`Due ${t.time}`:"Date only";
 }
 export function preparePersonal(t:Task,s:Semester):Task {
+  const remindersIssue=reminderError(t.reminders);if(remindersIssue)throw new Error(remindersIssue);
   if(!isPersonal(t))throw new Error("Choose Task or Event.");
   if(!t.title.trim())throw new Error("Give this item a name.");
   if(t.unit&&!s.units.some(u=>u.code===t.unit))throw new Error("Choose a current unit or No unit.");

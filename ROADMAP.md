@@ -55,6 +55,15 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 ## 工作卡：每條線的續接點
 
+### REMIND-01
+
+**Apple Calendar 式多提醒 → Chrome 系統通知** · P1 · **待驗證** · 使用者明確批准的增量
+
+- 2026-11-01：使用者選擇設定留在 Semester、Connect 發系統通知、Chrome 必須運行；不使用 n8n、不做 Apple Calendar 匯出／同步，也不擴大到分類或歷史紀錄。
+- 已實作 Web 0.16.0／Connect 0.5.0：每個 dated assessment step／personal task/event 最多五個提醒、準確 Sydney 時刻、取消不改排程、保存失敗保留舊排程、完成／刪除撤銷未來提醒；日期改動與 Undo 重建未來排程。週次未定日期不猜時間；提醒設定沿用帳戶／backup／refresh／conflict 保護。
+- Synthetic UI／純函式／mock Chrome 測試與發布證據見 PROGRESS。**未代表已驗證使用者電腦真正收到通知。** T11 四科試用與 M1/M2 gates 不因此完成。
+- 下一步：使用者更新 unpacked Connect 0.5.0、Reload、在同一 Chrome profile 開 Semester → Desktop reminders 明確授權 → Send test notification；用自己選的測試項目設定近時提醒，關 Semester 分頁但不退出 Chrome，核對一次通知／點回正確項目／修改時間／取消與重啟。其他電腦修改需重新開 Semester 才更新本機；Sleep/Focus 不保證準點。
+
 ### CONNECT-01
 
 - 2026-10-31／0.15.1：依新 quiz 試用問題，分開「待設定結果／可匯入更新／需檢查設定」。新 attempt 只建議同科同 quiz 編號、不猜最高分規則；直接開單筆設定。舊 attempt 的群組警告合併成每份 assessment 一組，列真正權重／drop-rule 前後差異；群組改名不再誤報。確認保留原計分後只更新該來源基準，Import 數量、Cancel、Undo 與合計同步。24 個 pure checks、TypeScript、SQL 及假資料實際 UI 操作通過；**已發布 Sites 59、待使用者驗收**，未碰真實資料。發布憑據見 PROGRESS。

@@ -2,6 +2,14 @@
 
 Updated: 2026-11-01. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-01 reminders / Web 0.16.0 + Connect 0.5.0
+
+- User approved Chrome-running system notifications with Semester settings, not Apple Calendar sync or n8n. Implemented in isolated `/private/tmp/semester-reminders.ZwCpq6` based on approved commit `8415932`; no live account/API, Canvas, permissions or real reminder state was changed during QA.
+- `lib/reminders.ts` stores bounded explicit choices and resolves Sydney calendar-clock versus elapsed-minute offsets, rejecting DST gaps/ambiguity. Settings survive backups/refresh; syncVersion 10 prevents older writers dropping saved choices or explicit clears. No database migration. Successful GET/PUT snapshots alone reach the device; drafts and failed saves do not reschedule.
+- Connect has separate same-origin/top-frame bridge and settings-only enable/off/test operations. Optional alarms/notifications, trusted-context local storage, opaque account scope, revision checks, one next alarm, persisted send claims, restart recovery and latest-per-task one-hour catch-up. Fixed-origin account-checked notification links. No credentials, grades, network scheduler or new subscription. Device-local cache can refresh while off; off prevents delivery. Changes from other devices are learned on the next Semester visit.
+- Passed TypeScript, all pure Web regression scripts, SQL storage checks and 66 extension Node tests (including two new bridge tests and seven scheduler tests). Synthetic actual-board UI: add/custom/cancel+discard, multiple alerts, date reschedule, completed/unfinished, failed save retaining two scheduled alerts and retry scheduling the third. No real OS delivery test; actual extension permission/worker/closed-tab/OS behavior remains REMIND-01 acceptance. Production build/publication is recorded separately after success.
+
+
 ### 2026-11-01 approved Connect source consolidation
 
 - User confirmed the pre-existing 0.4.3 work is complete and approved including it with the 0.4.4 fix. The pending-confirmation hold recorded below is resolved. Consolidate only the reviewed extension changes/tests and their existing handoff; reminder design is not part of this commit.

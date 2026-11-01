@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.16.0 — 2026-11-01
+
+- Apple Calendar–style reminders in assessment and personal task/event editors: up to five, editable presets/custom days/time or minutes before, plus exact Sydney send-time previews. Add/Edit reminders opens the relevant controls directly.
+- Save reminder choices in the existing account and backup flow. Cancel does not reschedule; failed saves retain the previous device schedule. Completed/deleted items stop future alerts; date changes move relative reminders. Week-only items clearly need an exact date first.
+- Deliver through optional Semester Connect 0.5.0 while Chrome runs. Explicit per-profile permission/settings/test flow, account-scoped scheduling, no n8n or Apple Calendar sync. Closed Chrome is not supported; sleep/Focus can delay alerts and changes from other devices need a Semester visit here.
+- Preserve manual records, timetable refresh, conflict handling and old-client protection. Synthetic tests cover delivery/state boundaries; real Chrome/OS acceptance remains pending.
+
+
 ## 0.15.1 — 2026-10-31
 
 - On arrival/return to Semester, request one fresh read of already-authorized courses when the last batch is incomplete or older than a minute. Show course read freshness and failures on the homepage; never auto-import or replace an open review. Existing Connect still needs one signed-in Canvas course tab in the same Chrome profile.

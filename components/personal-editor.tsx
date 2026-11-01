@@ -3,6 +3,7 @@ import {useState} from "react";
 import type {Semester,Task} from "@/lib/semester";
 import {preparePersonal,personalWhen} from "@/lib/personal-items";
 import {dateInputPatch} from "@/lib/assessment-schedule";
+import {ReminderEditor} from "./reminder-editor";
 
 export function PersonalEditor({item,semester,onSave,onDelete,onAssessment,onView}:{item:Task;semester:Semester;onSave:(t:Task)=>void;onDelete:(t:Task)=>void;onAssessment:()=>void;onView:(t:Task)=>void}) {
   const [draft,setDraft]=useState(item),[error,setError]=useState(""),[saved,setSaved]=useState(false),[deleted,setDeleted]=useState(false),[confirmDelete,setConfirmDelete]=useState(false);
@@ -19,6 +20,7 @@ export function PersonalEditor({item,semester,onSave,onDelete,onAssessment,onVie
     {!event&&draft.date&&<small>23:59 is suggested for a new deadline. Change or clear it if needed.</small>}
     {event&&<label className="inline-label"><input type="checkbox" checked={!!draft.allDay} onChange={e=>update({allDay:e.target.checked,time:undefined,endTime:undefined})}/>All day</label>}
     {event&&!draft.allDay?<div className="field-pair"><label>Start · Sydney<input type="time" required value={draft.time||""} onInput={e=>update({time:e.currentTarget.value})}/></label><label>End · Sydney<input type="time" required value={draft.endTime||""} onInput={e=>update({endTime:e.currentTarget.value})}/></label></div>:!event&&draft.date?<label>Due time · optional · Sydney<input type="time" value={draft.time||""} onInput={e=>update({time:e.currentTarget.value||undefined})}/></label>:null}
+    <ReminderEditor key={draft.id} task={draft} onChange={t=>update({reminders:t.reminders})}/>
     <details><summary>More options · {event?"location, link & notes":"notes"}</summary>
       {event&&<><label>Location<input value={draft.location||""} onChange={e=>update({location:e.target.value})}/></label><label>Meeting link<input type="url" value={draft.link||""} placeholder="https://…" onChange={e=>update({link:e.target.value.trim()})}/></label></>}
       <label>Notes<textarea rows={3} value={draft.description} onChange={e=>update({description:e.target.value})}/></label>

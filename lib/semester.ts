@@ -84,6 +84,7 @@ export type Task = {
   availableUntil?: string;
   availableUntilTime?: string;
   activity?: AssessmentActivity | null;
+  reminders?: import("./reminders").Reminder[];
 };
 export type AssessmentRules = {
   count?: number;
@@ -235,7 +236,7 @@ export function mergeSemester(
       return { ...t, ...prev, rules: t.rules, source: t.source, sourceText: t.sourceText,
         sourceConflict: t.sourceConflict,
         warning: [t.warning, "Previously edited: your dates are preserved. Compare with the current outline."].filter(Boolean).join(" ") };
-    const next = { ...t, done: prev.done, grade: prev.grade, gradePlan: prev.gradePlan, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
+    const next = { ...t, done: prev.done, grade: prev.grade, gradePlan: prev.gradePlan, reminders:prev.reminders, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
     for (const key of prev.overrides || [])
       (next as unknown as Record<string, unknown>)[key] = (prev as unknown as Record<string, unknown>)[key];
     return next;

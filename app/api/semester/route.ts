@@ -4,6 +4,7 @@ import { upgradeSemester } from "@/lib/importer";
 import { validGrade, validGradePlan, requiresGradeRuleClient } from "@/lib/grade-value";
 import {activityError} from "@/lib/assessment-activity";
 import {validCanvasMetadata} from "@/lib/canvas-import";
+import {reminderError} from "@/lib/reminders";
 export async function GET() {
   const user = await getChatGPTUser();
   if (!user)
@@ -21,6 +22,7 @@ export async function GET() {
       {
         semester: row ? upgradeSemester(JSON.parse(row.data)) : null,
         revision: row?.revision || 0,
+        reminderOwner: Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(`semester-reminders:${user.userId}`)))).map(b=>b.toString(16).padStart(2,"0")).join(""),
         recovery: recovery ? JSON.parse(recovery.data) : null,
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -77,25 +79,29 @@ export async function PUT(request: Request) {
       return Response.json({error:"Invalid individual grades. Check the item names, marks and calculation settings."},{status:400});
     if ([...semester.tasks,...semester.units.flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{activity?:unknown})=>activityError(t.activity,semester)))
       return Response.json({error:"Invalid activity timing. Check its week or date range."},{status:400});
+    if ([...semester.tasks,...semester.units.flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{reminders?:unknown})=>reminderError(t.reminders)))
+      return Response.json({error:"Invalid reminders. Check reminder times before saving."},{status:400});
     // Tabs running a pre-fix bundle must reload before editing a replaced board.
     if (!validCanvasMetadata(semester)) return Response.json({error:"Invalid Canvas import links. No changes saved."},{status:400});
     // They do not understand replacement generations and could otherwise merge it back.
     const saved = await database().prepare("SELECT data, revision FROM semesters WHERE owner = ?").bind(user.userId).first<{data:string;revision:number}>();
     const previous = saved ? JSON.parse(saved.data) : null;
-    if (![2,3,4,5,6,7,8,9].includes(syncVersion) && previous?.boardGeneration)
+    if (![2,3,4,5,6,7,8,9,10].includes(syncVersion) && previous?.boardGeneration)
         return Response.json({error:"This board was restored or switched. Export unsaved edits, then reload this tab before continuing."},{status:409});
-    if (![3,4,5,6,7,8,9].includes(syncVersion) && previous?.tasks?.some((t:{grade?:unknown})=>t.grade!==undefined))
+    if (![3,4,5,6,7,8,9,10].includes(syncVersion) && previous?.tasks?.some((t:{grade?:unknown})=>t.grade!==undefined))
       return Response.json({error:"This board now includes grades. Export unsaved edits, then reload this older tab before saving so grades are preserved."},{status:409});
-    if (![4,5,6,7,8,9].includes(syncVersion) && previous?.tasks?.some((t:{gradePlan?:unknown})=>t.gradePlan!==undefined))
+    if (![4,5,6,7,8,9,10].includes(syncVersion) && previous?.tasks?.some((t:{gradePlan?:unknown})=>t.gradePlan!==undefined))
       return Response.json({error:"This board now includes individual grades. Export unsaved edits, then reload this older tab before saving so individual grades are preserved."},{status:409});
-    if (![6,7,8,9].includes(syncVersion) && previous?.canvasAccountId)
+    if (![6,7,8,9,10].includes(syncVersion) && previous?.canvasAccountId)
       return Response.json({error:"This board includes Canvas imports. Export unsaved edits, then reload this older tab before saving so import links are preserved."},{status:409});
-    if (![7,8,9].includes(syncVersion) && [...(previous?.tasks||[]),...(previous?.units||[]).flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{gradePlan?:unknown})=>requiresGradeRuleClient(t.gradePlan)))
+    if (![7,8,9,10].includes(syncVersion) && [...(previous?.tasks||[]),...(previous?.units||[]).flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{gradePlan?:unknown})=>requiresGradeRuleClient(t.gradePlan)))
       return Response.json({error:"This board includes grading rules. Export unsaved edits, then reload this older tab before saving so attempts and completion results are preserved."},{status:409});
-    if (![8,9].includes(syncVersion) && previous?.canvasImports?.some((r:{rule?:unknown})=>r.rule))
+    if (![8,9,10].includes(syncVersion) && previous?.canvasImports?.some((r:{rule?:unknown})=>r.rule))
       return Response.json({error:"This board includes Canvas rule mappings. Export unsaved edits, then reload this older tab so source baselines and manual outcomes are preserved."},{status:409});
-    if (syncVersion !== 9 && previous?.canvasHistory?.length)
+    if (![9,10].includes(syncVersion) && previous?.canvasHistory?.length)
       return Response.json({error:"This board includes Canvas update history. Export unsaved edits, then reload this older tab to preserve update records."},{status:409});
+    if (syncVersion !== 10 && [...(previous?.tasks||[]),...(previous?.units||[]).flatMap((u:{assessments?:unknown[]})=>u.assessments||[])].some((t:{reminders?:unknown})=>t.reminders!==undefined))
+      return Response.json({error:"This board includes reminders. Export unsaved edits, then reload this older tab to preserve reminders."},{status:409});
     if ((saved?.revision || 0) !== revision)
       return Response.json({error:"The saved board changed. Reload or resolve the conflict before saving."},{status:409});
     const switched = previous && (previous.boardGeneration !== semester.boardGeneration || previous.feedUrl !== semester.feedUrl

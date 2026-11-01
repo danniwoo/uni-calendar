@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.5.0 — 2026-11-01 (unpacked trial)
+
+- Optional Chrome-running desktop reminders configured in Semester Web 0.16.0. Explicit device opt-in; alarms/notifications are optional permissions. No n8n, polling, Canvas writes or new mandatory host access.
+- One next-alarm scheduler, saved-revision guards, account isolation, restart recovery, bounded sleep catch-up and duplicate-send protection. Cancel/completion/deletion and rescheduling preserve user intent. Notification clicks use a fixed Semester origin and account-checked item link.
+- Separate settings/test/off UI and same-origin/top-frame message bridge. Reminder metadata/receipts are local; choices remain in the Semester account. Real installed-extension/OS acceptance is pending; mocked delivery does not prove OS behavior.
+
+
 ## 0.4.4 — 2026-10-31 (unpacked trial)
 
 - Check all can use a signed-in Canvas dashboard as well as a course tab. Returning to Semester no longer requires opening a specific course first. No additional permissions, background polling or automatic imports.

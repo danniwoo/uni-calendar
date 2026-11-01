@@ -3,6 +3,7 @@ import {availabilityError} from "./assessment-schedule";
 import { validGrade, validGradePlan } from "./grade-value";
 import {activityError} from "./assessment-activity";
 import {validCanvasMetadata} from "./canvas-import";
+import {reminderError} from "./reminders";
 
 const object = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const strings = (v: Record<string, unknown>, keys: string[]) => keys.every(k => typeof v[k] === "string");
@@ -23,6 +24,7 @@ const task = (v: unknown): v is Task => object(v)
   && (v.grade == null || validGrade(v.grade))
   && (v.gradePlan == null || validGradePlan(v.gradePlan))
   && !activityError(v.activity)
+  && !reminderError(v.reminders)
   && !availabilityError(v as unknown as Task);
 
 // Backups are complete snapshots, never a bag of tasks to merge into a different feed.

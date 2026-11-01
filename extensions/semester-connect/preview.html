@@ -8,7 +8,7 @@
   <script type="module" src="preview.js"></script>
 </head>
 <body>
-  <header class="topbar"><div class="brand"><span class="brandmark" aria-hidden="true">S</span><strong>semester <span>connect</span></strong><span id="version" class="version">0.4.4</span></div><div class="topbar-actions"><span class="readonly">Read-only local preview</span><a class="primary link-button open-semester" href="https://usyd-semester-board.earthy-trout-5263.chatgpt.site/" target="_blank" rel="noopener noreferrer">Open Semester <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></div></header>
+  <header class="topbar"><div class="brand"><span class="brandmark" aria-hidden="true">S</span><strong>semester <span>connect</span></strong><span id="version" class="version">0.5.0</span></div><div class="topbar-actions"><span class="readonly">Read-only local preview</span><a class="primary link-button open-semester" href="https://usyd-semester-board.earthy-trout-5263.chatgpt.site/" target="_blank" rel="noopener noreferrer">Open Semester <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></div></header>
   <main>
     <section class="intro"><div><p class="eyebrow">CANVAS → REVIEW → SEMESTER</p><h1>Check your Canvas data.</h1><p class="lead">Connect once. Check for updates as you use Canvas. Review changes in Semester.</p></div><button id="clear" class="secondary">Clear preview</button></section>
     <div class="privacy"><span aria-hidden="true">✓</span><p><strong>You stay in control.</strong> Canvas is read-only. Results are saved to Semester only after you review and confirm.</p></div>
@@ -20,6 +20,7 @@
       <div id="semester-next" class="semester-next" hidden><div><strong>Connection enabled</strong><p>Keep Canvas open and go to Semester to check all connected courses. Review changes there before saving.</p></div><a class="primary link-button" href="https://usyd-semester-board.earthy-trout-5263.chatgpt.site/" target="_blank" rel="noopener noreferrer">Open Semester <span aria-hidden="true">↗</span><span class="sr-only"> (opens in a new tab)</span></a></div>
       <details class="connection-options"><summary>Connection settings &amp; permissions</summary><p>Enabling requests access to USYD Canvas and Semester. Use the same Chrome profile. Checks are limited to once a minute and do not run while the browser is closed. Pending results expire after 24 hours; only your account and selected course IDs are remembered.</p><button id="disable-reload" class="secondary">Turn off &amp; clear pending previews</button></details>
     </section>
+    <section class="panel"><h2>Desktop reminders</h2><p>Set multiple reminders in Semester. Chrome must stay running; the Semester tab can be closed.</p><a class="secondary link-button" href="reminders.html">Notification settings &amp; test</a></section>
     <section id="start" class="panel start">
       <div><h2>Start with your Canvas account</h2><p id="start-copy">Keep your signed-in USYD Canvas tab open. Read your course list first, then choose the courses to connect.</p></div>
       <button id="courses" class="primary">Read my courses</button>
@@ -42,7 +43,7 @@
       </section>
       </div></details>
     </section>
-    <footer><span>Semester Connect · <span id="footer-version">0.4.4</span> · Read → review → confirm</span><span>Clear preview clears this tab only. Turn off reload checks above to clear session previews. Downloaded files are not deleted.</span></footer>
+    <footer><span>Semester Connect · <span id="footer-version">0.5.0</span> · Read → review → confirm</span><span>Clear preview clears this tab only. Turn off reload checks above to clear session previews. Downloaded files are not deleted.</span></footer>
   </main>
 </body>
 </html>
