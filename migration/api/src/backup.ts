@@ -29,15 +29,25 @@ export async function exportBackup(db: SqlDatabase, owner: string): Promise<stri
   return row.data;
 }
 
+async function activeSnapshot(db: SqlDatabase, owner: string) {
+  const row = await db.prepare(`SELECT COALESCE(a.data,s.data) AS data, COALESCE(a.sha256,s.sha256) AS sha256,
+    (SELECT json_group_array(json_object('task_id',task_id,'done',done,'active',active,'revision',revision))
+     FROM imported_completion WHERE account_id=s.account_id) AS completion
+    FROM backup_trial_snapshots s LEFT JOIN recovery_active a USING(account_id) WHERE s.account_id=?1`)
+    .bind(owner).first<{data:string;sha256:string;completion:string}>();
+  if (!row) throw new ApiError(404,"no_snapshot","No backup has been imported for this account.");
+  return row;
+}
+
 export async function getImportedAssessments(db: SqlDatabase, owner: string) {
   await requireMember(db, owner, owner);
-  const board = importedAssessments(readBackup(await exportBackup(db, owner)));
-  const {results} = await db.prepare("SELECT task_id,done,revision FROM imported_completion WHERE account_id=?1")
-    .bind(owner).all<{task_id:string;done:number;revision:number}>();
+  const snapshot = await activeSnapshot(db, owner);
+  const board = importedAssessments(readBackup(snapshot.data));
+  const results = JSON.parse(snapshot.completion) as {task_id:string;done:number;revision:number;active:number}[];
   const changes = new Map(results.map(row=>[row.task_id,row]));
   return {...board,rows:board.rows.map(row=>{
     const change = changes.get(row.id);
-    return {...row,done:change ? Boolean(change.done) : row.done,completionRevision:change?.revision ?? 0};
+    return {...row,done:change?.active ? Boolean(change.done) : row.done,completionRevision:change?.revision ?? 0};
   })};
 }
 
@@ -48,13 +58,17 @@ export async function setImportedCompletion(db:SqlDatabase, owner:string, body:R
     throw new ApiError(400,"invalid_completion","Send the occurrence, completion state and version you loaded.");
   }
   await requireMember(db,owner,owner);
-  const board = readBackup(await exportBackup(db,owner));
+  const snapshot = await activeSnapshot(db,owner);
+  const board = readBackup(snapshot.data);
   if (!board.tasks.some(task=>task.id===id)) throw new ApiError(404,"missing_occurrence","This occurrence is unavailable.");
+  const sameBoard = `(SELECT COALESCE(a.sha256,s.sha256) FROM backup_trial_snapshots s
+    LEFT JOIN recovery_active a USING(account_id) WHERE s.account_id=?1)`;
   const write = expectedRevision === 0
-    ? db.prepare("INSERT INTO imported_completion(account_id,task_id,done,revision) VALUES (?1,?2,?3,1) ON CONFLICT DO NOTHING")
-      .bind(owner,id,Number(done))
-    : db.prepare("UPDATE imported_completion SET done=?3,revision=revision+1 WHERE account_id=?1 AND task_id=?2 AND revision=?4")
-      .bind(owner,id,Number(done),Number(expectedRevision));
+    ? db.prepare(`INSERT INTO imported_completion(account_id,task_id,done,revision)
+      SELECT ?1,?2,?3,1 WHERE ${sameBoard}=?4 ON CONFLICT DO NOTHING`).bind(owner,id,Number(done),snapshot.sha256)
+    : db.prepare(`UPDATE imported_completion SET done=?3,active=1,revision=revision+1
+      WHERE account_id=?1 AND task_id=?2 AND revision=?4 AND ${sameBoard}=?5`)
+      .bind(owner,id,Number(done),Number(expectedRevision),snapshot.sha256);
   if ((await write.run()).meta.changes !== 1) throw new ApiError(409,"completion_conflict","This occurrence changed. Refresh before trying again.");
   return {id,done,revision:Number(expectedRevision)+1};
 }

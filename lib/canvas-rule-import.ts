@@ -14,10 +14,11 @@ export function validCanvasRule(value:unknown):value is CanvasRule {
       Number.isInteger(r.bestCount)&&r.bestCount!>0&&r.bestCount!<=r.count&&typeof r.completionPoints==="number"&&Number.isFinite(r.completionPoints)&&r.completionPoints>0&&r.completionPoints<=1000000&&r.passMark===undefined);
 }
 export function validRuleRecord(r:Record<string,unknown>) {
-  if(r.rule===undefined)return r.lastItem===undefined&&r.sourceRules===undefined;
+  if(r.rule===undefined)return r.lastItem===undefined&&r.sourceRules===undefined&&r.attemptItemId===undefined;
   return r.mode==="part"&&validCanvasRule(r.rule)&&typeof r.sourceRules==="string"&&r.sourceRules.length<=20000
     &&!!r.lastItem&&validGradePlan({mode:"parts",method:"points",items:[r.lastItem]})
-    &&(r.lastItem as {id:string}).id===`canvas:${r.key}`;
+    &&(r.attemptItemId===undefined?(r.lastItem as {id:string}).id===`canvas:${r.key}`:
+      r.rule.method==="highest"&&typeof r.attemptItemId==="string"&&!r.attemptItemId.startsWith("canvas")&&(r.lastItem as {id:string}).id===r.attemptItemId);
 }
 export const ruleDescription=(r:CanvasRule)=>r.method==="highest"?`Highest of ${r.count} attempts${r.passMark?` · threshold ${r.passMark.earned}/${r.passMark.possible}`:""}`:`Best ${r.bestCount} of ${r.count} · ${r.completionPoints} per confirmed submission`;
 function configured(plan:GradePlan,r:CanvasRule) {

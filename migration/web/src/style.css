@@ -34,4 +34,10 @@ button:focus-visible, input:focus-visible { outline: 3px solid #b4a6ed; outline-
 .task input { width: 21px; height: 21px; flex-shrink: 0; accent-color: #5b4aa7; }
 .completed strong { text-decoration: line-through; color: #827e90; }
 footer { color: #797486; font-size: 12px; line-height: 1.6; padding: 20px 4px; }
+.recovery-panel input[type=file] { display:block; max-width:100%; margin:14px 0; }
+.recovery-counts { width:100%; border-collapse:collapse; margin:14px 0; text-align:left; font-size:14px; }
+.recovery-counts th,.recovery-counts td { padding:6px 4px; border-bottom:1px solid #eeecf2; }
+.recovery-counts tbody th { font-weight:500; }
+.recovery-counts td { font-variant-numeric:tabular-nums; }
+.recovery-panel summary { cursor:pointer; color:#51449b; padding:8px 0; }
 @media (max-width: 450px) { main { padding: 22px 16px; } .panel { padding: 17px; } .badge { font-size: 9px; letter-spacing: 1px; } }

@@ -17,7 +17,7 @@ const text=(x:unknown,max=400):x is string=>typeof x==="string"&&x.length<=max;
 const date=(x:unknown):x is string=>typeof x==="string"&&/^\d{4}-\d\d-\d\dT/.test(x)&&Number.isFinite(Date.parse(x));
 const finite=(x:unknown)=>x===null||(typeof x==="number"&&Number.isFinite(x)&&x>=0);
 const unique=(xs:string[])=>new Set(xs).size===xs.length;
-export function validCanvasRecords(x:unknown):x is CanvasImportRecord[]{return Array.isArray(x)&&x.length<=5000&&x.every(r=>object(r)&&text(r.key,150)&&/^\d+:\d+:\d+$/.test(r.key)&&text(r.targetId,500)&&["overall","part"].includes(String(r.mode))&&(r.lastGrade===undefined||validGrade(r.lastGrade))&&(r.readAt===undefined||date(r.readAt))&&(r.manual===undefined||typeof r.manual==="boolean")&&validRuleRecord(r))&&unique(x.map(r=>r.key));}
+export function validCanvasRecords(x:unknown):x is CanvasImportRecord[]{return Array.isArray(x)&&x.length<=5000&&x.every(r=>object(r)&&text(r.key,150)&&/^\d+:\d+:\d+$/.test(r.key)&&text(r.targetId,500)&&["overall","part"].includes(String(r.mode))&&(r.lastGrade===undefined||validGrade(r.lastGrade))&&(r.readAt===undefined||date(r.readAt))&&(r.manual===undefined||typeof r.manual==="boolean")&&validRuleRecord(r))&&unique(x.map(r=>r.key))&&unique(x.filter(r=>r.attemptItemId!==undefined).map(r=>JSON.stringify([r.targetId,r.attemptItemId])));}
 export function validCanvasMetadata(s:{canvasAccountId?:unknown;canvasImports?:unknown;canvasHistory?:unknown}) {
   return validCanvasHistory(s.canvasHistory,s.canvasAccountId)&&(s.canvasAccountId===undefined||id(s.canvasAccountId))&&(s.canvasImports===undefined||(validCanvasRecords(s.canvasImports)&&s.canvasImports.every(r=>id(s.canvasAccountId)&&r.key.startsWith(`${s.canvasAccountId}:`))));
 }

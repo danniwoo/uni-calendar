@@ -24,7 +24,9 @@ All responses use `Cache-Control: no-store`. Private routes need `Authorization:
 | `POST /v1/semester/sample` | Empty body or `{}` | Creates an explicitly labelled synthetic board once; subsequent calls return the existing board unchanged |
 | `POST /v1/backup-trial/:accountId` | Raw web backup JSON; enrolled owner only | 201 creates an independent immutable snapshot. Identical bytes return 200, a different file returns 409. |
 | `GET /v1/backup-trial/:accountId` | Enrolled owner only | Original JSON bytes read from D1, or 404 when no snapshot exists. |
-| `GET /v1/imported/assessments` | Enrolled owner from verified session | Unit grade summaries, recorded marks and plans, and dated or undated work from the account's immutable restore point. |
+| `GET /v1/recovery/:accountId` | Enrolled owner only | Current version and full backup (semester, Today plan, occurrence completion) from a single database read. |
+| `POST /v1/recovery/:accountId` | `{file,expectedVersion}` | Atomically applies a previewed website export or full backup to the verified owner. A stale preview returns 409. |
+| `GET /v1/imported/assessments` | Enrolled owner from verified session | Unit grade summaries, recorded marks and plans, and dated or undated work from the currently active semester. |
 | `PATCH /v1/imported/completion` | Enrolled owner, `{id,done,expectedRevision}` | Saves progress for one imported occurrence. The assessments projection includes its current state and revision. A stale write returns 409. The original backup export remains byte-identical. |
 | `GET /v1/today/plan` | Enrolled owner with restore point | Personal tasks and revision (initially empty at revision 0). |
 | `PATCH /v1/today/plan` | Same owner | Validates the plan and atomically saves only at the supplied `expectedRevision`. A stale save receives 409. |

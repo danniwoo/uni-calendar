@@ -45,4 +45,6 @@ Sources: [Supabase Google setup](https://supabase.com/docs/guides/auth/social-si
 
 ## Private restore trial
 
-Choose a saved-semester JSON for a local preview. The separate import button names the destination account. **Check my staging restore point** and **Download my staging re-export** each perform a fresh authenticated read. To verify the download offline, run `node --import tsx ../compare-backup.ts SOURCE DOWNLOADED` from `migration/api` after installing its dependencies. It compares the complete JSON and exact bytes, and checks marks, grade plans, the completion map and task flags, and whole undated work rows without printing their contents.
+Use **Download full backup** to save the current semester, personal Today tasks and work completion changes from the signed-in account. **Download original import** retrieves the first immutable website file. Choose either a website export or a full backup to preview current and resulting counts before confirming the destination. Scheduled attempts expand to show the date and mark of each attempt.
+
+A website export updates the semester and retains existing progress. A full backup restores all three parts to its owner. The client reads the result again after saving. If the account or any saved progress changes after preview, preview again. New files do not replace the first immutable restore point.

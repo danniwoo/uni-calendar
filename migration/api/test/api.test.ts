@@ -40,6 +40,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec(readFileSync(new URL("../migrations/0002_backup_trial.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0003_today_plans.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0004_imported_completion.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0005_recovery.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -313,4 +314,64 @@ test("occurrence completion is independent of preparation, scoped, reversible, a
   assert.equal((await read(a)).completionRevision,2);
   assert.equal(await (await call(plan,a)).text(),originalPlan);
   assert.equal(await (await call(restore,a)).text(),JSON.stringify(board));
+});
+
+test("a newer website export preserves progress; a full restore recovers it without reviving stale writes", async t=>{
+  const {db,call}=setup(t);
+  const a=await token(), b=await token(bob);
+  const owner=(await (await call("/v1/session",a)).json() as {accountId:string}).accountId;
+  const other=(await (await call("/v1/session",b)).json() as {accountId:string}).accountId;
+  for(const id of [owner,other])db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(id);
+  const route="/v1/recovery/"+owner;
+  const read=async()=>await (await call(route,a)).json() as import("../../recovery.ts").Current;
+  const restore=(file:unknown,expectedVersion:number)=>call(route,a,"POST",{expectedVersion,file:JSON.stringify(file)});
+  const quiz={id:"quiz",unit:"UNIT101",title:"Quiz",kind:"quiz",weight:"15%",timing:"During tutorial",description:"",source:"",sourceText:""};
+  const base={year:2026,session:"S2C",feedUrl:"",importedAt:"source",warnings:[],completed:{legacy:true},classes:[],
+    weeks:[{id:"w13",label:"Week 13",kind:"teaching",start:"2026-11-02",end:"2026-11-08"}],
+    units:[{code:quiz.unit,name:"Unit",session:"S2C",outline:"",status:"",summary:"",assessments:[],topics:[]}],tasks:[quiz]};
+  assert.deepEqual(await read(),{backup:null,version:0});
+  assert.equal((await restore(base,0)).status,200);
+  const original=await read();
+  assert.equal((await call(route,b)).status,403);
+  assert.equal((await call("/v1/recovery/"+other,b,"POST",{expectedVersion:0,file:JSON.stringify(original.backup)})).status,400);
+  const task={id:"prep",title:"Practice",createdAt:1,plannedFor:"2026-11-03",sourceKey:JSON.stringify([2026,"S2C",quiz.id])};
+  const plan=(expectedRevision:number,tasks:unknown[])=>call("/v1/today/plan",a,"PATCH",{expectedRevision,tasks});
+  const mark=(expectedRevision:number,done:boolean)=>call("/v1/imported/completion",a,"PATCH",{expectedRevision,done,id:quiz.id});
+  assert.equal((await plan(0,[task])).status,200);
+  assert.equal((await mark(0,true)).status,200);
+  const parts=[{id:"first",name:"Attempt 1",grade:{earned:4,possible:15}},{id:"second",name:"Attempt 2"}];
+  const mapping={key:"1:2:3",targetId:quiz.id,mode:"part",rule:{method:"highest",count:2},
+    attemptItemId:"first",lastItem:parts[0],sourceRules:"reviewed"};
+  const updated={...base,canvasAccountId:"1",canvasImports:[mapping],tasks:[{...quiz,gradePlan:{method:"highest",mode:"parts",items:parts}},
+    ...parts.map((part,i)=>({...quiz,id:part.id,title:part.name,parentId:quiz.id,attemptId:part.id,weight:"",date:i?"2026-11-04":"2026-10-28",time:"12:00",week:i?13:12}))]};
+  assert.equal((await restore(updated,original.version)).status,409);
+  const withProgress=await read();
+  assert.equal((await restore({...updated,canvasImports:[{...mapping,attemptItemId:"second"}]},withProgress.version)).status,400);
+  assert.equal((await restore({...updated,canvasImports:[mapping,{...mapping,key:"1:2:4"}]},withProgress.version)).status,400);
+  assert.equal((await restore({...base,tasks:[]},withProgress.version)).status,400);
+  assert.deepEqual(await read(),withProgress);
+  const races=await Promise.all([restore(updated,withProgress.version),restore(updated,withProgress.version)]);
+  assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);
+  const saved=await read();
+  assert.equal(saved.backup!.snapshot.originalJson,JSON.stringify(updated));
+  assert.deepEqual(saved.backup!.todayPlan,withProgress.backup!.todayPlan);
+  assert.deepEqual(saved.backup!.completion,withProgress.backup!.completion);
+  assert.equal(await (await call("/v1/backup-trial/"+owner,a)).text(),JSON.stringify(base));
+  const tampered={...saved.backup,snapshot:{...saved.backup!.snapshot,originalJson:JSON.stringify(base)}};
+  assert.equal((await restore(tampered,saved.version)).status,400);
+  assert.equal((await restore(original.backup,saved.version)).status,200);
+  const reset=await read();
+  assert.equal(reset.backup!.snapshot.originalJson,JSON.stringify(base));
+  assert.deepEqual(reset.backup!.completion,[]);
+  assert.deepEqual(reset.backup!.todayPlan!.tasks,[]);
+  assert.equal((await mark(1,false)).status,409);
+  assert.equal((await plan(1,[])).status,409);
+  assert.equal((await restore(saved.backup,reset.version)).status,200);
+  const again=await read();
+  assert.deepEqual(again.backup!.todayPlan!.tasks,[task]);
+  assert.equal(again.backup!.completion[0].done,1);
+  const projected=await (await call("/v1/imported/assessments",a)).json() as import("../../../lib/imported-assessments.ts").ImportedAssessments;
+  assert.deepEqual(projected.grades[0].parts.map(p=>p.mark),[{earned:4,possible:15},null]);
+  assert.equal(projected.rows.find(row=>row.id==="second")?.date,"2026-11-04");
+  assert.equal(projected.rows.find(row=>row.id==="quiz")?.done,true);
 });

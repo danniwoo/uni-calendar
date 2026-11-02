@@ -120,15 +120,17 @@ function render() {
       if (!res.ok) throw new Error((await res.json()).error?.message || "The backup request failed.");
       return res;
     };
-    main.append(todayPlanPanel(async body => (await signedRequest("/v1/today/plan",
-      body ? JSON.stringify(body) : undefined, body ? "PATCH" : "GET")).json()));
+    const planPanel=()=>todayPlanPanel(async body => (await signedRequest("/v1/today/plan",
+      body ? JSON.stringify(body) : undefined, body ? "PATCH" : "GET")).json());
+    let plan=planPanel();
+    const recoveryUrl=`/v1/recovery/${encodeURIComponent(accountId)}`;
     main.append(backupCheckPanel({ accountId, email: session.user.email || "this account",
-      request: async text => {
-        const res = await signedRequest(`/v1/backup-trial/${encodeURIComponent(accountId)}`, text);
-        return text === undefined ? res.text() : res.json();
-      },
-      assessments: async () => (await signedRequest("/v1/imported/assessments")).json(),
+      read: async () => (await signedRequest(recoveryUrl)).json(),
+      restore: async body => (await signedRequest(recoveryUrl,JSON.stringify(body))).json(),
+      original: async () => (await signedRequest(`/v1/backup-trial/${encodeURIComponent(accountId)}`)).text(),
+      onRestored: () => {const next=planPanel();plan.replaceWith(next);plan=next;},
     }));
+    main.append(plan);
   }
   main.append(element("footer", "Changes to test tasks are saved under your signed-in account."));
   root.replaceChildren(main);
