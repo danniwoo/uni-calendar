@@ -61,6 +61,8 @@ export function importedAssessments(board: Semester) {
       id: task.id, unit: task.unit, title: task.title, date: task.date || null, time: task.allDay ? null : task.time || null,
       timing: task.timing, weight: task.weight, done: !!task.done,
       deadlineMode: mode, scheduledActivity: scheduled && mode === null,
+      ...(task.reminders?.length ? { reminders: task.reminders } : {}),
+      ...(task.automaticReminder ? { automaticReminder: task.automaticReminder } : {}),
       ...(datesOnAttempts ? {datesOnAttempts:true} : {}),
     };
   });
@@ -79,7 +81,8 @@ export function importedAssessments(board: Semester) {
       schedule: [schedule.label, schedule.detail].filter(Boolean).join(" · ")};
   });
   const weeks = board.weeks.map(({start,end,label}) => ({start,end,label}));
-  return {version: 1 as const, year: board.year, session: board.session, weeks, units, rows, grades, overview};
+  return {version: 1 as const, year: board.year, session: board.session, weeks, units, rows, grades, overview,
+    ...(board.automaticReminders ? { automaticReminders: board.automaticReminders } : {})};
 }
 export type ImportedAssessments = ReturnType<typeof importedAssessments>;
 
