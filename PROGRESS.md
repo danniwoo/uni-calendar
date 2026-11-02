@@ -1,6 +1,15 @@
 # Engineering handoff
 
-Updated: 2026-11-01. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+
+### 2026-11-02 iPhone Stage 1 / Semester Preview 0.2.0
+
+- User authorised the bounded next prototype. Implemented compact Home/Today/Month/Assessments, unit filters and explicitly invented grades, a widget preview/setup sheet, two accessoryRectangular Lock Screen designs and a medium work overview. The original next-class widget remains registered. No API, auth, live data, analytics, migration or website deployment.
+- Kept v1 fixture seed and existing preparation IDs/progress; the new experience projection adds one invented next-week assessment. Refresh is explicit and confirmed. Sample teaching weeks use a synthetic week-10 anchor, not the USYD calendar. Unknown dates stay outside the month grid and visible in Home/Month/Assessments. Passed dates mean “check”, never an inferred incomplete submission.
+- Work timelines include Sydney midnights over 21 days and future deadlines, with unknown/past-date context. A single deadline links to the assessment; two deadlines/overview link to the unfiltered Work list. In-app widget choice is a preview, not a persisted OS configuration or analytics selection event.
+- Passed TypeScript, nine model/timeline/calendar/persistence/DST tests, iOS JS export and Simulator/device Release builds (0 errors, 4 warnings each). Logs: `/private/tmp/semester-ios-v02-export.log`, `/private/tmp/semester-ios-v02-simulator.log`, `/private/tmp/semester-ios-v02-device.log`. Physical `devicectl` query confirmed 0.2.0 (2) installed on the paired iPhone.
+- Simulator UI verified Home and compact rows, Month date selection → detail → preserved selected date, Today checklist, a saved step surviving full app close/reopen and Undo, per-unit grades including unreleased grade, unknown-date detail, and widget preview → all-assessments destination. Actual Lock Screen rendering/tapping is **not yet verified**: CUA reaches Add Widgets but scrolling fails with `noWindowsAvailable`. Physical widget trial requested; Stage 1 usefulness/refresh acceptance remains open in IOS-01.
+- Baseline tag `ios-preview-v0.1.0` is unchanged. Evolving product ideas remain in the existing private Notion notebook; only the approved scope and implementation evidence are recorded here.
 
 ### 2026-11-01 iPhone Stage 1 / Semester Preview 0.1.0
 

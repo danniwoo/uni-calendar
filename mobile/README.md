@@ -1,17 +1,26 @@
 # Semester iPhone experiment
 
-Stage 1 only: an Expo/React Native app and a medium Home Screen widget with **invented, device-local data**. No sign-in, live timetable, Canvas access, analytics, cloud writes or migration. The existing website remains the production app.
+Stage 1 only: an Expo/React Native app with **invented, device-local data**. Version 0.2.0 explores compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. No sign-in, live timetable, Canvas access, analytics, cloud writes or migration. The existing website remains the production app.
 
 ## Try the journey
 
-1. Open **Semester Preview**. Its next sample class is 45–60 minutes after first launch. All dates, rooms, weights and tasks are invented; Sydney time is explicit.
-2. Inspect the next class, then select different dates in Schedule, including an empty day.
-3. Open **Assessments → Project report**. Record its preparation action, close/relaunch the app, and check that it remains recorded. Undo it. This never marks a submission or grade.
-4. Open the database quiz: its teaching week is known but its date remains unconfirmed.
-5. On the Home Screen, touch and hold → **Edit → Add Widget → Semester Preview → Next class · Sample**. Add the medium widget. Tap it to open the matching class.
-6. Use **Sample preview → Refresh sample week** to replace only this app's synthetic data and reset preparation progress.
+1. Open **Semester Preview → Home**. Identify the sample teaching week, this week's deadlines, next week and dates needing confirmation. Counts describe dated deadlines, not estimated workload.
+2. Open an assessment, inspect its exact date/requirements, record a preparation step, close and reopen the app, then Undo. Preparation never marks work submitted or changes a grade.
+3. Open **Today**: due-today items, suggested preparation already populated from the sample, and a compact class list. A checked item remains visible and can be undone.
+4. Open **Month**. Move between months, select a marked day, inspect the named assessment, and return to the selected date. Unknown-date work remains in a separate section below the grid. Use **Jump to today** to return.
+5. Open **Assessments** and filter by unit. Switch to **Grades**: invented marks and an unreleased result, with no overall grade calculation.
+6. Open **Widgets** in the top bar. Compare **One deadline**, **Two deadlines** and **Overview**; use **Try where this widget opens** to inspect each destination. This selects an in-app preview, not a system widget preference.
+7. On the Lock Screen, touch and hold → **Customise → Lock Screen → Add Widgets → Semester Preview**. Add **Next deadline · Sample** or **Two deadlines · Sample**. The single widget opens its assessment; the two-item widget opens all assessments. Test readability and actual taps on the phone.
+8. On the Home Screen, touch and hold → **Edit → Add Widget → Semester Preview → Work overview · Sample**. The medium widget includes upcoming work plus unknown/past-date context. The original **Next class · Sample** remains available for comparison.
+9. Use **Widgets → Refresh sample week** only when you want new dates and reset preparation. Cancel leaves the stored sample unchanged.
 
-The widget uses the same sample board as the app. Its timeline has entries at class starts and ends, including a final empty state. It is read-only. iOS controls actual refresh timing. The app republishes the timeline on launch/foreground, not continuously. A sample generated days ago is retained until explicitly refreshed.
+All dates, teaching weeks, rooms, weights, requirements and marks are invented. The sample teaching week is anchored at week 10 on the Monday of the seed week; it is not USYD's academic calendar. Existing 0.1.0 seed/progress is retained, so an older installed sample may show past dates until explicitly refreshed.
+
+Work widgets publish entries at Sydney midnights (21 days ahead) and every future deadline. Passed dates are counted as “past date · check”, not assumed unsubmitted. Undated work is never assigned a made-up day. iOS controls actual refresh timing; the app republishes on launch/foreground. These widgets are not notification reminders. Background refresh and physical Lock Screen readability require device observation.
+
+## Prototype boundaries
+
+The widget gallery is deliberately small. No favourite/winning design, retention tracking, grade-update feed or automatically generated live checklist is implemented. Broader ideas stay in [Notion](https://app.notion.com/p/40bd6bfd790e81c1800cdf60f250174f). The v0.2 task list uses explicit sample suggestions; it has no scheduling or prioritisation engine.
 
 ## Local development
 
@@ -47,6 +56,6 @@ The only persisted data is a synthetic fixture seed and per-assessment preparati
 
 Run results and outstanding student/device trials are recorded in **../ROADMAP.md → IOS-01**, the single status tracker. Passing a simulator or automated check is not proof of student usefulness or physical-device behaviour.
 
-The experiment asks: can a student find the next class/room, distinguish deadlines from preparation, understand uncertain timing, and find the widget useful? Ask them to perform these tasks without coaching and record confusion and assistance needed. Stage 2 owns authentication/hosting feasibility and live cross-device writes.
+The experiment asks: can a student see the week and upcoming work across units, notice unknown dates, distinguish deadlines from preparation, and use a Lock Screen widget? Ask them to perform these tasks without coaching and record missed items and assistance needed. Stage 2 owns authentication/hosting feasibility and live cross-device writes.
 
 Native widget API reference: https://docs.expo.dev/versions/v55.0.0/sdk/widgets/

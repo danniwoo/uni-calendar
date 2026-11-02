@@ -2,7 +2,7 @@
   "expo": {
     "name": "Semester Preview",
     "slug": "semester-preview",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "scheme": "semester-preview",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -12,7 +12,8 @@
       "bundleIdentifier": "dev.semester.preview",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "buildNumber": "2"
     },
     "plugins": [
       "expo-dev-client",
@@ -26,6 +27,30 @@
               "name": "SemesterNextClass",
               "displayName": "Next class \u00b7 Sample",
               "description": "Try Semester with a sample schedule. Tap to see class details.",
+              "supportedFamilies": [
+                "systemMedium"
+              ]
+            },
+            {
+              "name": "SemesterDeadline",
+              "displayName": "Next deadline \u00b7 Sample",
+              "description": "One deadline at a glance. Tap to open the assessment.",
+              "supportedFamilies": [
+                "accessoryRectangular"
+              ]
+            },
+            {
+              "name": "SemesterDeadlines",
+              "displayName": "Two deadlines \u00b7 Sample",
+              "description": "See the next two dated assessments. Tap to view all work.",
+              "supportedFamilies": [
+                "accessoryRectangular"
+              ]
+            },
+            {
+              "name": "SemesterOverview",
+              "displayName": "Work overview \u00b7 Sample",
+              "description": "Upcoming work and dates to check, together.",
               "supportedFamilies": [
                 "systemMedium"
               ]

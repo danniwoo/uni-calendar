@@ -16,38 +16,52 @@ import { StatusBar } from "expo-status-bar";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import NextClassWidget from "./src/widgets/NextClass";
 import {
+  DeadlineWidget,
+  DeadlinesWidget,
+  OverviewWidget,
+} from "./src/widgets/Deadlines";
+import {
   clockTime,
   dateKey,
   longDate,
   makeSampleBoard,
-  nextClass,
   readStoredSample,
   resolveLink,
   shortDate,
-  widgetProps,
   widgetTimeline,
-  ZONE,
   type SampleBoard,
   type SampleAssessment,
 } from "./src/model";
+import {
+  addDays,
+  dueLabel,
+  experienceBoard,
+  monday,
+  monthCells,
+  sampleGrades,
+  sampleWeek,
+  shiftMonth,
+  workload,
+  workWidgetProps,
+  workWidgetTimeline,
+} from "./src/experience";
 
 const STORAGE_KEY = "semester.preview.sample.v1";
-const palette = {
+const P = {
   paper: "#F7F6F2",
-  ink: "#242337",
-  muted: "#6D6B7C",
-  purple: "#5549A5",
-  lavender: "#EDEAF8",
-  line: "#E7E5EC",
-  white: "#FFFFFF",
-  green: "#227264",
-  amber: "#916022",
+  ink: "#252438",
+  muted: "#716E80",
+  purple: "#584AA5",
+  lavender: "#EFEBFA",
+  line: "#E6E3EB",
+  green: "#28786D",
+  amber: "#8D5A22",
 };
 const unitColor = (unit: string) =>
-  unit === "ISYS2120" ? "#5549A5" : unit === "SOFT2412" ? "#247568" : "#A56535";
+  unit === "ISYS2120" ? P.purple : unit === "SOFT2412" ? P.green : "#9B603F";
+type Tab = "Home" | "Today" | "Month" | "Assessments";
 type Detail = { kind: "class" | "assessment"; id: string };
-
-function Action({
+function Button({
   label,
   onPress,
   secondary = false,
@@ -64,72 +78,94 @@ function Action({
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [
-        styles.action,
-        secondary && styles.secondaryAction,
-        (pressed || disabled) && { opacity: 0.65 },
+        s.button,
+        secondary && s.secondary,
+        (pressed || disabled) && s.pressed,
       ]}
     >
-      <Text style={[styles.actionText, secondary && { color: palette.purple }]}>
+      <Text style={[s.buttonText, secondary && { color: P.purple }]}>
         {label}
       </Text>
     </Pressable>
   );
 }
-function Eyebrow({
-  children,
-  color,
+function Tag({ unit }: { unit: string }) {
+  return <Text style={[s.tag, { color: unitColor(unit) }]}>● {unit}</Text>;
+}
+function Heading({
+  title,
+  link,
+  onPress,
 }: {
-  children: React.ReactNode;
-  color?: string;
+  title: string;
+  link?: string;
+  onPress?: () => void;
 }) {
   return (
-    <Text style={[styles.eyebrow, color ? { color } : null]}>{children}</Text>
-  );
-}
-function UnitTag({ unit }: { unit: string }) {
-  return (
-    <View style={styles.unitTag}>
-      <View style={[styles.dot, { backgroundColor: unitColor(unit) }]} />
-      <Text style={[styles.unitText, { color: unitColor(unit) }]}>{unit}</Text>
+    <View style={s.heading}>
+      <Text style={s.h2}>{title}</Text>
+      {link && (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onPress}
+          style={s.smallButton}
+        >
+          <Text style={s.link}>{link}</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
-
 function Prototype() {
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
-  const [tab, setTab] = useState<"schedule" | "assessments">("schedule");
-  const [selectedDay, setSelectedDay] = useState(dateKey(Date.now()));
+  const [tab, setTab] = useState<Tab>("Home");
   const [now, setNow] = useState(Date.now());
   const [detail, setDetail] = useState<Detail>();
-  const [help, setHelp] = useState(false);
-  const [saveState, setSaveState] = useState(
-    "Sample data · saved on this device",
+  const [settings, setSettings] = useState(false);
+  const [widgetChoice, setWidgetChoice] = useState<
+    "Single" | "Two" | "Overview"
+  >("Single");
+  const [unit, setUnit] = useState("All units");
+  const [assessmentView, setAssessmentView] = useState<"Work" | "Grades">(
+    "Work",
   );
-  const [loadError, setLoadError] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(dateKey(Date.now()));
+  const [month, setMonth] = useState(dateKey(Date.now()).slice(0, 7));
+  const [busy, setBusy] = useState(false),
+    [loadError, setLoadError] = useState(false);
+  const [saveState, setSaveState] = useState(
+    "Sample data · saved on this iPhone",
+  );
   const [widgetError, setWidgetError] = useState(false);
-  const saveLock = useRef(false);
-  const initialLinkHandled = useRef(false);
-
+  const lock = useRef(false),
+    initialLinkHandled = useRef(false);
   async function load() {
     setLoadError(false);
     try {
-      const restored = readStoredSample(
-        await AsyncStorage.getItem(STORAGE_KEY),
+      const raw = await AsyncStorage.getItem(STORAGE_KEY),
+        restored = readStoredSample(raw);
+      const base = restored?.board ?? makeSampleBoard(Date.now());
+      const expanded = experienceBoard(base);
+      // Only this version's known IDs are restored; retain the baseline storage shape.
+      const saved = restored && raw ? JSON.parse(raw) : undefined;
+      const nextProgress = Object.fromEntries(
+        expanded.assessments.map((a) => [
+          a.id,
+          restored ? saved?.progress?.[a.id] === true : false,
+        ]),
       );
-      const sample = restored?.board ?? makeSampleBoard(Date.now());
       if (!restored)
         await AsyncStorage.setItem(
           STORAGE_KEY,
           JSON.stringify({
             version: 1,
-            createdAt: sample.createdAt,
+            createdAt: base.createdAt,
             progress: {},
           }),
         );
-      setProgress(restored?.progress ?? {});
-      setBoard(sample);
+      setProgress(nextProgress);
+      setBoard(expanded);
     } catch {
       setLoadError(true);
     }
@@ -151,7 +187,12 @@ function Prototype() {
     if (!board) return;
     const publish = () => {
       try {
-        NextClassWidget.updateTimeline(widgetTimeline(board, Date.now()));
+        const time = Date.now(),
+          timeline = workWidgetTimeline(board, time);
+        NextClassWidget.updateTimeline(widgetTimeline(board, time));
+        DeadlineWidget.updateTimeline(timeline);
+        DeadlinesWidget.updateTimeline(timeline);
+        OverviewWidget.updateTimeline(timeline);
         setWidgetError(false);
       } catch {
         setWidgetError(true);
@@ -163,23 +204,32 @@ function Prototype() {
     });
     return () => listener.remove();
   }, [board]);
-  const currentDay = dateKey(now);
-  useEffect(() => {
-    setSelectedDay(currentDay);
-  }, [currentDay]);
   useEffect(() => {
     if (!board) return;
     let active = true;
     const open = (url: string) => {
       if (!active) return;
       const destination = resolveLink(url, board);
-      setHelp(false);
-      setTab("schedule");
-      setDetail(destination);
-      if (!destination && url.startsWith("semester-preview://class/"))
+      if (destination) {
+        setSettings(false);
+        setDetail(destination);
+        setTab(destination.kind === "assessment" ? "Assessments" : "Today");
+        return;
+      }
+      if (url === "semester-preview://assessments") {
+        setSettings(false);
+        setDetail(undefined);
+        setUnit("All units");
+        setAssessmentView("Work");
+        setTab("Assessments");
+      } else if (url === "semester-preview://schedule") {
+        setSettings(false);
+        setDetail(undefined);
+        setTab("Today");
+      } else if (url.startsWith("semester-preview://"))
         Alert.alert(
-          "Sample class unavailable",
-          "This link no longer matches the current sample schedule.",
+          "Sample item unavailable",
+          "Open Assessments to find the current sample work.",
         );
     };
     if (!initialLinkHandled.current) {
@@ -196,12 +246,10 @@ function Prototype() {
       listener.remove();
     };
   }, [board]);
-
-  async function recordPreparation(id: string) {
-    if (!board || saveLock.current) return;
-    saveLock.current = true;
+  async function togglePreparation(id: string) {
+    if (!board || lock.current) return;
+    lock.current = true;
     setBusy(true);
-    setSaveState("Saving on this device…");
     const updated = { ...progress, [id]: !progress[id] };
     try {
       await AsyncStorage.setItem(
@@ -213,17 +261,21 @@ function Prototype() {
         }),
       );
       setProgress(updated);
-      setSaveState("Sample progress saved on this device");
+      setSaveState("Preparation saved on this iPhone");
     } catch {
-      setSaveState("Not saved · please try again");
+      setSaveState("Could not save · try again");
+      Alert.alert(
+        "Preparation not saved",
+        "Please try again. Your previous progress is unchanged.",
+      );
     } finally {
-      saveLock.current = false;
+      lock.current = false;
       setBusy(false);
     }
   }
   async function refreshSample() {
-    if (saveLock.current) return;
-    saveLock.current = true;
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
     try {
       const fresh = makeSampleBoard(Date.now());
@@ -235,55 +287,40 @@ function Prototype() {
           progress: {},
         }),
       );
-      setBoard(fresh);
+      setBoard(experienceBoard(fresh));
       setProgress({});
       setNow(Date.now());
       setSelectedDay(dateKey(Date.now()));
+      setMonth(dateKey(Date.now()).slice(0, 7));
       setDetail(undefined);
-      setHelp(false);
-      setSaveState("New sample saved on this device");
+      setSettings(false);
+      setSaveState("New sample saved on this iPhone");
     } catch {
-      Alert.alert(
-        "Could not refresh",
-        "Your previous sample is unchanged. Please try again.",
-      );
+      Alert.alert("Could not refresh", "Your previous sample is unchanged.");
     } finally {
-      saveLock.current = false;
+      lock.current = false;
       setBusy(false);
     }
   }
   if (!board)
     return (
-      <SafeAreaView style={styles.loading}>
+      <SafeAreaView style={s.loading}>
         {loadError ? (
           <>
-            <Text style={styles.h2}>Couldn’t open the sample</Text>
-            <Text style={styles.body}>
-              Please retry to load your saved preview.
-            </Text>
-            <Action label="Retry" onPress={() => void load()} />
+            <Text style={s.h2}>Couldn’t load the preview</Text>
+            <Button label="Retry" onPress={() => void load()} />
           </>
         ) : (
-          <>
-            <ActivityIndicator color={palette.purple} />
-            <Text style={styles.meta}>Preparing your sample semester…</Text>
-          </>
+          <ActivityIndicator color={P.purple} />
         )}
       </SafeAreaView>
     );
-
-  const upcoming = nextClass(board, now);
-  const widget = widgetProps(board, now);
-  const today = dateKey(now);
-  const days = Array.from(
-    { length: 7 },
-    (_, index) => Date.parse(`${today}T01:00:00Z`) + index * 86400000,
-  );
-  const dayClasses = board.classes.filter(
-    (c) => dateKey(c.start) === selectedDay,
-  );
-  const dayDeadlines = board.assessments.filter(
-    (a) => a.due !== undefined && dateKey(a.due) === selectedDay,
+  const today = dateKey(now),
+    work = workload(board, now),
+    week = sampleWeek(board, now);
+  const units = [...new Set(board.assessments.map((a) => a.unit))];
+  const sorted = [...board.assessments].sort(
+    (a, b) => (a.due ?? Infinity) - (b.due ?? Infinity),
   );
   const assessment =
     detail?.kind === "assessment"
@@ -293,460 +330,779 @@ function Prototype() {
     detail?.kind === "class"
       ? board.classes.find((c) => c.id === detail.id)
       : undefined;
-  const sortedAssessments = [...board.assessments].sort(
-    (a, b) => (a.due ?? Infinity) - (b.due ?? Infinity),
+  const pending = sorted.filter((a) => !progress[a.id]);
+  const todayClasses = board.classes.filter((c) => dateKey(c.start) === today);
+  const todayDeadlines = sorted.filter(
+    (a) => a.due !== undefined && dateKey(a.due) === today,
   );
-
-  function assessmentCard(item: SampleAssessment) {
+  const widget = workWidgetProps(board, now);
+  const openAssessment = (a: SampleAssessment) =>
+    setDetail({ kind: "assessment", id: a.id });
+  function row(a: SampleAssessment) {
     return (
       <Pressable
-        key={item.id}
+        key={a.id}
         accessibilityRole="button"
-        accessibilityLabel={`${item.title}, ${item.unit}, ${item.due ? `${shortDate(item.due)}, ${clockTime(item.due)}` : item.timing}`}
-        onPress={() => setDetail({ kind: "assessment", id: item.id })}
-        style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+        accessibilityLabel={`${a.unit}, ${a.title}, ${dueLabel(a, now)}, ${a.weight} of unit`}
+        onPress={() => openAssessment(a)}
+        style={({ pressed }) => [s.assessmentRow, pressed && s.pressed]}
       >
-        <View style={styles.row}>
-          <UnitTag unit={item.unit} />
-          <Text style={styles.meta}>{item.weight}</Text>
-        </View>
-        <View style={styles.row}>
-          <Text style={styles.cardTitle}>{item.title}</Text>
-          <Text style={styles.chevron}>›</Text>
-        </View>
-        <Text style={[styles.body, !item.due && { color: palette.amber }]}>
-          {item.due
-            ? `${shortDate(item.due)} · ${clockTime(item.due)}`
-            : item.timing}
-        </Text>
-        <View style={styles.cardFoot}>
+        <View style={[s.unitLine, { backgroundColor: unitColor(a.unit) }]} />
+        <View style={s.flex}>
+          <View style={s.row}>
+            <Tag unit={a.unit} />
+            <Text style={s.meta}>{a.weight}</Text>
+          </View>
+          <Text style={s.rowTitle}>{a.title}</Text>
           <Text
-            style={[styles.meta, progress[item.id] && { color: palette.green }]}
+            style={[
+              s.meta,
+              (a.due === undefined || a.due <= now) && { color: P.amber },
+            ]}
           >
-            {progress[item.id]
-              ? "✓ Preparation action recorded"
-              : `Next: ${item.preparation}`}
+            {dueLabel(a, now)}
           </Text>
         </View>
+        <Text style={s.chevron}>›</Text>
       </Pressable>
     );
   }
-
+  function empty(text: string) {
+    return <Text style={s.empty}>{text}</Text>;
+  }
+  function prep(a: SampleAssessment) {
+    return (
+      <View key={a.id} style={s.prepRow}>
+        <Pressable
+          accessibilityRole="checkbox"
+          accessibilityLabel={a.preparation}
+          accessibilityState={{ checked: !!progress[a.id], disabled: busy }}
+          disabled={busy}
+          onPress={() => void togglePreparation(a.id)}
+          style={s.checkTarget}
+        >
+          <View style={[s.check, progress[a.id] && s.checked]}>
+            <Text style={s.checkMark}>{progress[a.id] ? "✓" : ""}</Text>
+          </View>
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => openAssessment(a)}
+          style={s.flex}
+        >
+          <Text style={[s.rowTitle, progress[a.id] && s.completed]}>
+            {a.preparation}
+          </Text>
+          <Text style={s.meta}>{a.unit} · Suggested preparation</Text>
+        </Pressable>
+      </View>
+    );
+  }
+  function classRow(c: SampleBoard["classes"][number]) {
+    return (
+      <Pressable
+        key={c.id}
+        accessibilityRole="button"
+        onPress={() => setDetail({ kind: "class", id: c.id })}
+        style={s.classRow}
+      >
+        <Text style={s.time}>{clockTime(c.start)}</Text>
+        <View style={s.flex}>
+          <Text style={s.rowTitle}>{c.title}</Text>
+          <Text style={s.meta}>
+            {c.unit} · {c.location.replace("Sample room · ", "")}
+          </Text>
+        </View>
+        <Text style={s.chevron}>›</Text>
+      </Pressable>
+    );
+  }
+  const titles: Record<Tab, string> = {
+    Home: "Your semester.",
+    Today: "Make room for today.",
+    Month: "See what’s ahead.",
+    Assessments: "Keep work in view.",
+  };
   return (
-    <SafeAreaView style={styles.root} edges={["top", "left", "right"]}>
+    <SafeAreaView style={s.root} edges={["top", "left", "right"]}>
       <StatusBar style="dark" />
-      <View style={styles.header}>
-        <Text style={styles.brand}>
-          semester<Text style={{ color: palette.purple }}>.</Text>
+      <View style={s.header}>
+        <Text style={s.brand}>
+          semester<Text style={{ color: P.purple }}>.</Text>
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel="About this sample and widget setup"
-          onPress={() => setHelp(true)}
-          style={styles.samplePill}
+          accessibilityLabel="Widgets and settings"
+          onPress={() => setSettings(true)}
+          style={s.settingsButton}
         >
-          <Text style={styles.sampleLabel}>SAMPLE PREVIEW ↗</Text>
+          <Text style={s.link}>Widgets ⚙</Text>
         </Pressable>
       </View>
-      <ScrollView key={tab} contentContainerStyle={styles.content}>
-        <Eyebrow>
-          {tab === "schedule"
-            ? shortDate(now).toUpperCase()
-            : "A LITTLE CLARITY, ONE STEP AT A TIME"}
-        </Eyebrow>
-        <Text style={styles.title}>
-          {tab === "schedule"
-            ? "Your week,\nat a glance."
-            : "What’s coming up."}
-        </Text>
-        <Text style={styles.subtitle}>
-          {tab === "schedule"
-            ? "Classes, deadlines and room to prepare."
-            : "Keep the deadline and the next step together."}
-        </Text>
-        {tab === "schedule" ? (
+      <ScrollView key={tab} contentContainerStyle={s.content}>
+        <View style={s.row}>
+          <Text style={s.eyebrow}>
+            {tab === "Today"
+              ? shortDate(now).toUpperCase()
+              : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
+          </Text>
+          <Text style={s.sample}>PREVIEW 0.2</Text>
+        </View>
+        <Text style={s.title}>{titles[tab]}</Text>
+        {tab === "Home" && (
           <>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={
-                upcoming
-                  ? `Open next class: ${upcoming.title}`
-                  : "Refresh sample schedule"
-              }
-              onPress={() =>
-                upcoming
-                  ? setDetail({ kind: "class", id: upcoming.id })
-                  : setHelp(true)
-              }
-              style={({ pressed }) => [
-                styles.hero,
-                pressed && { opacity: 0.9 },
-              ]}
-            >
-              <View style={styles.row}>
-                <Eyebrow color="#D5CFF7">
-                  {upcoming && upcoming.start <= now ? "IN CLASS" : "UP NEXT"}
-                </Eyebrow>
-                <Text style={styles.heroArrow}>↗</Text>
-              </View>
-              <Text style={styles.heroUnit}>
-                {upcoming?.unit ?? "All clear"}
-              </Text>
-              <Text style={styles.heroTitle}>
-                {upcoming?.title ?? "No more sample classes"}
-              </Text>
-              <View style={styles.heroRule} />
-              <Text style={styles.heroTime}>
-                {upcoming
-                  ? `${dateKey(upcoming.start) === today ? "Today" : shortDate(upcoming.start)} · ${clockTime(upcoming.start)}–${clockTime(upcoming.end)}`
-                  : "Refresh the sample to explore another week."}
-              </Text>
-              {!!upcoming && (
-                <Text style={styles.heroLocation}>{upcoming.location}</Text>
-              )}
-            </Pressable>
-            <View style={styles.sectionHeading}>
-              <Text style={styles.h2}>Your schedule</Text>
-              <Text style={styles.meta}>Sydney time</Text>
+            <Text style={s.subtitle}>{shortDate(now)} · Sydney time</Text>
+            <View style={s.summary}>
+              {[
+                {
+                  n: work.thisWeek.length,
+                  label: "This week",
+                  run: () => {
+                    setMonth(today.slice(0, 7));
+                    setSelectedDay(today);
+                    setTab("Month");
+                  },
+                },
+                {
+                  n: work.nextWeek.length,
+                  label: "Next week",
+                  run: () => {
+                    const key = addDays(monday(today), 7);
+                    setMonth(key.slice(0, 7));
+                    setSelectedDay(key);
+                    setTab("Month");
+                  },
+                },
+                {
+                  n: work.unknown.length + work.past.length,
+                  label: "To check",
+                  run: () => {
+                    setUnit("All units");
+                    setAssessmentView("Work");
+                    setTab("Assessments");
+                  },
+                },
+              ].map((x, i) => (
+                <Pressable
+                  key={x.label}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${x.n} ${x.label}`}
+                  onPress={x.run}
+                  style={[s.stat, i > 0 && s.statBorder]}
+                >
+                  <Text style={[s.statNumber, i === 2 && { color: P.amber }]}>
+                    {x.n}
+                  </Text>
+                  <Text style={s.statLabel}>{x.label}</Text>
+                </Pressable>
+              ))}
             </View>
-            <View style={styles.weekStrip}>
-              {days.map((day) => {
-                const key = dateKey(day),
-                  selected = key === selectedDay;
-                const hasItems =
-                  board.classes.some((c) => dateKey(c.start) === key) ||
-                  board.assessments.some(
-                    (a) => a.due && dateKey(a.due) === key,
-                  );
-                return (
-                  <Pressable
-                    key={key}
-                    accessibilityRole="button"
-                    accessibilityLabel={longDate(day)}
-                    accessibilityState={{ selected }}
-                    onPress={() => setSelectedDay(key)}
-                    style={[styles.day, selected && styles.selectedDay]}
-                  >
-                    <Text style={[styles.dayName, selected && styles.white]}>
-                      {new Intl.DateTimeFormat("en-AU", {
-                        timeZone: ZONE,
-                        weekday: "narrow",
-                      }).format(day)}
-                    </Text>
-                    <Text style={[styles.dayNumber, selected && styles.white]}>
-                      {key.slice(-2)}
-                    </Text>
-                    <View
-                      style={[
-                        styles.dayDot,
-                        {
-                          backgroundColor: hasItems
-                            ? selected
-                              ? "#E9E3FF"
-                              : palette.purple
-                            : "transparent",
-                        },
-                      ]}
-                    />
-                  </Pressable>
-                );
-              })}
-            </View>
-            <Text style={styles.dayCaption}>
-              {selectedDay === today
-                ? "Today"
-                : longDate(Date.parse(`${selectedDay}T01:00:00Z`))}
+            <Text style={s.caption}>
+              Dated deadlines · unknown dates stay separate
             </Text>
-            {dayClasses.map((c) => (
-              <Pressable
-                key={c.id}
-                accessibilityRole="button"
-                accessibilityLabel={`${c.title}, ${clockTime(c.start)}`}
-                onPress={() => setDetail({ kind: "class", id: c.id })}
-                style={styles.agendaRow}
-              >
-                <View style={styles.agendaTime}>
-                  <Text style={styles.timeText}>{clockTime(c.start)}</Text>
-                  <Text style={styles.meta}>{clockTime(c.end)}</Text>
+            <Heading
+              title="This week"
+              link="View month →"
+              onPress={() => setTab("Month")}
+            />
+            <View style={s.panel}>
+              {work.thisWeek.length
+                ? work.thisWeek.map(row)
+                : empty("No upcoming dated deadlines this week.")}
+            </View>
+            <Heading title="Next week" />
+            <View style={s.panel}>
+              {work.nextWeek.length
+                ? work.nextWeek.map(row)
+                : empty("No dated deadlines next week in this sample.")}
+            </View>
+            {(work.unknown.length > 0 || work.past.length > 0) && (
+              <>
+                <Heading title="Don’t lose sight of" />
+                <View style={s.attention}>
+                  {work.unknown.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      accessibilityRole="button"
+                      onPress={() => openAssessment(a)}
+                      style={s.notice}
+                    >
+                      <Text style={s.noticeTitle}>
+                        ? {a.unit} · {a.title}
+                      </Text>
+                      <Text style={s.noticeText}>{a.timing} →</Text>
+                    </Pressable>
+                  ))}
+                  {work.past.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      accessibilityRole="button"
+                      onPress={() => openAssessment(a)}
+                      style={s.notice}
+                    >
+                      <Text style={s.noticeTitle}>Past date · {a.title}</Text>
+                      <Text style={s.noticeText}>
+                        Check submission status · {shortDate(a.due!)} →
+                      </Text>
+                    </Pressable>
+                  ))}
                 </View>
-                <View
-                  style={[
-                    styles.agendaLine,
-                    { backgroundColor: unitColor(c.unit) },
-                  ]}
-                />
-                <View style={styles.flex}>
-                  <UnitTag unit={c.unit} />
-                  <Text style={styles.agendaTitle}>{c.title}</Text>
-                  <Text style={styles.meta}>{c.location}</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </Pressable>
-            ))}
-            {dayDeadlines.map(assessmentCard)}
-            {!dayClasses.length && !dayDeadlines.length && (
-              <View style={styles.empty}>
-                <Text style={styles.h3}>A little breathing room.</Text>
-                <Text style={styles.body}>
-                  No sample classes or dated deadlines this day. Week-only
-                  assessments are listed below.
-                </Text>
-              </View>
+              </>
             )}
-            <View style={styles.sectionHeading}>
-              <Text style={styles.h2}>On your radar</Text>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setTab("assessments")}
-                hitSlop={10}
-              >
-                <Text style={styles.textLink}>View all →</Text>
-              </Pressable>
+            <Heading
+              title="One small next step"
+              link="Today →"
+              onPress={() => setTab("Today")}
+            />
+            <View style={s.panel}>
+              {pending[0]
+                ? prep(pending[0])
+                : empty(
+                    "All sample preparation recorded. Deadlines still need checking.",
+                  )}
             </View>
-            {sortedAssessments.slice(0, 1).map(assessmentCard)}
-            <Pressable
-              accessibilityRole="button"
-              onPress={() =>
-                setDetail({ kind: "assessment", id: "database-quiz" })
-              }
-              style={styles.uncertain}
-            >
-              <Text style={styles.uncertainTitle}>One date to confirm</Text>
-              <Text style={styles.body}>
-                ISYS2120 quiz · Week 11. Exact day unknown. →
-              </Text>
-            </Pressable>
-          </>
-        ) : (
-          <>
-            <View style={styles.sectionHeading}>
-              <Text style={styles.h2}>3 sample assessments</Text>
-              <Text style={styles.meta}>Across 3 units</Text>
-            </View>
-            {sortedAssessments.map(assessmentCard)}
-            <View style={styles.empty}>
-              <Text style={styles.h3}>Preparation is personal.</Text>
-              <Text style={styles.body}>
-                Recording a preparation action does not mark an assessment
-                submitted or change its grade.
-              </Text>
+            <Heading title="Across your units" />
+            <View style={s.panel}>
+              {units.map((u) => (
+                <Pressable
+                  key={u}
+                  accessibilityRole="button"
+                  onPress={() => {
+                    setUnit(u);
+                    setAssessmentView("Work");
+                    setTab("Assessments");
+                  }}
+                  style={s.unitRow}
+                >
+                  <Tag unit={u} />
+                  <Text style={s.meta}>
+                    {board.assessments.filter((a) => a.unit === u).length}{" "}
+                    assessments ›
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </>
         )}
-        <Text accessibilityLiveRegion="polite" style={styles.footnote}>
+        {tab === "Today" && (
+          <>
+            <Text style={s.subtitle}>
+              Sample week {week} · a few useful places to start
+            </Text>
+            <Heading title="Due today" />
+            <View style={s.panel}>
+              {todayDeadlines.length
+                ? todayDeadlines.map(row)
+                : empty(
+                    "No dated deadlines today. Look ahead before switching off.",
+                  )}
+            </View>
+            <Heading title="Preparation" />
+            <Text style={s.caption}>
+              Suggested from your assessments. Tick what you’ve done.
+            </Text>
+            <View style={s.panel}>{sorted.map(prep)}</View>
+            <Text style={s.caption}>
+              {Object.values(progress).filter(Boolean).length} of{" "}
+              {sorted.length} recorded · tap a tick to undo
+            </Text>
+            <Heading title="On campus" />
+            <View style={s.panel}>
+              {todayClasses.length
+                ? todayClasses.map(classRow)
+                : empty("No sample classes today.")}
+            </View>
+            <Text style={s.caption}>
+              Preparation is separate from submitting an assessment.
+            </Text>
+          </>
+        )}
+        {tab === "Month" && (
+          <>
+            <Text style={s.subtitle}>Deadlines across units · Sydney time</Text>
+            <View style={s.monthHeader}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Previous month"
+                onPress={() => {
+                  const m = shiftMonth(month, -1);
+                  setMonth(m);
+                  setSelectedDay(`${m}-01`);
+                }}
+                style={s.arrow}
+              >
+                <Text style={s.h2}>‹</Text>
+              </Pressable>
+              <Text style={s.h2}>
+                {new Intl.DateTimeFormat("en-AU", {
+                  month: "long",
+                  year: "numeric",
+                  timeZone: "UTC",
+                }).format(new Date(`${month}-01T12:00:00Z`))}
+              </Text>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Next month"
+                onPress={() => {
+                  const m = shiftMonth(month, 1);
+                  setMonth(m);
+                  setSelectedDay(`${m}-01`);
+                }}
+                style={s.arrow}
+              >
+                <Text style={s.h2}>›</Text>
+              </Pressable>
+            </View>
+            <View style={s.calendar}>
+              {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
+                <View key={`h${i}`} style={s.calendarCell}>
+                  <Text style={s.meta}>{d}</Text>
+                </View>
+              ))}
+              {monthCells(month).map((day, i) =>
+                day ? (
+                  <Pressable
+                    key={day}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${longDate(Date.parse(`${day}T12:00:00Z`))}, ${board.assessments.filter((a) => a.due !== undefined && dateKey(a.due) === day).length} deadlines`}
+                    accessibilityState={{ selected: day === selectedDay }}
+                    onPress={() => setSelectedDay(day)}
+                    style={s.calendarCell}
+                  >
+                    <View
+                      style={[
+                        s.dayCircle,
+                        day === today && s.todayCircle,
+                        day === selectedDay && s.selectedDay,
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          s.dayText,
+                          day === selectedDay && { color: "#fff" },
+                        ]}
+                      >
+                        {Number(day.slice(-2))}
+                      </Text>
+                    </View>
+                    <View style={s.dots}>
+                      {board.assessments
+                        .filter(
+                          (a) => a.due !== undefined && dateKey(a.due) === day,
+                        )
+                        .map((a) => (
+                          <View
+                            key={a.id}
+                            style={[
+                              s.dot,
+                              { backgroundColor: unitColor(a.unit) },
+                            ]}
+                          />
+                        ))}
+                    </View>
+                  </Pressable>
+                ) : (
+                  <View key={`blank${i}`} style={s.calendarCell} />
+                ),
+              )}
+            </View>
+            <View style={s.legend}>
+              {units.map((u) => (
+                <Tag key={u} unit={u} />
+              ))}
+            </View>
+            <Heading
+              title={
+                selectedDay === today
+                  ? "Today"
+                  : shortDate(Date.parse(`${selectedDay}T12:00:00Z`))
+              }
+              link="Jump to today"
+              onPress={() => {
+                setSelectedDay(today);
+                setMonth(today.slice(0, 7));
+              }}
+            />
+            <View style={s.panel}>
+              {board.assessments.filter(
+                (a) => a.due !== undefined && dateKey(a.due) === selectedDay,
+              ).length
+                ? board.assessments
+                    .filter(
+                      (a) =>
+                        a.due !== undefined && dateKey(a.due) === selectedDay,
+                    )
+                    .map(row)
+                : empty("No dated assessments on this day.")}
+            </View>
+            <Heading title="Dates to confirm" />
+            <View style={s.panel}>{work.unknown.map(row)}</View>
+            <Heading title="This month" />
+            <View style={s.panel}>
+              {sorted.filter(
+                (a) => a.due !== undefined && dateKey(a.due).startsWith(month),
+              ).length
+                ? sorted
+                    .filter(
+                      (a) =>
+                        a.due !== undefined && dateKey(a.due).startsWith(month),
+                    )
+                    .map(row)
+                : empty("No dated work in this sample month.")}
+            </View>
+          </>
+        )}
+        {tab === "Assessments" && (
+          <>
+            <Text style={s.subtitle}>
+              Requirements, preparation and results together.
+            </Text>
+            <View style={s.segments}>
+              {(["Work", "Grades"] as const).map((v) => (
+                <Pressable
+                  key={v}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: v === assessmentView }}
+                  onPress={() => setAssessmentView(v)}
+                  style={[s.segment, v === assessmentView && s.segmentActive]}
+                >
+                  <Text
+                    style={[
+                      s.segmentText,
+                      v === assessmentView && { color: P.ink },
+                    ]}
+                  >
+                    {v}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={s.filters}
+            >
+              {["All units", ...units].map((u) => (
+                <Pressable
+                  key={u}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: unit === u }}
+                  onPress={() => setUnit(u)}
+                  style={[s.filter, unit === u && s.filterActive]}
+                >
+                  <Text style={[s.filterText, unit === u && { color: "#fff" }]}>
+                    {u}
+                  </Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+            {assessmentView === "Work" ? (
+              <>
+                <Heading
+                  title={unit === "All units" ? "All assessments" : unit}
+                />
+                <View style={s.panel}>
+                  {sorted
+                    .filter((a) => unit === "All units" || a.unit === unit)
+                    .map(row)}
+                </View>
+                <Text style={s.caption}>
+                  A past date means check the submission status. It doesn’t mean
+                  your work is incomplete.
+                </Text>
+              </>
+            ) : (
+              <>
+                <Heading title="Sample results" />
+                <View style={s.panel}>
+                  {sampleGrades
+                    .filter((g) => unit === "All units" || g.unit === unit)
+                    .map((g) => (
+                      <View key={g.unit} style={s.gradeRow}>
+                        <Tag unit={g.unit} />
+                        <View style={s.row}>
+                          <Text style={[s.rowTitle, s.flex]}>{g.title}</Text>
+                          <Text style={s.grade}>{g.score}</Text>
+                        </View>
+                        <Text style={s.meta}>{g.note}</Text>
+                      </View>
+                    ))}
+                </View>
+                <Text style={s.caption}>
+                  Invented marks for exploring this screen. No overall grade is
+                  calculated from partial results.
+                </Text>
+              </>
+            )}
+          </>
+        )}
+        <Text accessibilityLiveRegion="polite" style={s.footer}>
           {saveState}
-          {"\n"}Invented data. No account or university connection.
+          {"\n"}Invented data · no university connection
         </Text>
       </ScrollView>
-      <SafeAreaView edges={["bottom"]} style={styles.tabBar}>
-        <View style={styles.tabRow}>
-          {(["schedule", "assessments"] as const).map((item) => (
+      <SafeAreaView edges={["bottom"]} style={s.tabBar}>
+        <View style={s.tabs}>
+          {(["Home", "Today", "Month", "Assessments"] as Tab[]).map((t, i) => (
             <Pressable
-              key={item}
+              key={t}
               accessibilityRole="tab"
-              accessibilityState={{ selected: tab === item }}
-              onPress={() => setTab(item)}
-              style={[styles.tab, tab === item && styles.activeTab]}
+              accessibilityState={{ selected: tab === t }}
+              onPress={() => setTab(t)}
+              style={s.tab}
             >
-              <Text
-                style={[
-                  styles.tabIcon,
-                  tab === item && { color: palette.purple },
-                ]}
-              >
-                {item === "schedule" ? "▦" : "☷"}
+              <Text style={[s.tabIcon, tab === t && { color: P.purple }]}>
+                {["⌂", "✓", "▦", "≡"][i]}
               </Text>
               <Text
                 style={[
-                  styles.tabLabel,
-                  tab === item && { color: palette.purple },
+                  s.tabLabel,
+                  tab === t && { color: P.purple, fontWeight: "700" },
                 ]}
               >
-                {item === "schedule" ? "Schedule" : "Assessments"}
+                {t}
               </Text>
+              <View
+                style={[
+                  s.tabIndicator,
+                  tab === t && { backgroundColor: P.purple },
+                ]}
+              />
             </Pressable>
           ))}
         </View>
       </SafeAreaView>
-
       <Modal
         visible={!!detail}
         animationType="slide"
         presentationStyle="pageSheet"
         onRequestClose={() => setDetail(undefined)}
       >
-        <SafeAreaView style={styles.root} edges={["bottom"]}>
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetLabel}>
-              {assessment ? "Assessment" : "Class"} · Sample
+        <SafeAreaView style={s.root} edges={["bottom"]}>
+          <View style={s.sheetHeader}>
+            <Text style={s.eyebrow}>
+              {assessment ? "ASSESSMENT" : "CLASS"} · SAMPLE
             </Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => setDetail(undefined)}
-              style={styles.close}
+              style={s.smallButton}
             >
-              <Text style={styles.textLink}>Done</Text>
+              <Text style={s.link}>Done</Text>
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={styles.content}>
+          <ScrollView contentContainerStyle={s.content}>
             {assessment ? (
               <>
-                <UnitTag unit={assessment.unit} />
-                <Text style={styles.detailTitle}>{assessment.title}</Text>
-                <Text style={styles.subtitle}>
+                <Tag unit={assessment.unit} />
+                <Text style={s.title}>{assessment.title}</Text>
+                <Text style={s.subtitle}>
                   {assessment.weight} of unit · sample weighting
                 </Text>
-                <View style={styles.infoCard}>
-                  <Eyebrow>
-                    {assessment.due
-                      ? "SUBMISSION DEADLINE"
-                      : "DATE NEEDS CONFIRMATION"}
-                  </Eyebrow>
-                  <Text style={styles.h2}>
-                    {assessment.due
-                      ? shortDate(assessment.due)
-                      : "Teaching week 11"}
+                <View style={s.detailCard}>
+                  <Text style={s.eyebrow}>
+                    {assessment.due === undefined
+                      ? "DATE NEEDS CONFIRMATION"
+                      : "SUBMISSION DEADLINE"}
                   </Text>
-                  <Text style={styles.body}>
-                    {assessment.due
-                      ? `${clockTime(assessment.due)} · Sydney time`
-                      : "Exact day unknown. No date or reminder has been invented."}
+                  <Text style={s.h2}>
+                    {assessment.due === undefined
+                      ? assessment.timing
+                      : shortDate(assessment.due)}
                   </Text>
+                  <Text style={s.body}>
+                    {assessment.due === undefined
+                      ? "Exact day unknown. It stays off the dated calendar."
+                      : `${clockTime(assessment.due)} · Sydney time`}
+                  </Text>
+                  {assessment.due !== undefined && assessment.due <= now && (
+                    <Text style={s.noticeText}>
+                      The date has passed. Check your submission status.
+                    </Text>
+                  )}
                 </View>
-                <Text style={styles.h2}>The assessment</Text>
-                <Text style={styles.body}>{assessment.description}</Text>
-                <View style={styles.preparation}>
-                  <Eyebrow>MY PREPARATION</Eyebrow>
-                  <Text style={styles.h2}>{assessment.preparation}</Text>
-                  <Text style={styles.body}>
-                    A personal next action, separate from the submission
-                    deadline.
+                <Heading title="What’s involved" />
+                <Text style={s.body}>{assessment.description}</Text>
+                <Heading title="One preparation step" />
+                <View style={s.detailCard}>
+                  <Text style={s.h2}>{assessment.preparation}</Text>
+                  <Text style={s.body}>
+                    Suggested preparation. Recording it doesn’t mark the
+                    assessment submitted.
                   </Text>
-                  <Action
+                  <Button
                     label={
                       progress[assessment.id]
                         ? "✓ Recorded · Undo"
                         : "Mark preparation done"
                     }
-                    disabled={busy}
-                    onPress={() => void recordPreparation(assessment.id)}
                     secondary={progress[assessment.id]}
+                    disabled={busy}
+                    onPress={() => void togglePreparation(assessment.id)}
                   />
-                  <Text accessibilityLiveRegion="polite" style={styles.meta}>
+                  <Text accessibilityLiveRegion="polite" style={s.meta}>
                     {saveState}
                   </Text>
                 </View>
-                <Text style={styles.footnote}>
-                  Source: invented preview assessment. No Canvas submission or
-                  grade is recorded by this action.
-                </Text>
               </>
             ) : classItem ? (
               <>
-                <UnitTag unit={classItem.unit} />
-                <Text style={styles.detailTitle}>{classItem.title}</Text>
-                <View style={styles.infoCard}>
-                  <Eyebrow>WHEN</Eyebrow>
-                  <Text style={styles.h2}>{shortDate(classItem.start)}</Text>
-                  <Text style={styles.body}>
+                <Tag unit={classItem.unit} />
+                <Text style={s.title}>{classItem.title}</Text>
+                <View style={s.detailCard}>
+                  <Text style={s.h2}>{shortDate(classItem.start)}</Text>
+                  <Text style={s.body}>
                     {clockTime(classItem.start)}–{clockTime(classItem.end)} ·
                     Sydney time
                   </Text>
+                  <Text style={s.h2}>{classItem.location}</Text>
                 </View>
-                <View style={styles.infoCard}>
-                  <Eyebrow>WHERE</Eyebrow>
-                  <Text style={styles.h2}>{classItem.location}</Text>
-                  <Text style={styles.body}>
-                    Illustrative location, not your real timetable.
-                  </Text>
-                </View>
-                <Text style={styles.h2}>Before you go</Text>
-                <Text style={styles.body}>{classItem.note}</Text>
-                <Text style={styles.footnote}>
-                  This is the same class shown by the Home Screen widget.
-                </Text>
+                <Text style={s.body}>{classItem.note}</Text>
               </>
             ) : (
-              <Text style={styles.body}>
-                This sample item is no longer available.
-              </Text>
+              empty("This sample item is no longer available.")
             )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
-
       <Modal
-        visible={help}
+        visible={settings}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setHelp(false)}
+        onRequestClose={() => setSettings(false)}
       >
-        <SafeAreaView style={styles.root} edges={["bottom"]}>
-          <View style={styles.sheetHeader}>
-            <Text style={styles.sheetLabel}>The native experiment</Text>
+        <SafeAreaView style={s.root} edges={["bottom"]}>
+          <View style={s.sheetHeader}>
+            <Text style={s.eyebrow}>PREVIEW 0.2 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setHelp(false)}
-              style={styles.close}
+              onPress={() => setSettings(false)}
+              style={s.smallButton}
             >
-              <Text style={styles.textLink}>Done</Text>
+              <Text style={s.link}>Done</Text>
             </Pressable>
           </View>
-          <ScrollView contentContainerStyle={styles.content}>
-            <Eyebrow>SEMESTER FOR IPHONE · 0.1</Eyebrow>
-            <Text style={styles.detailTitle}>
-              A calmer way to stay on track.
+          <ScrollView contentContainerStyle={s.content}>
+            <Text style={s.title}>A useful glance.</Text>
+            <Text style={s.subtitle}>
+              Try a focus. Keep the one that helps you.
             </Text>
-            <Text style={styles.body}>
-              Explore an invented week, open an assessment and record one
-              preparation action. Your changes stay on this device.
-            </Text>
-            <View style={styles.widgetPreview}>
-              <Eyebrow>{widget.label}</Eyebrow>
-              <Text style={styles.h2}>{widget.unit}</Text>
-              <Text style={styles.h3}>{widget.title}</Text>
-              <Text style={styles.body}>{widget.when}</Text>
-              <Text style={styles.meta}>{widget.location}</Text>
+            <View style={s.segments}>
+              {(["Single", "Two", "Overview"] as const).map((choice) => (
+                <Pressable
+                  key={choice}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: choice === widgetChoice }}
+                  onPress={() => setWidgetChoice(choice)}
+                  style={[
+                    s.segment,
+                    choice === widgetChoice && s.segmentActive,
+                  ]}
+                >
+                  <Text style={s.segmentText}>
+                    {choice === "Single"
+                      ? "One deadline"
+                      : choice === "Two"
+                        ? "Two deadlines"
+                        : "Overview"}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
-            <Text style={styles.h2}>Try it on your Home Screen</Text>
-            <Text style={styles.body}>
-              Touch and hold your Home Screen, choose Edit → Add Widget, then
-              search for Semester Preview. Add “Next class · Sample”. Tap the
-              widget to open the class.
+            <Text style={s.eyebrow}>
+              {widgetChoice === "Overview"
+                ? "HOME SCREEN · MEDIUM"
+                : "LOCK SCREEN · RECTANGULAR"}
             </Text>
-            <Text style={styles.meta}>
+            <View
+              style={[
+                s.widgetPreview,
+                widgetChoice === "Overview" && s.overviewPreview,
+              ]}
+            >
+              <Text style={s.widgetEyebrow}>
+                {widgetChoice === "Overview"
+                  ? "COMING UP · SAMPLE"
+                  : widget.unit}
+              </Text>
+              <Text style={s.widgetTitle}>{widget.title}</Text>
+              <Text style={s.widgetMeta}>{widget.when}</Text>
+              {widgetChoice !== "Single" && (
+                <>
+                  <View style={s.widgetRule} />
+                  <Text style={s.widgetTitle}>{widget.second}</Text>
+                  <Text style={s.widgetMeta}>{widget.secondWhen}</Text>
+                </>
+              )}
+              {widgetChoice === "Overview" && (
+                <Text style={s.widgetMeta}>{widget.context}</Text>
+              )}
+            </View>
+            <Text style={s.caption}>
+              Illustrative preview. iOS controls the actual widget size and
+              appearance. Choosing here previews a design; add your choice using
+              the system gallery.
+            </Text>
+            <Button
+              label="Try where this widget opens →"
+              onPress={() => {
+                setSettings(false);
+                if (widgetChoice === "Single" && work.upcoming[0])
+                  openAssessment(work.upcoming[0]);
+                else {
+                  setUnit("All units");
+                  setAssessmentView("Work");
+                  setTab("Assessments");
+                }
+              }}
+            />
+            <Heading
+              title={
+                widgetChoice === "Overview"
+                  ? "Add to your Home Screen"
+                  : "Add to your Lock Screen"
+              }
+            />
+            <Text style={s.body}>
+              {widgetChoice === "Overview"
+                ? "Touch and hold the Home Screen → Edit → Add Widget → Semester Preview → Work overview · Sample."
+                : "Touch and hold your Lock Screen → Customise → Lock Screen → Add Widgets → Semester Preview. Choose Next deadline · Sample or Two deadlines · Sample."}
+            </Text>
+            <Text style={s.caption}>
               {widgetError
-                ? "The widget could not be updated. Reopen the app to retry."
-                : "Sample timeline prepared. iOS controls when widgets refresh."}
+                ? "Widget update failed. Reopen the app to retry."
+                : "Sample timeline prepared. iOS controls refresh timing."}
             </Text>
-            <Text style={styles.h2}>What to look for</Text>
-            <Text style={styles.body}>
-              Can you find the next class and its room? Is it clear what is due
-              versus what you plan to prepare? Would the widget save you opening
-              the app?
+            <Heading title="About this preview" />
+            <Text style={s.body}>
+              All dates, teaching weeks, requirements and marks are invented.
+              Preparation stays on this iPhone. No account, notifications or
+              analytics are connected.
             </Text>
-            <Action
+            <Text style={s.caption}>
+              Sample generated {shortDate(board.createdAt)}. Week 10 starts on
+              the Monday of that sample week; this is not the USYD academic
+              calendar.
+            </Text>
+            <Button
               label="Refresh sample week"
-              disabled={busy}
               secondary
+              disabled={busy}
               onPress={() =>
                 Alert.alert(
                   "Refresh sample week?",
-                  "This replaces only the invented schedule and clears this preview’s preparation checkmarks.",
+                  "Replace invented dates and reset local preparation.",
                   [
                     { text: "Cancel", style: "cancel" },
                     {
                       text: "Refresh sample",
+                      style: "destructive",
                       onPress: () => void refreshSample(),
                     },
                   ],
                 )
               }
             />
-            <Text style={styles.footnote}>
-              Sample generated {shortDate(board.createdAt)}. No sign-in,
-              analytics, Canvas requests or cloud saves are included.
-            </Text>
           </ScrollView>
         </SafeAreaView>
       </Modal>
@@ -760,240 +1116,300 @@ export default function App() {
     </SafeAreaProvider>
   );
 }
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.paper },
+const s = StyleSheet.create({
+  root: { flex: 1, backgroundColor: P.paper },
   loading: {
     flex: 1,
-    padding: 32,
-    gap: 20,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: palette.paper,
+    gap: 20,
+    backgroundColor: P.paper,
   },
+  flex: { flex: 1 },
+  pressed: { opacity: 0.6 },
   header: {
-    paddingHorizontal: 24,
-    paddingTop: 10,
-    paddingBottom: 18,
+    paddingHorizontal: 22,
+    paddingTop: 8,
+    paddingBottom: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  brand: {
-    fontSize: 25,
-    fontWeight: "800",
-    letterSpacing: -1.2,
-    color: palette.ink,
-  },
-  samplePill: {
-    paddingHorizontal: 11,
-    paddingVertical: 12,
-    borderRadius: 20,
-    backgroundColor: palette.lavender,
-  },
-  sampleLabel: {
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    color: palette.purple,
-  },
-  content: { padding: 24, paddingTop: 12, gap: 14, paddingBottom: 32 },
-  eyebrow: {
-    fontSize: 10,
-    letterSpacing: 1.5,
-    fontWeight: "700",
-    color: palette.muted,
-  },
-  title: {
-    fontSize: 38,
-    lineHeight: 43,
-    letterSpacing: -1.5,
-    fontWeight: "700",
-    color: palette.ink,
-  },
-  subtitle: {
-    fontSize: 15,
-    lineHeight: 23,
-    color: palette.muted,
-    marginBottom: 6,
-  },
-  body: { fontSize: 15, lineHeight: 23, color: palette.muted },
-  meta: { fontSize: 12, lineHeight: 18, color: palette.muted },
-  h2: {
-    fontSize: 20,
-    fontWeight: "600",
-    letterSpacing: -0.5,
-    color: palette.ink,
-  },
-  h3: { fontSize: 16, fontWeight: "600", color: palette.ink },
+  brand: { fontSize: 27, fontWeight: "800", letterSpacing: -1.4, color: P.ink },
+  settingsButton: { minHeight: 44, justifyContent: "center", paddingLeft: 16 },
+  content: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 24 },
   row: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
   },
-  flex: { flex: 1, gap: 5 },
-  hero: {
-    backgroundColor: "#39315E",
-    borderRadius: 24,
-    padding: 22,
-    marginTop: 6,
-  },
-  heroUnit: {
-    color: "#F2EFFF",
-    fontSize: 33,
+  eyebrow: {
+    fontSize: 10,
     fontWeight: "700",
-    letterSpacing: -0.6,
-    marginTop: 8,
+    letterSpacing: 1,
+    color: P.muted,
   },
-  heroTitle: { color: "#E1DCF5", fontSize: 17, marginTop: 4 },
-  heroArrow: { color: "#D5CFF7", fontSize: 23 },
-  heroRule: { height: 1, backgroundColor: "#5A507B", marginVertical: 18 },
-  heroTime: { color: "#FFFFFF", fontSize: 14, fontWeight: "600" },
-  heroLocation: { color: "#CDC6E4", fontSize: 12, marginTop: 6 },
-  sectionHeading: {
+  sample: {
+    fontSize: 9,
+    color: P.purple,
+    fontWeight: "700",
+    letterSpacing: 0.6,
+  },
+  title: {
+    fontSize: 30,
+    fontWeight: "700",
+    letterSpacing: -1.1,
+    color: P.ink,
+    marginTop: 8,
+    marginBottom: 5,
+  },
+  subtitle: { fontSize: 13, color: P.muted, lineHeight: 20, marginBottom: 14 },
+  h2: { fontSize: 17, fontWeight: "700", color: P.ink, letterSpacing: -0.3 },
+  heading: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginTop: 14,
-    gap: 8,
+    marginTop: 18,
+    marginBottom: 8,
+    minHeight: 28,
   },
-  weekStrip: { flexDirection: "row", gap: 5 },
-  day: {
-    flex: 1,
+  smallButton: { minHeight: 44, justifyContent: "center", paddingLeft: 10 },
+  link: { fontSize: 12, fontWeight: "600", color: P.purple },
+  summary: {
+    flexDirection: "row",
+    backgroundColor: "#ECE8F5",
+    borderRadius: 16,
+    paddingVertical: 14,
+    marginTop: 2,
+  },
+  stat: { flex: 1, alignItems: "center", gap: 3 },
+  statBorder: { borderLeftWidth: 1, borderLeftColor: "#D9D2E8" },
+  statNumber: {
+    fontSize: 29,
+    fontWeight: "700",
+    color: P.purple,
+    letterSpacing: -1,
+  },
+  statLabel: { fontSize: 12, color: P.ink, fontWeight: "500" },
+  caption: {
+    fontSize: 11,
+    color: P.muted,
+    lineHeight: 17,
+    marginTop: 7,
+    marginBottom: 3,
+  },
+  panel: {
+    borderRadius: 14,
+    backgroundColor: "#fff",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: P.line,
+  },
+  assessmentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: P.line,
+  },
+  unitLine: { width: 3, height: 46, borderRadius: 3 },
+  tag: { fontSize: 10, fontWeight: "700", letterSpacing: 0.3 },
+  rowTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: P.ink,
+    marginVertical: 3,
+    lineHeight: 20,
+  },
+  meta: { fontSize: 11, color: P.muted, lineHeight: 17 },
+  chevron: { fontSize: 23, color: "#A29AAC", marginLeft: 2 },
+  empty: { fontSize: 13, lineHeight: 21, color: P.muted, padding: 16 },
+  attention: {
+    backgroundColor: "#F0EADD",
+    borderRadius: 14,
+    paddingHorizontal: 14,
+  },
+  notice: { paddingVertical: 12 },
+  noticeTitle: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: P.amber,
+    lineHeight: 19,
+  },
+  noticeText: { fontSize: 12, lineHeight: 19, color: P.amber, marginTop: 4 },
+  prepRow: {
+    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
-    gap: 7,
-    borderRadius: 15,
-    backgroundColor: "#EFEEE9",
-    minHeight: 82,
+    paddingRight: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: P.line,
   },
-  selectedDay: { backgroundColor: palette.purple },
-  dayName: { fontSize: 11, color: palette.muted },
-  dayNumber: { fontSize: 17, fontWeight: "600", color: palette.ink },
-  dayDot: { width: 4, height: 4, borderRadius: 3 },
-  white: { color: "#FFF" },
-  dayCaption: { fontSize: 12, color: palette.muted, marginTop: 4 },
-  agendaRow: {
+  checkTarget: {
+    width: 48,
+    minHeight: 48,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  check: {
+    width: 23,
+    height: 23,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: "#C5BED5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  checked: { backgroundColor: P.purple, borderColor: P.purple },
+  checkMark: { color: "#fff", fontSize: 14, fontWeight: "700" },
+  completed: { color: P.muted, textDecorationLine: "line-through" },
+  unitRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    paddingVertical: 14,
+    justifyContent: "space-between",
+    padding: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: P.line,
   },
-  agendaTime: { width: 66, gap: 4 },
-  timeText: { fontSize: 13, color: palette.ink, fontWeight: "600" },
-  agendaLine: { width: 3, alignSelf: "stretch", borderRadius: 2 },
-  agendaTitle: { fontSize: 16, color: palette.ink, fontWeight: "600" },
-  unitTag: { flexDirection: "row", alignItems: "center", gap: 7 },
-  dot: { width: 6, height: 6, borderRadius: 3 },
-  unitText: { fontSize: 11, letterSpacing: 0.6, fontWeight: "700" },
-  card: {
-    borderRadius: 19,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: palette.line,
-    backgroundColor: palette.white,
-    gap: 10,
-  },
-  cardTitle: {
-    flex: 1,
-    fontSize: 21,
-    fontWeight: "600",
-    letterSpacing: -0.5,
-    color: palette.ink,
-  },
-  chevron: { fontSize: 25, color: "#A6A1B4" },
-  cardFoot: {
-    borderTopWidth: 1,
-    borderTopColor: palette.line,
-    paddingTop: 12,
-    marginTop: 3,
-  },
-  pressed: { opacity: 0.7 },
-  textLink: { color: palette.purple, fontSize: 13, fontWeight: "600" },
-  empty: { padding: 20, gap: 10, borderRadius: 18, backgroundColor: "#EFEEE8" },
-  uncertain: {
-    padding: 17,
-    borderRadius: 16,
-    gap: 7,
-    backgroundColor: "#F1ECE1",
-  },
-  uncertainTitle: { fontSize: 13, fontWeight: "700", color: palette.amber },
-  footnote: {
-    color: palette.muted,
-    fontSize: 11,
-    lineHeight: 18,
-    marginTop: 12,
-  },
-  tabBar: {
-    backgroundColor: palette.white,
-    borderTopWidth: 1,
-    borderTopColor: palette.line,
-  },
-  tabRow: {
+  classRow: {
     flexDirection: "row",
-    paddingHorizontal: 22,
-    paddingTop: 8,
+    alignItems: "center",
+    padding: 14,
     gap: 12,
   },
+  time: { fontSize: 12, fontWeight: "600", color: P.purple, width: 63 },
+  footer: { fontSize: 10, color: P.muted, lineHeight: 17, marginTop: 24 },
+  tabBar: {
+    backgroundColor: "#fff",
+    borderTopWidth: 1,
+    borderTopColor: P.line,
+  },
+  tabs: { flexDirection: "row", paddingHorizontal: 12, paddingTop: 6 },
   tab: {
     flex: 1,
     alignItems: "center",
-    paddingVertical: 9,
-    borderRadius: 14,
-    gap: 3,
+    paddingVertical: 6,
+    gap: 2,
+    minHeight: 52,
   },
-  activeTab: { backgroundColor: "#F4F1FB" },
-  tabIcon: { color: palette.muted, fontSize: 24 },
-  tabLabel: { fontSize: 11, fontWeight: "600", color: palette.muted },
+  tabIcon: { fontSize: 23, color: P.muted, height: 27 },
+  tabLabel: { fontSize: 10, color: P.muted },
+  tabIndicator: { height: 3, width: 16, borderRadius: 3, marginTop: 4 },
+  monthHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: 8,
+  },
+  arrow: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  calendar: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    backgroundColor: "#fff",
+    borderRadius: 14,
+    paddingVertical: 8,
+  },
+  calendarCell: {
+    width: "14.285714%",
+    minHeight: 46,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dayCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 11,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  todayCircle: { borderWidth: 1, borderColor: P.purple },
+  selectedDay: { backgroundColor: P.purple },
+  dayText: { fontSize: 13, color: P.ink, fontWeight: "500" },
+  dots: { flexDirection: "row", gap: 3, height: 8, alignItems: "center" },
+  dot: { width: 4, height: 4, borderRadius: 3 },
+  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 12 },
+  segments: {
+    flexDirection: "row",
+    backgroundColor: "#EDEAEF",
+    padding: 3,
+    borderRadius: 11,
+    marginVertical: 12,
+  },
+  segment: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+    minHeight: 40,
+    borderRadius: 8,
+  },
+  segmentActive: { backgroundColor: "#fff" },
+  segmentText: { fontSize: 12, color: P.muted, fontWeight: "600" },
+  filters: { gap: 7, paddingVertical: 7 },
+  filter: {
+    paddingHorizontal: 13,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: P.line,
+    borderRadius: 22,
+    backgroundColor: "#fff",
+  },
+  filterActive: { backgroundColor: P.purple, borderColor: P.purple },
+  filterText: { fontSize: 11, fontWeight: "600", color: P.muted },
+  gradeRow: {
+    padding: 16,
+    gap: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: P.line,
+  },
+  grade: { fontSize: 15, fontWeight: "700", color: P.purple },
   sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 24,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingHorizontal: 22,
+    paddingTop: 12,
+    paddingBottom: 4,
   },
-  sheetLabel: { fontSize: 12, color: palette.muted, fontWeight: "600" },
-  close: { paddingVertical: 14, paddingLeft: 18 },
-  detailTitle: {
-    fontSize: 34,
-    fontWeight: "700",
-    letterSpacing: -1.1,
-    lineHeight: 40,
-    color: palette.ink,
-    marginTop: 7,
-  },
-  infoCard: {
-    backgroundColor: palette.white,
-    padding: 20,
-    gap: 10,
-    borderRadius: 18,
-    marginVertical: 5,
-  },
-  preparation: {
-    backgroundColor: palette.lavender,
-    padding: 20,
-    gap: 14,
-    borderRadius: 20,
+  detailCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 18,
+    gap: 12,
     marginTop: 12,
   },
-  action: {
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    backgroundColor: palette.purple,
+  body: { fontSize: 14, lineHeight: 23, color: P.ink },
+  button: {
+    paddingHorizontal: 14,
+    paddingVertical: 15,
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: P.purple,
     alignItems: "center",
+    marginVertical: 8,
   },
-  secondaryAction: { backgroundColor: "#E4DFF4" },
-  actionText: { color: palette.white, fontSize: 15, fontWeight: "600" },
+  secondary: { backgroundColor: P.lavender },
+  buttonText: { fontSize: 14, fontWeight: "600", color: "#fff" },
   widgetPreview: {
-    padding: 22,
-    gap: 8,
-    backgroundColor: palette.white,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: palette.line,
-    marginVertical: 12,
+    backgroundColor: "#36344A",
+    borderRadius: 20,
+    padding: 20,
+    gap: 5,
+    marginTop: 14,
+    marginBottom: 8,
+    alignSelf: "stretch",
   },
+  overviewPreview: { backgroundColor: "#40385D" },
+  widgetEyebrow: { fontSize: 11, color: "#DDD7EF", fontWeight: "700" },
+  widgetTitle: { fontSize: 16, color: "#fff", fontWeight: "600" },
+  widgetMeta: { fontSize: 12, color: "#DDD7EF", lineHeight: 18 },
+  widgetRule: { height: 1, backgroundColor: "#6B627F", marginVertical: 7 },
 });

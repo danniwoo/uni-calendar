@@ -73,7 +73,9 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 第一輪使用者回饋：技術可行，但無法一眼理解今天、下一堂、assignment 到期、這週／下週及目前 teaching week。卡片佔位過大；next-class hero 與 agenda 重複同一課堂，deadline 被推到畫面下方。使用者認可第一階段成果，但 glanceability 尚未達標。
 - 版本保留：使用者要求可比較／rollback；目前 sample 原型已 commit 為 `6f544ba` 並建立 local tag `ios-preview-v0.1.0`，包含 mobile source、lockfile、native config plugin 及 shared timezone helper。未 push／部署；可用獨立 worktree 重建基線，操作見 mobile README。
 - 產品探索已依使用者偏好移至 Notion：[Semester — Mobile & widget ideas](https://app.notion.com/p/40bd6bfd790e81c1800cdf60f250174f)。User flows、Lock Screen／較大 widget、Today checklist 與預先提供有用內容均仍為 ideas；不在 Git 維護第二份探索筆記。
-- 工程續接：待產品方向形成明確的 prototype scope 再實作；保留 baseline 比較點。現有安裝沒有 Lock Screen widget 或 live data；Stage 2 hosting/native auth/live sync 尚未開始。
+- 2026-11-02 使用者批准下一個 sample prototype，已實作 **0.2.0 (2)**：Home 的 this/next week 與待確認資訊、Today preparation checklist、Month 日期選取／返回、Assessments unit filter／sample grades、widget preview/setup。新增兩個 rectangular Lock Screen widgets（single/two deadlines）與 medium work overview；保留原 next-class widget 與 0.1.0 tag。沒有選出 winning widget、沒有 analytics/live grade feed。
+- 0.2 驗證：TypeScript、9 個 model/timeline/month/DST checks、iOS JS export、Simulator／device Release builds 通過（各 0 errors／4 warnings）。Simulator 實際確認四個 tabs、month 日期→details→原選取日期、unknown-date quiz、unit filter／未發布 grade、widget preview 的列表目的地、prep full-close/reopen persistence 與 Undo。`devicectl` 已確認實機安裝 0.2.0 (2)。
+- 0.2 待驗收：Simulator 可進 Lock Screen Add Widgets，但 CUA scroll/coordinate 操作返回 `noWindowsAvailable`，尚未完成實際 widget render/tap 驗證；已請使用者在實機試加 single/two deadlines。原生 readability、tap destination、background refresh／跨日，以及無教學 glanceability 試用仍待實測。Stage 2 hosting/native auth/live sync 尚未開始。
 
 ### REMIND-01
 
