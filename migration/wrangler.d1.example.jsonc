@@ -1,0 +1,14 @@
+{
+  // Independent D1 management only. No Worker entrypoint or deployment routes.
+  // Copy to wrangler.d1.local.jsonc and use the NEW account/database IDs.
+  "name": "semester-staging",
+  "account_id": "REPLACE_WITH_NEW_CLOUDFLARE_ACCOUNT_ID",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "semester-staging",
+      "database_id": "REPLACE_WITH_NEW_STAGING_DATABASE_UUID",
+      "migrations_dir": "../drizzle"
+    }
+  ]
+}

@@ -47,3 +47,7 @@ next-env.d.ts
 *.ics
 *.backup.json
 *.tsbuildinfo
+
+# Independent migration configuration and exports stay local.
+/migration/wrangler.d1.local.jsonc
+/migration/private/
