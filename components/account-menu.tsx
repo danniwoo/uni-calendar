@@ -81,7 +81,7 @@ export default function AccountMenu() {
   }
   const initials=data?.profile?.name.trim().split(/\s+/).slice(0,2).map(s=>s[0]).join("").toUpperCase();
   return <div className="account-menu">
-    <button className="account-trigger" aria-label={`Profile & settings${data?.incoming?` · ${data.incoming} friend request${data.incoming===1?"":"s"}`:""}`} onClick={()=>{setReturnTo(location.pathname+location.search+location.hash);setOpen(true);void load();}}>
+    <button className="account-trigger" title="Profile & settings" aria-label={`Profile & settings${data?.incoming?` · ${data.incoming} friend request${data.incoming===1?"":"s"}`:""}`} onClick={()=>{setReturnTo(location.pathname+location.search+location.hash);setOpen(true);void load();}}>
       <span className="account-avatar" aria-hidden="true">{initials||<UserRound size={16}/>}</span><span>Profile</span>{!!data?.incoming&&<span className="account-badge">{data.incoming}</span>}
     </button>
     <Sheet open={open} onOpenChange={value=>{if(!value)close();}}><SheetContent className="detail-panel account-panel">

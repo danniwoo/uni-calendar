@@ -6,5 +6,6 @@ import "../../app/globals.css";
 import "../../app/board.css";
 import "../../app/plan/plan.css";
 import "../../app/account.css";
+import "../../app/navigation.css";
 const actor=document.cookie.match(/(?:^|; )qa_actor=(alice|bob|eve)/)?.[1]??"alice";
-createRoot(document.getElementById("root")!).render(<><div style={{padding:12,background:"#eaf0fc",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><strong>Sample only · {actor}</strong><span>Disposable records. No real accounts.</span>{["alice","bob","eve"].map(name=><button key={name} onClick={()=>{document.cookie=`qa_actor=${name};path=/;SameSite=Strict`;location.reload();}}>Use {name}</button>)}<a href="/?screen=board">Sample semester board</a><a href="/plan">Sample course plan</a></div>{new URLSearchParams(location.search).get("screen")==="board"?<SemesterBoard/>:<CoursePlan/>}</>);
+createRoot(document.getElementById("root")!).render(<><div style={{padding:12,background:"#eaf0fc",display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"}}><strong>Sample only · {actor}</strong><span>Disposable records. No real accounts.</span>{["alice","bob","eve"].map(name=><button key={name} onClick={()=>{document.cookie=`qa_actor=${name};path=/;SameSite=Strict`;location.reload();}}>Use {name}</button>)}<a href="/?screen=board">Sample semester board</a><a href="/plan">Sample course plan</a></div>{location.pathname==="/plan"?<CoursePlan/>:<SemesterBoard/>}</>);

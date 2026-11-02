@@ -1,8 +1,11 @@
 "use client";
-import AccountMenu from "./account-menu";
+import AppHeader from "./app-header";
+import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from "@/components/ui/dropdown-menu";
 import { useEffect, useRef, useState } from "react";
 import {
-  CalendarDays,
+  Ellipsis,
+  Bell,
+  Settings,
   Plus,
   RefreshCw,
   Download,
@@ -687,28 +690,19 @@ export default function SemesterBoard() {
   }
   return (
     <ReminderDeliveryContext.Provider value={reminderDelivery}><AutomaticReminderContext.Provider value={{settings:semester?.automaticReminders,open:()=>setReminderSettings(true)}}><main className={`${focus ? "focus-layout" : "full-layout"}${calendarView||view==="assessments" ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
-      <header className={semester ? "board-header semester-header" : ""}>
-        <div className="wordmark">
-          <CalendarDays /> semester <small>USYD</small>
+      <AppHeader active="semester"/>
+      {semester&&<div className="board-toolbar">
+        <div className="board-context"><h1>Semester {semester.session==="S2C"?2:1} {semester.year}</h1><div className="board-context-meta"><span>{shortDate(today)} · {selectedWeek?.label||"Outside teaching weeks"} · Sydney</span><span className={`save-state ${saveError?"danger":""} ${saveStatus==="Saved"?"is-saved":""}`} role="status">{saveStatus==="Saved"&&<Check size={12}/>} {saveStatus}</span></div></div>
+        <div className="board-view-tabs" role="group" aria-label="Board view">{(["semester","month","week","assessments"] as const).map(v=><button key={v} aria-pressed={!settings&&view===v} onClick={()=>{setSettings(false);chooseView(v);}}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>
+        <div className="board-tools">
+          <select className="subject-picker" aria-label="Open subject overview" value="" onChange={e=>{if(e.target.value){setDetail(null);setSubject({code:e.target.value});}}}><option value="" disabled>Subjects</option>{semester.units.map(u=><option key={u.code} value={u.code}>{u.code}</option>)}</select>
+          <button className="primary board-add-task" aria-label="Add task" title="Add task" onClick={newTask}><Plus size={17} aria-hidden="true"/><span>Add task</span></button>
+          <DropdownMenu><DropdownMenuTrigger className="board-more" aria-label="More semester options" title="More"><Ellipsis size={20}/></DropdownMenuTrigger><DropdownMenuContent className="app-options-menu" align="end">
+            <DropdownMenuItem onSelect={()=>setReminderSettings(true)}><Bell size={16}/>Reminders</DropdownMenuItem>
+            <DropdownMenuItem onSelect={()=>setSettings(!settings)}><Settings size={16}/>{settings?"Back to semester":"Manage semester"}</DropdownMenuItem>
+          </DropdownMenuContent></DropdownMenu>
         </div>
-        {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Board view">{(["semester","month","week","assessments"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}<select className="mobile-board-view" aria-label="Board view" value={view} onChange={e=>chooseView(e.target.value as typeof view)}><option value="semester">Semester</option><option value="month">Month</option><option value="week">Week</option><option value="assessments">Assessments</option></select></div>}
-        {semester && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
-        <div className="header-actions">
-          <a href="/plan">Course plan &amp; friends</a>
-          {semester && <select className="subject-picker" aria-label="Open subject overview" value="" onChange={e=>{if(e.target.value){setDetail(null);setSubject({code:e.target.value});}}}><option value="" disabled>Subjects</option>{semester.units.map(u=><option key={u.code} value={u.code}>{u.code}</option>)}</select>}
-          {semester && <button className="primary header-add-task" aria-label="Add task" title="Add task" onClick={newTask}><Plus size={20} aria-hidden="true"/></button>}
-          <span
-            className={`save-state ${saveError ? "danger" : ""} ${saveStatus === "Saved" ? "is-saved" : ""}`}
-            role="status"
-          >
-            {saveStatus === "Saved" && <Check size={14} />} {saveStatus}
-          </span>
-          {semester && (
-            <><button className="header-reminders" onClick={()=>setReminderSettings(true)}>Reminders</button><button onClick={() => setSettings(!settings)}>Manage</button></>
-          )}
-          <AccountMenu/>
-        </div>
-      </header>
+      </div>}
       {semester&&!loadError&&<CanvasInbox semester={semester} reviewOpen={canvasImport} onImportFile={()=>{setCanvasRaw(undefined);setCanvasImport(true);}} onReview={raw=>{setCanvasRaw(raw);setCanvasImport(true);}}/>}
       {semester&&!loadError&&unreadCanvasGrades(semester).size>0&&<div className="canvas-history-notice"><button onClick={()=>setCanvasHistory(true)}><span className="canvas-new-dot" aria-hidden="true"/>{unreadCanvasGrades(semester).size} assessments have unseen Canvas grade updates · View history</button></div>}
       {loadError && (

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./board.css";
 import "./account.css";
+import "./navigation.css";
 
 export const metadata: Metadata = {
   title: "Semester — USYD",

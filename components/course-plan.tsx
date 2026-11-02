@@ -1,11 +1,13 @@
 "use client";
 import {useEffect, useRef, useState} from "react";
-import {CalendarDays, Plus, Users, LockKeyhole, ArrowRight} from "lucide-react";
+import {Plus, Users, LockKeyhole, ArrowRight, Ellipsis, RefreshCw, Download, Settings, ChevronDown} from "lucide-react";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
 import {creditSummary,wamSummary,wamExclusion,matchesFor,sameOffering,PLAN_STATUSES,STATUS_LABEL,type CoursePlanData,type PlanEntry,type PlanDraft,type PlanFriend,type SharedPlan,type PlanSession,type FriendsPage,type SharedPage} from "@/lib/course-plan";
 import {useSharedPlanPage} from "./shared-plan-page";
 import {sydneyDate} from "@/lib/semester";
-import AccountMenu,{openProfileSettings,PROFILE_CHANGED} from "./account-menu";
+import {openProfileSettings,PROFILE_CHANGED} from "./account-menu";
+import AppHeader from "./app-header";
+import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from "@/components/ui/dropdown-menu";
 import {invitationCode,invitationLink,planningYear,type InvitePreview} from "@/lib/friend-invitation";
 
 type Editor = {id:string|null;revision:number;draft:PlanDraft;initial:string};
@@ -146,39 +148,47 @@ export default function CoursePlan() {
   const patch=(value:Partial<PlanDraft>)=>setEditor(old=>old?{...old,draft:{...old.draft,...value}}:old);
 
   return <main className="course-page">
-    <header className="course-header"><a className="wordmark" href="/"><CalendarDays aria-hidden="true"/> semester <small>USYD</small></a><div className="course-actions"><a href="/">Current semester <ArrowRight size={16}/></a><AccountMenu/></div></header>
-    <div className="course-heading"><div><p className="eyebrow">LOOK AHEAD, TOGETHER</p><h1>Course plan</h1><p className="muted">Map out your semesters. Find friends taking the same units.</p></div><div className="course-actions"><button onClick={()=>refresh()} disabled={busy||loading}>Refresh</button><button onClick={exportPlan} disabled={!data||busy}>Export my plan</button></div></div>
-    <nav className="course-tabs" aria-label="Course planning"><button aria-pressed={tab==="plan"} onClick={()=>chooseTab("plan")}>My plan</button><button aria-pressed={tab==="friends"} onClick={()=>chooseTab("friends")}><Users size={16}/> Friends{incomingCount?` · ${incomingCount} request${incomingCount===1?"":"s"}`:""}</button></nav>
+    <AppHeader active={tab} onNavigate={chooseTab}/>
+    <div className="course-topline">
+      <div className="course-title"><h1>{tab==="plan"?"Course plan":"Friends"}</h1>{data&&<button className="course-sharing" onClick={openProfileSettings} title="Course-plan sharing settings" aria-label={`Sharing settings · ${data.profile?.sharing?"all accepted friends":"private"}`}>{data.profile?.sharing?<Users size={14}/>:<LockKeyhole size={14}/>}<span>{data.profile?.sharing?"All friends":"Private"}</span></button>}</div>
+      <div className="course-title-actions">
+        <label className="course-year-picker">Year<select value={year} disabled={loading||busy} onChange={e=>chooseYear(Number(e.target.value))}>{years.map(y=><option key={y}>{y}</option>)}</select></label>
+        {data&&(tab==="plan"?<button className="primary" disabled={disabled} onClick={()=>openEditor()}><Plus size={16}/>Add unit</button>:<button className="primary" onClick={()=>setConnectOpen(!connectOpen)} aria-expanded={connectOpen}><Plus size={16}/>Add friend</button>)}
+        <DropdownMenu><DropdownMenuTrigger className="course-more" aria-label="More course-plan options" title="More"><Ellipsis size={20}/></DropdownMenuTrigger><DropdownMenuContent className="app-options-menu" align="end">
+          <DropdownMenuItem disabled={busy||loading} onSelect={()=>void refresh()}><RefreshCw size={16}/>Refresh</DropdownMenuItem>
+          <DropdownMenuItem disabled={!data||busy} onSelect={exportPlan}><Download size={16}/>Export my plan</DropdownMenuItem>
+          <DropdownMenuItem onSelect={openProfileSettings}><Settings size={16}/>Sharing settings</DropdownMenuItem>
+        </DropdownMenuContent></DropdownMenu>
+      </div>
+    </div>
     {notice&&<div className="course-notice" role="status">{notice}</div>}
     {error&&!editor&&<div className="notice error" role="alert">{error} <button onClick={()=>refresh()} disabled={busy}>Refresh records</button></div>}
     {loadError&&<div className="notice error" role="alert"><p>{loadError}</p>{signIn?<a href={signInPath} target="_top">Sign in with ChatGPT</a>:<button onClick={()=>refresh()} disabled={busy}>Retry loading</button>}</div>}
     {loading&&<p role="status">Loading your course plan…</p>}
     {data&&<>
-      <div className="course-visibility">{data.profile?.sharing?<Users size={16}/>:<LockKeyhole size={16}/>}<span>{data.profile?.sharing?"Your unit plans are shared with all accepted friends.":"Your course plan is private."}</span><button onClick={openProfileSettings}>Sharing settings</button></div>
-      <div className="course-year"><label>Year <select value={year} onChange={e=>chooseYear(Number(e.target.value))}>{years.map(y=><option key={y}>{y}</option>)}</select></label><span className="muted">USYD · Semester 1 &amp; 2</span>{tab==="plan"&&<button className="primary" disabled={disabled} onClick={()=>openEditor()}><Plus size={16}/> Add unit</button>}</div>
       {tab==="plan"?<>
-        <section className="course-wam" aria-label="WAM estimate">
-          <div className="course-wam-main"><div><span className="course-wam-label">WAM estimate</span><strong className="course-wam-value">{wam.average===null?"—":wam.average.toFixed(2)}<small> / 100</small></strong></div><div><strong>All years · recorded final marks</strong><p>{wam.included?`${wam.included} unit attempt${wam.included===1?"":"s"} · ${wam.credits} credit points included`:"No eligible final marks recorded yet."}</p><span className="muted">Grades and WAM stay private.</span></div></div>
-          <details><summary>Calculation &amp; included results{wam.excluded.length?` · ${wam.excluded.length} not included`:""}</summary><p>Sum of final mark × credit points, divided by included credit points. Numerical failures and repeated attempts count separately; blank marks are not zero. Grade labels are never converted into marks.</p><p>This is a standard WAM estimate for units you record in this plan. Exclude external credit, exchange, OLE units from 2025 and units outside your course. Faculty-specific weighting and CWAM are not applied. <a href="https://www.sydney.edu.au/students/weighted-average-mark.html" target="_blank" rel="noreferrer">USYD WAM guidance</a></p>
-            {wam.excluded.map(p=><button key={p.id} disabled={disabled} onClick={()=>openEditor(data.plans.find(unit=>unit.id===p.id))}>{p.code} · {period(p)} — {p.reason}</button>)}
-          </details>
-        </section>
         <div className="course-semesters">{(["S1C","S2C"] as const).map(session=>{
           const units=data.plans.filter(p=>p.year===year&&p.session===session),credits=creditSummary(units,["planned","enrolled"]);
           return <section className="course-term" key={session} aria-label={period({year,session})}>
             <div className="course-term-heading"><div><h2>Semester {session==="S1C"?1:2}</h2><p className="muted">{credits.known} planned / enrolled cp{credits.unknown?` · ${credits.unknown} unit${credits.unknown===1?"":"s"} missing credits`:""}</p></div><button disabled={disabled} aria-label={`Add unit to Semester ${session==="S1C"?1:2}`} onClick={()=>openEditor(undefined,session)}><Plus size={16}/></button></div>
-            {!units.length&&<div className="course-empty"><strong>A semester to shape.</strong><p>Add units you’re considering or planning to take.</p><button disabled={disabled} onClick={()=>openEditor(undefined,session)}>Add your first unit</button></div>}
+            {!units.length&&<div className="course-empty course-empty-term"><p>No units planned yet.</p><button disabled={disabled} onClick={()=>openEditor(undefined,session)}><Plus size={14}/>Add a unit</button></div>}
             {units.map(unit=>{const matches=matchesFor(unit,data.sharedPlans);return <article className="course-unit" key={unit.id}>
               <div className="course-unit-top"><strong>{unit.code}</strong><span className={`course-status status-${unit.status}`}>{STATUS_LABEL[unit.status]}</span></div><h3>{unit.name}</h3>
-              <p className="muted">{unit.credits===null?"Credits not entered":`${unit.credits} cp`}</p>
               {(unit.finalMark!==null||unit.finalGrade)&&<div className="course-final-result"><span>Final result · {unit.finalMark!==null?`${unit.finalMark} / 100`:"No numeric mark"}{unit.finalGrade?` · ${unit.finalGrade}`:""}</span>{wamExclusion(unit)&&<small>WAM: {wamExclusion(unit)}</small>}</div>}
-              <div className="course-unit-actions"><button onClick={()=>{setSelected(unit.id);setError("");}}>{matches.length?`${matches.length}${data.sharedNext?"+":""} friend${matches.length===1?"":"s"} considering / taking this`:"See friends in this unit"}<ArrowRight size={14}/></button><button disabled={disabled} onClick={()=>openEditor(unit)}>Edit</button></div>
+              <div className="course-unit-actions"><span className="course-unit-credits">{unit.credits===null?"Credits not entered":`${unit.credits} cp`}</span><button className="course-friends-link" aria-label={`See friends in ${unit.code}`} onClick={()=>{setSelected(unit.id);setError("");}}>{matches.length?`${matches.length}${data.sharedNext?"+":""} friend${matches.length===1?"":"s"}`:"Find friends"}<ArrowRight size={14}/></button><button disabled={disabled} onClick={()=>openEditor(unit)}>Edit</button></div>
             </article>;})}
           </section>;
         })}</div>
+        <details className="course-wam" aria-label="WAM estimate">
+          <summary><span>WAM estimate <strong>{wam.average===null?"—":wam.average.toFixed(2)}</strong></span><span className="course-wam-caption">{wam.included?`All years · ${wam.included} unit attempt${wam.included===1?"":"s"}`:"No final marks recorded"}<ChevronDown size={16} aria-hidden="true"/></span></summary>
+          <div className="course-wam-details"><p>{wam.credits} credit points included. Grades and WAM stay private.</p><p>Sum of final mark × credit points, divided by included credit points. Numerical failures and repeated attempts count separately; blank marks are not zero. Grade labels are never converted into marks.</p><p>This is a standard WAM estimate for units you record in this plan. Exclude external credit, exchange, OLE units from 2025 and units outside your course. Faculty-specific weighting and CWAM are not applied. <a href="https://www.sydney.edu.au/students/weighted-average-mark.html" target="_blank" rel="noreferrer">USYD WAM guidance</a></p>
+            {!!wam.excluded.length&&<p>{wam.excluded.length} result{wam.excluded.length===1?"":"s"} not included:</p>}
+            {wam.excluded.map(p=><button key={p.id} disabled={disabled} onClick={()=>openEditor(data.plans.find(unit=>unit.id===p.id))}>{p.code} · {period(p)} — {p.reason}</button>)}
+          </div>
+        </details>
         <p className="course-footnote">Plans, enrolment and completion are self-reported. Check official unit availability, prerequisites and degree requirements before enrolling. Credit totals exclude considering and completed entries.</p>
       </>:<>
-        <div className="course-friends-heading"><div><h2>Your friends</h2><p className="muted">{data.friendCount} friend{data.friendCount===1?"":"s"}{incomingCount?` · ${incomingCount} pending request${incomingCount===1?"":"s"}`:""}</p></div><button className="primary" onClick={()=>setConnectOpen(!connectOpen)} aria-expanded={connectOpen}><Plus size={16}/>Add friend</button></div>
+        <p className="course-connection-count">{data.friendCount} friend{data.friendCount===1?"":"s"}{incomingCount?` · ${incomingCount} pending request${incomingCount===1?"":"s"}`:""}</p>
         {!data.profile&&<div className="course-onboarding"><div><strong>Introduce yourself</strong><p>Choose a name your friends recognise before sending or accepting requests.</p></div><button onClick={openProfileSettings}>Set up profile</button></div>}
         {data.friends.some(f=>f.state!=="blocked")?<section className="course-connections" aria-label="Friends and requests">{[...data.friends].filter(f=>f.state!=="blocked").sort((a,b)=>(a.state==="incoming"?0:a.state==="accepted"?1:2)-(b.state==="incoming"?0:b.state==="accepted"?1:2)||a.name.localeCompare(b.name)).map(friend=><div className="course-connection" key={friend.connectionId}><div><strong>{friend.name}</strong><span className="muted">{friend.state==="accepted"?"Friends":friend.state==="incoming"?"Wants to connect":"Request sent"}</span></div><div className="course-actions">
           {friend.state==="incoming"&&<button className="primary" disabled={disabled} onClick={()=>friendAction(friend,"accept")}>Accept</button>}

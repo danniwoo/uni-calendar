@@ -1,5 +1,12 @@
 # Changelog
 
+## Web 0.24.0 — 2026-11-02
+
+- Simplified navigation after user feedback: My semester, Course plan and Friends share one dropdown beside the logo; profile uses the avatar. Board views remain directly accessible, with Reminders and Manage grouped under More.
+- Course-plan title/year/Add unit share one compact toolbar. Removed the promotional heading and duplicate navigation/sharing rows, tightened unit cards, moved Refresh/Export into More and made WAM expandable beneath the units.
+- Checked menu navigation/dismissal, settings access, view switching, unit entry, year changes and WAM details with sample records at desktop and narrow widths. Planning, sharing and grade calculations are unchanged.
+
+
 ## Web 0.23.0 — 2026-11-02
 
 - Invitations show saved active/expired/revoked status and Sydney expiry after reload. Fixed the invite-creation panel being nested inside the received-invitation preview; replacement clears old-link access and refresh hides stale local tokens.

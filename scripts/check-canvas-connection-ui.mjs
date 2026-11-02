@@ -27,7 +27,8 @@ try{
   await entry.getByRole("button",{name:"Import JSON file",exact:true}).click();
   await shown(page.getByRole("dialog"));
   await page.keyboard.press("Escape");
-  await page.getByRole("button",{name:"Manage",exact:true}).click();
+  await page.getByRole("button",{name:"More semester options",exact:true}).click();
+  await page.getByRole("menuitem",{name:"Manage semester",exact:true}).click();
   const manage=page.locator(".manage-compact");
   await shown(manage.getByRole("heading",{name:"Manage semester"}));
   assert(!await manage.getByRole("button",{name:"Export backup",exact:true}).isVisible());

@@ -2,6 +2,13 @@
 
 Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-02 navigation and course-plan density / Web 0.24.0
+
+- User rejected crowded top-bar actions and large pre-content gaps, then explicitly preferred dropdown entrances for infrequently used features. Shared AppHeader now groups My semester / Course plan / Friends in a navigation dropdown and reduces Profile to the labelled avatar. Board view controls stay visible in a compact toolbar; Reminders / Manage live under More, with save state beside semester context. Choosing a board view exits Manage.
+- Plan removes the marketing heading, duplicate tabs and separate sharing/year rows. Title, compact global-sharing shortcut, year and Add unit form one toolbar; Refresh / Export live in More. Cards use a smaller footer, and WAM is a collapsed summary below the semesters with calculation/privacy details preserved on expansion. No data, API, migration or permission changes.
+- Synthetic browser verified My semester → Course plan → Friends, dismissal after in-page selection, More → Reminders/Cancel, More → Manage then Month returning to board, More → Sharing settings, year switching retaining private results and WAM, Add unit/Cancel and WAM expansion. Fixed a dropdown that initially stayed open after in-page navigation. Desktop and 390px layouts reviewed; no horizontal page overflow on the narrow course plan. Screenshots saved in the thread's visualization directory as semester-clean-board.png / semester-compact-plan.png. No real records changed.
+- Merged the already committed concurrent iOS connection-trial source (`ea6360d`), retaining both handoff sections. Validation/publication receipt follows below. Prior 0.23.0 publication (Sites 67) succeeded before the conversation interruption; its receipt is now recorded below.
+
 ### 2026-11-02 invitation status and bounded friend queries / Web 0.23.0
 
 - Approved next slice: invitation lifecycle status survives reload, including revoked status retained in the owner-only row; raw codes remain hash-only at rest. Generation revisions prevent a stale in-memory link from appearing after a newer link is loaded. Repaired nested JSX that had hidden the create-invitation panel until a received link was previewed.

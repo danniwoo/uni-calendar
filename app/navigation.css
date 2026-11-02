@@ -1,0 +1,29 @@
+/* Shared navigation stays separate from the controls for the current view. */
+header.app-header{height:60px;min-height:60px;padding:0;display:flex;align-items:center;justify-content:flex-start;gap:20px;border-bottom:1px solid var(--border);flex-shrink:0}
+.app-brand{display:inline-flex;align-items:center;gap:8px;color:var(--foreground);text-decoration:none;font-size:23px;font-weight:750;letter-spacing:-.8px;white-space:nowrap}
+.app-brand svg{color:var(--primary);width:24px;height:24px}
+.app-header .app-area-trigger{display:inline-flex;align-items:center;gap:10px;border:0;border-left:1px solid var(--border);border-radius:0;padding:5px 0 5px 20px;background:transparent;box-shadow:none;color:var(--muted-foreground);font-size:14px;font-weight:500}
+.app-header .app-area-trigger:hover{color:var(--foreground)}
+.app-header>.account-menu{margin-left:auto}
+.app-header .account-trigger{position:relative;background:transparent;border:0;padding:4px;min-height:36px;box-shadow:none}
+.app-header .account-trigger>span:not(.account-avatar):not(.account-badge){display:none}
+.app-header .account-avatar{width:32px;height:32px;font-size:12px;border:1px solid #d9e3f9}
+.app-header .account-badge{position:absolute;top:0;right:-5px;padding:0 4px;font-size:10px;min-width:15px;border:2px solid var(--background)}
+.app-options-menu{min-width:210px;background:white;padding:5px;z-index:60}
+.app-options-menu [role=menuitem]{display:flex;align-items:center;gap:9px;padding:9px 10px;cursor:pointer;color:var(--foreground);font-size:14px;text-decoration:none}
+.app-options-menu .app-nav-check{margin-left:auto}
+.board-toolbar{display:grid;grid-template-columns:minmax(180px,1fr) auto minmax(180px,1fr);align-items:center;gap:18px;margin:16px 0;flex-shrink:0}
+.board-context h1{font-size:19px;letter-spacing:-.4px;line-height:1.2;margin:0}
+.board-context-meta{display:flex;align-items:center;gap:12px;margin-top:5px;flex-wrap:wrap;font-size:12px;color:var(--muted-foreground)}
+.board-context-meta .save-state{font-size:11px;gap:3px}
+.board-view-tabs{display:flex;gap:2px;padding:3px;border:1px solid var(--border);border-radius:8px;background:#edf0f6}
+.board-view-tabs button{padding:6px 13px;font-size:13px;border:0;background:transparent;box-shadow:none;border-radius:5px;color:var(--muted-foreground);white-space:nowrap}
+.board-view-tabs button[aria-pressed=true]{background:white;color:var(--foreground);box-shadow:0 1px 3px #17253d12}
+.board-tools{display:flex;gap:8px;align-items:center;justify-content:flex-end}
+.board-tools .subject-picker{width:115px;max-width:115px;min-height:36px}
+.board-tools button{min-height:36px;font-size:13px;padding:7px 11px;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+.board-tools .board-more,.course-title-actions .course-more{width:36px;min-width:36px;height:36px;padding:0;background:transparent;box-shadow:none;border-color:transparent}
+.board-tools .board-more:hover,.course-title-actions .course-more:hover{background:var(--muted)}
+@media(max-width:1100px){.board-toolbar{grid-template-columns:minmax(0,1fr) auto;gap:12px}.board-view-tabs{grid-column:1;grid-row:2;justify-self:start}.board-tools{grid-column:2;grid-row:1/3}}
+@media(max-width:600px){header.app-header{height:54px;min-height:54px;gap:12px}.app-brand{font-size:21px}.app-header .app-area-trigger{padding-left:12px;font-size:13px;gap:6px}.board-toolbar{margin:12px 0;gap:10px}.board-context h1{font-size:17px}.board-context-meta{font-size:11px;gap:7px}.board-tools{gap:4px;grid-row:1}.board-tools .subject-picker{max-width:95px;min-height:34px;font-size:12px;padding:5px}.board-tools .board-add-task{width:34px;min-height:34px;padding:0}.board-add-task span{display:none}.board-tools .board-more{width:30px;min-width:30px}.board-view-tabs{grid-column:1/-1;justify-self:stretch}.board-view-tabs button{flex:1;padding:6px 7px;font-size:12px}}
+@media(max-width:380px){.app-brand span{display:none}.board-context-meta>.save-state.is-saved{display:none}}
