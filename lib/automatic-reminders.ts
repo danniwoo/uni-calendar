@@ -2,9 +2,16 @@ import {addDays,sydneyDate,type Semester,type Task} from "./semester";
 import {reminderJobs,sydneyInstant,type ReminderJob} from "./reminders";
 
 /** Choices travel with the board; permission and delivery receipts stay on the device. */
-export type AutomaticReminders={enabled:boolean;enabledAt:number;deadlines:boolean;activities:boolean;missingDates:boolean;quiet:boolean;quietStart:string;quietEnd:string};
+export type DeadlinePreparation="previous-evening"|"same-morning"|"24h"|"off";
+export type AutomaticReminders={enabled:boolean;enabledAt:number;deadlines:boolean;activities:boolean;missingDates:boolean;quiet:boolean;quietStart:string;quietEnd:string;deadlinePreparation?:DeadlinePreparation;deadlineLeadHours?:number};
 export type AutomaticReminderChoice="inherit"|"off"|"on";
-export const automaticDefaults:AutomaticReminders={enabled:false,enabledAt:0,deadlines:true,activities:true,missingDates:true,quiet:true,quietStart:"22:00",quietEnd:"08:00"};
+export const automaticDefaults:AutomaticReminders={enabled:false,enabledAt:0,deadlines:true,activities:true,missingDates:true,quiet:true,quietStart:"22:00",quietEnd:"08:00",deadlinePreparation:"previous-evening",deadlineLeadHours:2};
+// Missing fields belong to the original 24h/2h policy, not the new defaults.
+// Even notification text must stay identical until Save: Connect rejects a
+// different schedule for the same saved revision.
+export const deadlineTiming=(p:AutomaticReminders)=>({preparation:p.deadlinePreparation??"24h",hours:p.deadlineLeadHours??2});
+const hasTimingChoices=(p:AutomaticReminders)=>p.deadlinePreparation!==undefined||p.deadlineLeadHours!==undefined;
+export const automaticSettingsDraft=(p?:AutomaticReminders):AutomaticReminders=>p?{...p,deadlinePreparation:deadlineTiming(p).preparation,deadlineLeadHours:deadlineTiming(p).hours}:{...automaticDefaults};
 const clock=/^([01]\d|2[0-3]):[0-5]\d$/;
 export const validAutomaticChoice=(v:unknown)=>v===undefined||["inherit","off","on"].includes(String(v))&&typeof v==="string";
 export function automaticReminderError(v:unknown):string|undefined {
@@ -13,6 +20,7 @@ export function automaticReminderError(v:unknown):string|undefined {
   const p=v as AutomaticReminders;
   if([p.enabled,p.deadlines,p.activities,p.missingDates,p.quiet].some(x=>typeof x!=="boolean")||!Number.isSafeInteger(p.enabledAt)||p.enabledAt<0||p.enabledAt>Date.UTC(2100,0,1)||p.enabled&&p.enabledAt===0)return "Invalid automatic reminder settings.";
   if(typeof p.quietStart!=="string"||typeof p.quietEnd!=="string"||!clock.test(p.quietStart)||!clock.test(p.quietEnd)||p.quietStart===p.quietEnd)return "Choose different valid start and end times for quiet hours.";
+  if((p.deadlinePreparation!==undefined&&!["previous-evening","same-morning","24h","off"].includes(p.deadlinePreparation))||(p.deadlineLeadHours!==undefined&&![0,1,2,3,6].includes(p.deadlineLeadHours)))return "Choose a valid deadline reminder time.";
 }
 export function saveAutomaticReminders(s:Semester,choice:AutomaticReminders,expected:Semester,now=Date.now()):Semester {
   if(s.boardGeneration!==expected.boardGeneration||s.year!==expected.year||s.session!==expected.session||s.feedUrl!==expected.feedUrl||JSON.stringify(s.automaticReminders)!==JSON.stringify(expected.automaticReminders))throw new Error("Reminder settings changed. Cancel and reopen before saving.");
@@ -20,7 +28,7 @@ export function saveAutomaticReminders(s:Semester,choice:AutomaticReminders,expe
   const error=automaticReminderError(next);if(error)throw new Error(error);
   return {...s,automaticReminders:next};
 }
-export type AutomaticAlert={taskId:string;title:string;unit:string;when:number;reason:string;kind:"deadline"|"activity"|"missing"};
+export type AutomaticAlert={taskId:string;title:string;unit:string;when:number;reason:string;note?:string;kind:"deadline"|"activity"|"missing"};
 export type AutomaticBatch={job:ReminderJob;items:AutomaticAlert[]};
 const timeFormat=new Intl.DateTimeFormat("en-GB",{timeZone:"Australia/Sydney",hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
 const dateLabel=(date:string)=>new Intl.DateTimeFormat("en-AU",{timeZone:"UTC",day:"numeric",month:"short"}).format(new Date(date+"T12:00:00Z"));
@@ -43,7 +51,11 @@ export function automaticTaskStatus(t:Task,p?:AutomaticReminders){
   if(t.date){
     const activity=t.timeBasis==="class"&&!/^before\b/i.test(t.timing)||t.kind==="exam";
     if(!(activity?p.activities:p.deadlines))return "Automatic alerts off for this category";
-    return !t.time||t.allDay?"Automatic · day before & on the day at 9 am":activity?"Automatic · 1 day & 30 minutes before":"Automatic · 1 day & 2 hours before";
+    if(!hasTimingChoices(p)||activity)return !t.time||t.allDay?"Automatic · day before & on the day at 9 am":activity?"Automatic · 1 day & 30 minutes before":"Automatic · 1 day & 2 hours before";
+    const {preparation,hours}=deadlineTiming(p),parts=[];
+    if(preparation!=="off")parts.push(preparation==="previous-evening"?"previous day at 6 pm":preparation==="same-morning"?"on the day at 9 am":"1 day before");
+    if(hours)parts.push(!t.time||t.allDay?"on the day at 9 am":`${hours} hour${hours===1?"":"s"} before`);
+    return parts.length?`Automatic · ${[...new Set(parts)].join(" + ")}`:"Automatic deadline alerts off";
   }
   return (t.week||t.dueWeek)&&p.missingDates?`Automatic · confirm Week ${t.week||t.dueWeek} date`:"Needs a date or teaching week for automatic alerts";
 }
@@ -59,14 +71,48 @@ export function automaticAlerts(s:Semester|null):AutomaticAlert[]{
     // A saved attempt schedule is participation; an unscheduled opportunity is not.
     if(t.attemptId&&(!result||result.excluded||["not_taken","missed","submitted","awaiting"].includes(result.outcome||"")||result.grade))continue;
     if((t.rules?.optional||parent?.rules?.optional)&&t.automaticReminder!=="on"&&!t.attemptId)continue;
-    const push=(at:number|undefined,kind:AutomaticAlert["kind"],reason:string)=>{
+    const push=(at:number|undefined,kind:AutomaticAlert["kind"],reason:string,note?:string)=>{
       if(at===undefined)return;
       const when=quietReminderTime(at,p);
       if(when===undefined||when<=p.enabledAt)return;
-      alerts.push({taskId:t.id,title:t.title,unit:t.unit,when,kind,reason});
+      alerts.push({taskId:t.id,title:t.title,unit:t.unit,when,kind,reason,...(note?{note:when===at?note:`${note} · moved earlier for quiet hours`}:{})});
     };
     const scheduled=(date:string,time:string|undefined,kind:"deadline"|"activity",label:string)=>{
       if(sydneyInstant(date,"09:00")===undefined)return;
+      if(hasTimingChoices(p)){
+        const target=time?sydneyInstant(date,time):undefined;if(time&&target===undefined)return;
+        const {preparation,hours}=deadlineTiming(p);
+        const evening=sydneyInstant(addDays(date,-1),"18:00"),morning=sydneyInstant(date,"09:00");
+        const slots:{at:number|undefined;note:string}[]=[];
+        if(kind==="activity"){
+          slots.push({at:target===undefined?sydneyInstant(addDays(date,-1),"09:00"):target-86400000,note:"Plan ahead"});
+          slots.push({at:target===undefined?morning:target-30*60000,note:"Final reminder"});
+        }else{
+          let preparationAt=target===undefined?sydneyInstant(addDays(date,-1),"09:00"):target-86400000;
+          if(preparation==="previous-evening")preparationAt=evening;
+          if(preparation==="same-morning")preparationAt=target!==undefined&&morning!==undefined&&morning>=target?evening:morning;
+          if(preparation!=="off")slots.push({at:preparationAt,note:"Plan ahead"});
+          if(hours)slots.push({at:target===undefined?morning:target-hours*3600000,note:"Final reminder"});
+        }
+        const valid=slots.filter(v=>v.at!==undefined).map(v=>({...v,when:quietReminderTime(v.at!,p)})).filter(v=>v.when!==undefined&&(target===undefined||v.when<target));
+        // Keep the final reminder when planning and final slots are <2h apart.
+        // Do this before filtering elapsed slots so later previews stay stable.
+        const final=valid.find(v=>v.note==="Final reminder");
+        const chosen=valid.filter(v=>!final||v===final||Math.abs(v.when!-final.when!)>=2*3600000);
+        const reason=`${label} ${dateLabel(date)} · ${time||"time not set"}`;
+        for(const v of chosen)push(v.at,kind,reason,v.note);
+        // One fixed catch-up on first enabling, only before a known target.
+        // No rolling Date.now(), invented deadline or post-deadline catch-up.
+        if(slots.length&&target!==undefined&&p.enabledAt<target&&!chosen.some(v=>v.when!>p.enabledAt)){
+          let candidate=p.enabledAt+60000;
+          if(quietReminderTime(candidate,p)!==candidate){
+            const d=sydneyDate(new Date(candidate)),end=timeFormat.format(candidate)<p.quietEnd?d:addDays(d,1);
+            candidate=sydneyInstant(end,p.quietEnd)??target;
+          }
+          if(candidate<target)push(candidate,kind,reason,"Enabled late · one reminder");
+        }
+        return;
+      }
       if(time){const target=sydneyInstant(date,time);if(target===undefined)return;
         push(target-86400000,kind,`${label} ${dateLabel(date)} · ${time}`);
         push(target-(kind==="deadline"?120:30)*60000,kind,`${label} ${dateLabel(date)} · ${time}`);
@@ -118,7 +164,7 @@ export function automaticBatches(s:Semester|null,now=Date.now()):AutomaticBatch[
     const taskId=items.length===1?items[0].taskId:`auto-digest:${when}:${signature}`;
     const first=items[0],count=items.length;
     return {items,job:{key:JSON.stringify([generation,"automatic",when,signature]),taskId,when,
-      title:(count>1?`Semester · ${count} reminders`:first.kind==="missing"?`Check this week’s date · ${first.title}`:`Coming up · ${first.title}`).slice(0,180),
+      title:(count>1?`Semester · ${count} reminders`:first.kind==="missing"?`Check this week’s date · ${first.title}`:hasTimingChoices(s.automaticReminders!)?`${first.kind==="deadline"?"Deadline":"Activity"} · ${first.title}`:`Coming up · ${first.title}`).slice(0,180),
       unit:count>1?"Semester":first.unit,
       label:(count>1?`${count} items · open to see what’s coming up`:first.reason).slice(0,100)}};
   });

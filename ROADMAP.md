@@ -98,6 +98,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 **Apple Calendar 式多提醒 → Chrome 系統通知** · P1 · **待驗證** · 使用者明確批准的增量
 
+- 2026-11-02／0.21.0：依提醒時間回饋，新增作業「前日 18:00／當日 09:00／24 小時前／無」與「1／2／3／6 小時前／無」兩列選項；新設定預設前日 18:00＋2 小時前，舊設定連通知文字也維持原樣，明確 Save 才採用新版選項。太接近的同一時程提醒合併、早於 09:00 的 deadline 改前晚準備、首次晚啟用僅在安靜時段外且截止前補一次；不推測未知時間。Synthetic 計算、Cancel、重載、失敗／重試、完成／恢復與 controller Undo regression 已測。下一步：refresh → Reminders → Upcoming deadlines 選時間，先核對預覽再 Save；實機送達、聲音及使用者接受度仍待驗證，沒有替使用者改真實設定。
+
 - 2026-11-02／0.19.0：使用者批准三類自動提醒：截止前、已排好的 quiz／activity、已知本週但日期待確認。上方 Reminders 一次開啟（預設 off），支援單筆關閉、自訂優先、完成停送、quiet hours 與同時刻合併；不猜 available-until 截止或可選 attempt。Synthetic 取消、儲存失敗／重試、單筆關閉／reload、自訂優先及 controller 完成／Undo 已測。下一步：使用者 refresh → Reminders 開啟並保存 → 核對 Upcoming notifications，再自行選測試項目實機驗收；本次未改真實資料。已知限制：新加入的週次待定項若已過週一提醒時間，不追補當週通知；仍會在 Week／Month 的待確認區出現。聲音、Chrome 關閉時送達、native Snooze 和跨裝置即時同步未承諾。
 
 - 2026-11-01／0.17.0：依 Apple／Google Calendar 參考，提醒改為 Alert · None 直接選、每筆緊湊列／移除／新增；裝置狀態常駐、說明預設收起。當日使用者已回報看到測試橫幅並提供通知中心截圖；**聲音及關分頁後的定時通知仍未驗證**。本次 synthetic 測過取消不寫入、兩種時間方式、預覽跟隨、增刪／自訂提醒與儲存重載；發布狀態見 PROGRESS。
