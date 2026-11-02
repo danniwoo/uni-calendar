@@ -53,6 +53,8 @@ import {
   toggleWidgetUnit,
   type WidgetSettings,
 } from "./src/widget-settings";
+import TodayPlan from "./src/TodayPlan";
+import { usePersonalPlan } from "./src/usePersonalPlan";
 const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
 const STORAGE_KEY = "semester.preview.sample.v1";
 const P = {
@@ -125,6 +127,7 @@ function Heading({
   );
 }
 function Prototype() {
+  const personalPlan = usePersonalPlan();
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>("Home");
@@ -496,7 +499,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.2.1</Text>
+          <Text style={s.sample}>PREVIEW 0.3</Text>
         </View>
         <Text style={s.title}>{titles[tab]}</Text>
         {tab === "Home" && (
@@ -637,25 +640,25 @@ function Prototype() {
         {tab === "Today" && (
           <>
             <Text style={s.subtitle}>
-              Sample week {week} · a few useful places to start
+              Your plan · sample teaching week {week}
             </Text>
-            <Heading title="Due today" />
-            <View style={s.panel}>
-              {todayDeadlines.length
-                ? todayDeadlines.map(row)
-                : empty(
-                    "No dated deadlines today. Look ahead before switching off.",
-                  )}
-            </View>
-            <Heading title="Preparation" />
-            <Text style={s.caption}>
-              Suggested from your assessments. Tick what you’ve done.
-            </Text>
-            <View style={s.panel}>{sorted.map(prep)}</View>
-            <Text style={s.caption}>
-              {Object.values(progress).filter(Boolean).length} of{" "}
-              {sorted.length} recorded · tap a tick to undo
-            </Text>
+            {!!todayDeadlines.length && (
+              <>
+                <Heading title="Due today" />
+                <View style={s.panel}>{todayDeadlines.map(row)}</View>
+              </>
+            )}
+            {!todayDeadlines.length && (
+              <Text style={s.caption}>
+                No dated assessment deadlines today.
+              </Text>
+            )}
+            <TodayPlan
+              plan={personalPlan}
+              board={board}
+              today={today}
+              progress={progress}
+            />
             <Heading title="On campus" />
             <View style={s.panel}>
               {todayClasses.length
@@ -888,7 +891,7 @@ function Prototype() {
         )}
         <Text accessibilityLiveRegion="polite" style={s.footer}>
           {saveState}
-          {"\n"}Invented data · no university connection
+          {"\n"}Sample semester · personal tasks stay on this iPhone
         </Text>
       </ScrollView>
       <SafeAreaView edges={["bottom"]} style={s.tabBar}>
@@ -1023,7 +1026,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.2.1 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => setSettings(false)}
@@ -1195,9 +1198,9 @@ function Prototype() {
             </Text>
             <Heading title="About this preview" />
             <Text style={s.body}>
-              All dates, teaching weeks, requirements and marks are invented.
-              Preparation stays on this iPhone. No account, notifications or
-              analytics are connected.
+              Semester dates, teaching weeks, requirements and marks are sample
+              data. Your personal tasks and preparation stay on this iPhone. No
+              account, notifications or analytics are connected.
             </Text>
             <Text style={s.caption}>
               Sample generated {shortDate(board.createdAt)}. Week 10 starts on
