@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-本輪狀態（2026-11-02）：Web **0.19.0** 已發布（Sites 63）；已合併 shared-attempt editor、排程表單與自動提醒。Connect **0.5.0** 沿用；自動提醒預設關閉，使用者自己開啟。原有實機通知、四科與 M1/M2 使用者驗收仍保留。下列舊版本記錄為先前試用背景，不是目前網站版本。
+本輪狀態（2026-11-02）：Web **0.20.0** 已發布（Sites 64）：跨年選課、朋友同科比對、全朋友／不分享，以及 private final grades／WAM。保留 0.17–0.19 的排程、attempts 與自動提醒；Connect **0.5.0** 不變。下一步是 SOCIAL-01 雙人試用；既有 M1/M2、四科與實機通知驗收仍保留。
 
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
@@ -19,7 +19,7 @@
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
 | **原生實驗** | IOS-01：使用者批准 Stage 1，獨立 sample-only iPhone app／widget | [IOS-01](#ios-01)；不改 M1、Canvas 試用或正式發布 gate |
-| **Web course planning** | SOCIAL-01：多年選課計畫、朋友邀請、同科比對與 private WAM；0.20.0 發布準備 | [SOCIAL-01](#social-01)；整份計畫只可分享給全部 accepted friends 或完全不分享，尚未發布 |
+| **Web course planning** | SOCIAL-01：多年選課計畫、朋友邀請、同科比對與 private WAM；0.20.0 已發布 | [SOCIAL-01](#social-01)；整份計畫只可分享給全部 accepted friends 或完全不分享；Sites 64，待雙人試用 |
 | **之後再決定** | 自動 Canvas 更新、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
 
 CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並存；Now 同時推進最多 1–3 條，其餘留續接點。
@@ -61,14 +61,14 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 <a id="social-01"></a>
 ### SOCIAL-01
 
-**Web course plan & friends** · P2 · **待驗證（Web 0.20.0 發布準備）** · 2026-11-02
+**Web course plan & friends** · P2 · **待驗證（Web 0.20.0 / Sites 64 已發布）** · 2026-11-02
 
 - 使用者認可方向：跨年／學期規劃選課 → 看同學期同科朋友 → 之後協調同一 tutorial group。第一個 slice 為計畫、friend requests、同科比對與可複製的聯絡文字；不是重做現有 semester board。
 - 使用者明確修正 sharing：**整份 course plan 分享給所有 accepted friends，或完全不分享**。包含所有年份、學期與日後新增 units；沒有 per-unit／per-friend permission。預設 private；grades、assessments、私人行程／feed URL 不在共享資料內。
 - 已寫 `/plan`、獨立 D1 tables／append-only migration、Considering／Planned／Enrolled／Completed、移動學期／年份、手動 credits、計畫 JSON export。朋友流程含 display name、七日 invitation code、接受／拒絕／取消、remove／block／unblock；只比對同校、同 code、同年與學期，completed 不算一起將修課。
 - 使用者追加 private final grades 與總平均，並選擇 **WAM**。已加入 final mark／grade code、跨年 standard WAM estimate、私人的排除選項與計算說明；grade／WAM 永不因朋友分享開啟而公開。數字失敗與重修 attempts 各自計入、未知不是零、非數字／incomplete codes 排除；external credit／exchange／2025 起 OLE 等由使用者排除，faculty weighting／CWAM 未支援。新增 migration 0003 與獨立 privacy／WAM／舊資料 migration tests；假資料 UI 已驗證改分、reload、排除但保留 mark。
-- 驗證：production SQL 的 disposable SQLite／HTTP tests、TypeScript、production build 通過。UI 假帳戶驗證 invitation → request → accept、從朋友清單新增 unit、全計畫 sharing 保存／reload、移動到 2028 S2。原 backup／storage／import regressions 通過。未使用真實帳戶或發布／套用正式 migration；不是多使用者負載或正式站驗收。
-- 下一步：發布既有邀請制網站後，兩位使用者各加同一學期同一科 → invitation/request/accept → 分享開關 → 核對朋友可見內容與 marks/WAM 私密；重新登入核對保存。之後才做 tutorial preferences／allocated 狀態、可靠 options 來源及精確 group ID；同一時間不等於同一 tutorial。官方 prerequisites／degree audit、聊天與陌生人探索未實作。M1／M2 驗收不因此完成。
+- 驗證：production SQL 的 disposable SQLite／HTTP tests、TypeScript、production build 通過。UI 假帳戶驗證 invitation → request → accept、從朋友清單新增 unit、全計畫 sharing 保存／reload、移動到 2028 S2。原 backup／storage／import regressions 通過。全 30 個 Web checks、66 個 extension tests、TypeScript、SQL 與 production build 通過；Sites 64 發布成功並含 migrations 0002/0003。未操作真實帳戶，尚非雙人正式站或負載驗收。
+- 下一步：在既有邀請制網站，兩位使用者各加同一學期同一科 → invitation/request/accept → 分享開關 → 核對朋友可見內容與 marks/WAM 私密；重新登入核對保存。之後才做 tutorial preferences／allocated 狀態、可靠 options 來源及精確 group ID；同一時間不等於同一 tutorial。官方 prerequisites／degree audit、聊天與陌生人探索未實作。M1／M2 驗收不因此完成。
 
 <a id="ios-01"></a>
 ### IOS-01
