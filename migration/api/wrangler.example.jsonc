@@ -6,7 +6,8 @@
   "workers_dev": true,
   "vars": {
     "SUPABASE_URL": "https://REPLACE_PROJECT_REF.supabase.co",
-    "ALLOWED_ORIGINS": "http://localhost:4174,http://127.0.0.1:4174"
+    "ALLOWED_ORIGINS": "http://localhost:4174,http://127.0.0.1:4174,https://semester-pilot.pages.dev",
+    "PILOT_WEB_URL": "https://semester-pilot.pages.dev/"
   },
   "d1_databases": [{
     "binding": "DB",

@@ -1,4 +1,5 @@
 import { maxRecoveryBytes, prepareRecovery, recoveryCounts } from "../../recovery.ts";
+import { pilotDemo } from "./pilot-demo.ts";
 
 const labels={units:"Units",work:"Work items",undated:"Rows without their own date",grades:"Work items with marks or a grade plan",attempts:"Scheduled attempts",today:"Today tasks",todayDone:"Completed Today tasks",workDone:"Completed work items",overrides:"Saved completion changes"};
 function el(tag,text){const node=document.createElement(tag);if(text!==undefined)node.textContent=text;return node;}
@@ -69,42 +70,53 @@ export function backupCheckPanel({accountId,email,read,restore,original,onRestor
   panel.append(downloads,status,el("h3","Restore from a file"));
   const input=el("input");input.type="file";input.accept=".json,application/json";input.setAttribute("aria-label","Choose a semester backup");
   const preview=el("div");preview.setAttribute("aria-live","polite");
-  const previewButton=button("Preview selected file",showPreview);previewButton.className="secondary";previewButton.disabled=true;
+  const previewButton=button("Preview selected file",()=>showPreview(input.files?.[0]));previewButton.className="secondary";previewButton.disabled=true;
+  const demo=button("Preview a practice semester",()=>{
+    input.value="";
+    try {
+      const file=new File([JSON.stringify(pilotDemo())],"semester-practice.json",{type:"application/json"});
+      void showPreview(file,true);
+    } catch(e) {++serial;preview.textContent=e.message;previewButton.disabled=true;}
+  });
   let serial=0;
-  async function showPreview(){
-    const run=++serial,file=input.files?.[0];preview.replaceChildren();previewButton.disabled=!file;
+  async function showPreview(file,practice=false){
+    const run=++serial;preview.replaceChildren();previewButton.disabled=!input.files?.[0];
     if(!file)return;
-    const isCurrent=()=>panel.isConnected && serial===run && input.files?.[0]===file;
+    const isCurrent=()=>panel.isConnected && serial===run;
     try{
       if(file.size>maxRecoveryBytes)throw new Error("Choose a JSON backup under 8 MB.");
       preview.textContent="Reading preview…";
       const [fileText,current]=await Promise.all([file.text(),read()]);
       if(!isCurrent())return;
+      if(practice && current.backup)throw new Error("Your account already has a semester. The practice example is for empty accounts.");
       const {board,backup,full:isFull}=await prepareRecovery(fileText,accountId,current.backup);
       if(!isCurrent())return;
-      const note=isFull ? "Restores the semester, Today plan and work completion from this file." : "Updates the semester from the website export. Your current Today plan and completion changes are kept.";
+      const note=practice ? "This example contains one fictional unit and three work items. Import it to try Home, Today and Deadline focus on your iPhone."
+        : isFull ? "Restores the semester, Today plan and work completion from this file." : "Updates the semester from the website export. Your current Today plan and completion changes are kept.";
       preview.replaceChildren(el("h3",`${board.year} · ${board.session} — preview`),el("p",file.name),el("p",note),
         countTable(recoveryCounts(current.backup),recoveryCounts(backup)));
       const attempts=attemptSummary(board);if(attempts)preview.append(attempts);
       const result=el("p");result.setAttribute("aria-live","polite");
-      const confirm=button(`Restore to ${email}`,async()=>{
+      const confirm=button(`${practice ? "Import practice semester into" : "Restore to"} ${email}`,async()=>{
         if(!isCurrent())return;
-        confirm.disabled=input.disabled=previewButton.disabled=true;
+        confirm.disabled=input.disabled=previewButton.disabled=demo.disabled=true;
         let saved=false;
         try{
           await restore({file:fileText,expectedVersion:current.version}); saved=true;
           if(!isCurrent())return;
           const fresh=await read();if(!isCurrent())return;
           if(!progressMatches(backup,fresh.backup))throw new Error("The latest data differs from this preview. Download a fresh backup to review.");
-          result.textContent="Restore verified. The semester, Today tasks and completion match this preview.";
+          result.textContent=practice ? "Practice semester imported. Open Semester Preview with this Google account. Home and Deadline focus will show your Pilot reflection."
+            : "Restore verified. The semester, Today tasks and completion match this preview.";
           onRestored();
         }catch(e){if(isCurrent())result.textContent=(saved ? "Restore was saved. " : "")+e.message;}
-        finally{input.disabled=previewButton.disabled=false;}
+        finally{input.disabled=demo.disabled=false;previewButton.disabled=!input.files?.[0];}
       });
       preview.append(el("p","Destination account: "+email),confirm,result);
     }catch(e){if(isCurrent())preview.textContent=e.message;}
   }
-  input.onchange=showPreview;
+  input.onchange=()=>showPreview(input.files?.[0]);
+  panel.insertBefore(demo,downloads);
   panel.append(el("p","Use a website export to update your semester and keep your current Today tasks and work completion. Choose a semester-staging-full file to restore all three from that backup."),
     el("p","Preview the counts before you restore."),input,previewButton,preview);
   return panel;

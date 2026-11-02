@@ -4,6 +4,8 @@ Status: independent staging implementation, 2026-11-02. Daniel selected Cloudfla
 
 ## Isolation
 
+The private web pilot is at **https://semester-pilot.pages.dev/**. The staging Worker serves the authenticated API used by both the web and iPhone. Two distinct Google accounts have completed the import trial. The second account's fictional DEMO1001 semester was verified on iPhone and through its Deadline focus Lock Screen link. Pilot enrollment is per account.
+
 - Branch: `migration/d1-supabase-free`, based on `1145eec219ae68187591df4773768f99c241f20d`.
 - Worktree: `/Users/Daniel/USYD/Project/UNI_calendar/semester-migration`.
 - Original checkout: `/Users/Daniel/USYD/Project/UNI_calendar/semester`.

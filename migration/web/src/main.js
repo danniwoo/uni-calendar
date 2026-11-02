@@ -39,9 +39,8 @@ function render() {
   const state = controller.getState();
   const main = element("main");
   const header = element("header");
-  header.append(element("span", "semester.", "brand"), element("span", "CONNECTION TRIAL", "badge"));
-  main.append(header, element("h1", "One account. One test semester."), element("p", "Check the same tasks on the web and your iPhone.", "intro"));
-  main.append(element("p", "Sample board and private backup trial · Separate from your current Semester website", "caption"));
+  header.append(element("span", "semester.", "brand"), element("span", "PRIVATE PILOT", "badge"));
+  main.append(header, element("h1", "Your semester on iPhone"), element("p", "Sign in with your invited Google account. Preview a practice semester or import your own, then open Semester Preview on your iPhone.", "intro"));
 
   if (!config.ready) {
     const section = element("section", undefined, "panel");
@@ -55,7 +54,7 @@ function render() {
   }
 
   const account = element("section", undefined, "panel account");
-  account.append(element("h2", state.session ? "Your test account" : "Connect your account"));
+  account.append(element("h2", state.session ? "Your account" : "Connect your account"));
   if (state.session) {
     account.append(element("p", state.session.user.email || "Signed in", "account-name"));
     account.append(element("p", state.accountId ? "Supabase sign-in and API identity verified for this request." : "Supabase session available · API connection not yet verified", "muted"));
@@ -71,10 +70,12 @@ function render() {
   if (state.error) main.append(status(state.error, "error"));
   if (state.notice) main.append(status(state.notice));
 
+  const diagnostics=element("details");
+  diagnostics.append(element("summary","Connection diagnostics"));
   if (state.session && state.checked && !state.board && !state.rejected) {
     const empty = element("section", undefined, "panel");
     empty.append(element("h2", "No test semester yet"), element("p", "Create a few sample deadlines and tasks for this account. Existing test data is kept."), button("Create test semester", () => controller.seed(), state.busy || authBusy));
-    main.append(empty);
+    diagnostics.append(empty);
   }
   if (state.board) {
     const { semester, revision } = state.board;
@@ -103,7 +104,7 @@ function render() {
       detail.append(element("strong", item.title), element("span", item.unitCode, "muted"));
       label.append(input, detail); section.append(label);
     }
-    main.append(section);
+    diagnostics.append(section);
   }
   if (state.session && state.accountId && !state.rejected) {
     const {accountId, session} = state;
@@ -131,6 +132,7 @@ function render() {
       onRestored: () => {const next=planPanel();plan.replaceWith(next);plan=next;},
     }));
     main.append(plan);
+    main.append(diagnostics);
   }
   main.append(element("footer", "Changes to test tasks are saved under your signed-in account."));
   root.replaceChildren(main);
@@ -139,7 +141,7 @@ function render() {
 async function signIn() {
   authBusy = true; authMessage = ""; render();
   try {
-    const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/` } });
+    const { error } = await client.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${window.location.origin}/`, queryParams:{prompt:"select_account"} } });
     if (error) throw error;
   } catch {
     authMessage = "Google sign-in could not start. Check the provider and redirect settings, then try again.";

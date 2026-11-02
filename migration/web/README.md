@@ -1,6 +1,6 @@
 # Browser connection trial
 
-Independent staging proof for Google → Supabase Auth → Cloudflare API → D1. This is not the replacement Semester website and is not published through Sites. The synthetic board and the opt-in, private backup trial are separate.
+The [private pilot](https://semester-pilot.pages.dev/) runs on Cloudflare Pages. The web client and iPhone use the same separate staging API Worker. Google signs people in through Supabase Auth. Enrolled accounts can import their own semester, or preview a fictional DEMO1001 semester when their account is empty. The imported semester feeds the iPhone Home, Today, Month, Assessments and Deadline focus widget.
 
 ## Local setup
 
@@ -14,7 +14,13 @@ npm run dev
 
 Fill `.env.local` with the staging Supabase project URL, its **modern publishable key** (`sb_publishable_…`), and staging API origin. All `VITE_` settings are public browser configuration. Do not add a secret/service-role key, Google client secret or database password. Missing/invalid configuration shows a setup screen and never claims a successful connection.
 
-Open **http://localhost:4174/**. Use this exact origin consistently so PKCE verifier storage remains in the same browser origin. Add `http://localhost:4174/` to the staging Supabase redirect allowlist. Configure the Google OAuth client with the callback URL Supabase provides (`https://<project-ref>.supabase.co/auth/v1/callback`), not the localhost app URL. The API must allow `http://localhost:4174` in its exact-origin CORS list. A future hosted trial must use HTTPS and its own exact redirect/origin settings.
+Open **http://localhost:4174/** for local development. Supabase must allow the exact return URL for each web origin, including the trailing slash. Keep the localhost and `semester-preview://auth/callback` entries alongside the hosted URL. The Google OAuth client continues to use the project's Supabase callback. The API accepts only the explicitly configured web origins.
+
+## Hosted deployment
+
+From `migration/web`, install the locked dependencies and run `npm run build` with the public staging settings. Publish the contents of `migration/web/dist` to the **semester-pilot** Pages Direct Upload project. The API is deployed separately with the existing staging Wrangler configuration. Set its exact allowed web origin to `https://semester-pilot.pages.dev` and its pilot landing URL to `https://semester-pilot.pages.dev/`. Keep the iPhone API URL on the Worker.
+
+For a second-account rehearsal, verify the staging Google identity against its D1 account and approve admission for that account alone. On the hosted site use **Preview a practice semester** and confirm the destination account. **Pilot reflection** is due the next day at 17:00 Sydney. Sign into Semester Preview with the same Google account to compare Home and Deadline focus. An existing imported semester cannot be replaced through the practice shortcut.
 
 Google OAuth uses PKCE, and this client explicitly exchanges the returned code with Supabase. It clears the code/error fragment from the address bar before exchange and rejects implicit token callbacks. The Supabase SDK stores the staging session in browser localStorage under a dedicated project-scoped key and renews it. This is a browser-only proof, not SSR auth. API calls use the Supabase session access token. No user-supplied owner ID is sent. The API remains responsible for validating tokens and enforcing ownership.
 

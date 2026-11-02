@@ -10,6 +10,7 @@ export interface Env {
   DB: SqlDatabase;
   SUPABASE_URL: string;
   ALLOWED_ORIGINS: string;
+  PILOT_WEB_URL?: string;
 }
 
 function origins(value: string): Set<string> {
@@ -72,6 +73,10 @@ export function createApi(testKey?: JWTVerifyGetKey) {
           headers.set("Access-Control-Allow-Origin", origin);
         }
         const path = new URL(request.url).pathname;
+        if (env.PILOT_WEB_URL && ["/","/index.html"].includes(path) && ["GET","HEAD"].includes(request.method)) {
+          // The old pilot link is a landing-page alias. Auth callbacks belong to Pages.
+          return Response.redirect(env.PILOT_WEB_URL,302);
+        }
         const backup = path.match(/^\/v1\/backup-trial\/([0-9a-f-]{36})$/);
         const recovery = path.match(/^\/v1\/recovery\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);

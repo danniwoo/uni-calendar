@@ -37,3 +37,19 @@ test("attempt dates belong to the specific result slot and only fully scheduled 
   assert.deepEqual(projection.grades.find(g=>g.id==="q")?.parts.map(p=>[p.occurrenceId,p.mark?.earned]),[["earlier",0],["later",undefined]]);
   assert.deepEqual(projection.grades.find(g=>g.id==="other")?.parts.map(p=>p.occurrenceId),["unconfirmed","other-later"]);
 });
+
+test("the practice semester round-trips through the import and selects tomorrow’s Sydney deadline",async()=>{
+  const {pilotDemo}=await import("../../web/src/pilot-demo.ts");
+  const {readBackup}=await import("../../../lib/backup.ts");
+  const {nextFocusDeadline}=await import("../../../mobile/src/deadline-focus.ts");
+  const now=new Date("2026-11-01T14:30:00Z"); // Already Monday in Sydney.
+  const board=readBackup(JSON.stringify(pilotDemo(now)));
+  const projection=importedAssessments(board);
+  assert.deepEqual(projection.units.map(unit=>unit.code),["DEMO1001"]);
+  assert.equal(projection.rows.length,3);
+  const next=nextFocusDeadline(projection.rows,now.getTime());
+  assert.equal(next?.title,"Pilot reflection");
+  assert.equal(next?.date,"2026-11-03");
+  assert.equal(next?.time,"17:00");
+  assert.equal(projection.rows.filter(row=>!row.date).length,1);
+});
