@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-本輪狀態（2026-11-02）：Web **0.20.0** 已發布（Sites 64）：跨年選課、朋友同科比對、全朋友／不分享，以及 private final grades／WAM。保留 0.17–0.19 的排程、attempts 與自動提醒；Connect **0.5.0** 不變。下一步是 SOCIAL-01 雙人試用；既有 M1/M2、四科與實機通知驗收仍保留。
+本輪狀態（2026-11-02）：Web **0.22.0** 已發布（Sites 66）：Profile & settings、friend invitation links、request badge、profile onboarding 與記住 planning year。保留 private grades／WAM、全朋友／不分享及 0.21.0 reminder timing；Connect **0.5.0** 不變。下一步為 SOCIAL-01 真實雙人試用；M1/M2、四科與實機通知驗收仍保留。
 
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
@@ -61,9 +61,9 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 <a id="social-01"></a>
 ### SOCIAL-01
 
-**Web course plan & friends** · P2 · **待驗證（Web 0.20.0 / Sites 64 已發布）** · 2026-11-02
+**Web course plan & friends** · P2 · **待驗證（Web 0.22.0 / Sites 66 已發布）** · 2026-11-02
 
-- 2026-11-02／Web 0.22.0 發布準備：Profile & settings 已放在兩個主要頁面；整合 display name／全朋友分享／blocked users／export／sign out。Friend links 保留 explicit request + acceptance、profile onboarding 後回原邀請，code fallback 仍在；網站 access 仍要由 owner 邀請，未擴大 audience。假帳戶 UI/API/privacy 驗證通過；正式發布憑據見 PROGRESS。
+- 2026-11-02／Web 0.22.0 / Sites 66 已發布：Profile & settings 已放在兩個主要頁面；整合 display name／全朋友分享／blocked users／export／sign out。Friend links 保留 explicit request + acceptance、profile onboarding 後回原邀請，code fallback 仍在；網站 access 仍要由 owner 邀請，未擴大 audience。假帳戶 UI/API/privacy 驗證通過；正式發布憑據見 PROGRESS。
 - 本輪之後：兩位真實使用者完整走邀請／登入／profile／request／accept／分享 off／reload／block。擴大人數前再做按學期查詢／分頁／request throttling；接著才做精確 tutorial group、preferred 與 allocated 狀態。沒有把這些後續工作或 M1/M2 當作完成。
 
 - 使用者認可方向：跨年／學期規劃選課 → 看同學期同科朋友 → 之後協調同一 tutorial group。第一個 slice 為計畫、friend requests、同科比對與可複製的聯絡文字；不是重做現有 semester board。
