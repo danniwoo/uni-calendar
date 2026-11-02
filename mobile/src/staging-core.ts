@@ -92,6 +92,7 @@ export class AccountRequestGate {
     const generation = this.generation, account = this.account, controller = new AbortController();
     this.controllers.add(controller);
     return { signal: controller.signal, current: () => generation === this.generation && account === this.account && account !== null,
+      cancel: () => controller.abort(),
       finish: () => this.controllers.delete(controller) };
   }
 }

@@ -31,7 +31,7 @@ export function sampleWeek(board: SampleBoard, now: number) {
     )
   );
 }
-export function dueLabel(item: SampleAssessment, now: number) {
+export function dueLabel(item: Pick<SampleAssessment, "due">, now: number) {
   if (item.due === undefined) return "Date to confirm";
   if (item.due <= now) return "Past date · check";
   const days = Math.round(

@@ -2,7 +2,7 @@
   "expo": {
     "name": "Semester Preview",
     "slug": "semester-preview",
-    "version": "0.3.2",
+    "version": "0.3.3",
     "scheme": "semester-preview",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "6"
+      "buildNumber": "7"
     },
     "plugins": [
       "expo-dev-client",
@@ -52,6 +52,15 @@
               "displayName": "Work overview \u00b7 Sample",
               "description": "Upcoming work and dates to check, together.",
               "supportedFamilies": [
+                "systemMedium"
+              ]
+            },
+            {
+              "name": "SemesterCloudDeadline",
+              "displayName": "Cloud deadline \u00b7 Trial",
+              "description": "Your shared test deadlines and last sync time. Tap to open cloud work.",
+              "supportedFamilies": [
+                "accessoryRectangular",
                 "systemMedium"
               ]
             }

@@ -57,6 +57,8 @@ import TodayPlan from "./src/TodayPlan";
 import { usePersonalPlan } from "./src/usePersonalPlan";
 import ConnectionCheck from "./src/ConnectionCheck";
 import StagingConnection from "./src/StagingConnection";
+import { useStagingConnection } from "./src/useStagingConnection";
+import { CLOUD_WIDGET_URL } from "./src/cloud-widget";
 import { STAGING_AUTH_REDIRECT } from "./src/staging-core";
 import { CONNECTION_RETURN_URL } from "./src/connection-check";
 const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
@@ -131,6 +133,7 @@ function Heading({
   );
 }
 function Prototype() {
+  const cloudConnection = useStagingConnection();
   const personalPlan = usePersonalPlan();
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
@@ -270,6 +273,10 @@ function Prototype() {
       // a widget link or as evidence that the app is signed in.
       if (url.split(/[?#]/)[0] === CONNECTION_RETURN_URL) return;
       if (url.split(/[?#]/)[0] === STAGING_AUTH_REDIRECT) return;
+      if (url === CLOUD_WIDGET_URL) {
+        setDetail(undefined); setConnectionCheck(false); setStagingConnection(true); setSettings(true);
+        return;
+      }
       const destination = resolveLink(url, board);
       if (destination) {
         setSettings(false);
@@ -509,7 +516,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.2</Text>
+          <Text style={s.sample}>PREVIEW 0.3.3</Text>
         </View>
         <Text style={s.title}>{titles[tab]}</Text>
         {tab === "Home" && (
@@ -1036,7 +1043,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.2 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.3 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -1053,7 +1060,7 @@ function Prototype() {
             {stagingConnection ? (
               <>
                 <Button label="← Back to widgets" secondary onPress={() => setStagingConnection(false)} />
-                <StagingConnection />
+                <StagingConnection connection={cloudConnection} />
               </>
             ) : connectionCheck ? (
               <>
@@ -1075,6 +1082,7 @@ function Prototype() {
                   secondary
                   onPress={() => setStagingConnection(true)}
                 />
+                <Text style={s.caption}>Cloud deadline · Trial uses your signed-in test semester. Open the connection above to sync and see setup instructions. The controls below customise sample widgets only.</Text>
                 <Button
                   label="Test website connection →"
                   secondary

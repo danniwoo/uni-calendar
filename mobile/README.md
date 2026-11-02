@@ -1,6 +1,6 @@
 # Semester iPhone experiment
 
-An Expo/React Native preview with an **invented sample semester and device-local personal tasks**. Version 0.3.2 retains compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. A separate Google + D1 proof screen can authenticate and update synthetic cloud tasks once its staging environment is configured. The original Sites connection diagnostic is preserved. No production timetable, Canvas connection, analytics or production-data migration is implemented. The existing website remains the production app.
+An Expo/React Native preview with an **invented sample semester and device-local personal tasks**. Version 0.3.3 retains compact Home, Today, Month and Assessments views and all sample widgets. The separate Google + D1 connection screen now publishes a **Cloud deadline · Trial** widget in Lock Screen and medium Home Screen sizes. The original Sites diagnostic is preserved. Main tabs still use local samples, personal tasks remain device-local, and no existing website records have been imported. The existing website remains the production app.
 
 ## Independent Google + D1 proof — 0.3.2 (6)
 
@@ -18,11 +18,25 @@ The API origin must use HTTPS on a physical iPhone. HTTP loopback is allowed for
 
 **Live phone evidence, 2026-11-02:** Daniel supplied a 0.3.2 screenshot showing Google sign-in, verified API identity, revision 2 and the task previously checked on the web. He then checked the second task on the iPhone and reported revision 3. Refreshing the web independently returned revision 3 with both tasks checked. Native login, an authenticated read and a narrow task write visible on the other device have passed, in both directions using explicit refresh.
 
-**Current limits:** phone restart/session persistence, token refresh, real multi-account provider testing and cloud widgets remain unverified. The successful login is not a complete Keychain lifecycle test. Cold launch partway through browser sign-in requires retrying login. Existing widgets remain sample-only; connecting a separate widget to the cloud proof is still pending.
+**Current limits:** phone restart/session persistence, token refresh and real multi-account provider testing remain unverified. The successful login is not a complete Keychain lifecycle test. Cold launch partway through browser sign-in requires retrying login. Existing sample widget kinds retain sample data; 0.3.3 adds a separate cloud widget described below.
 
 Validation in the isolated worktree: TypeScript and eight new tests passed, covering configuration/callback validation, DTO validation, bearer and revision request shape, account-switch request invalidation, chunked Unicode storage/failed-write preservation, and a real pinned-SDK S256 exchange/session/sign-out lifecycle with a simulated Auth server. iOS Metro/Hermes export passed. The physical-device Release build and strict deep signature verification passed; app and widget are 0.3.2 (6), retaining the shared App Group with no push entitlement. The staging API URL is present in bundled JavaScript, and SecureStore/Crypto are in the native binary. Installation succeeded without uninstalling the prior app. No Simulator was opened. Build log: `/private/tmp/semester-ios-v032-device.log`.
 
 Sources: [Supabase Expo social auth](https://supabase.com/docs/guides/auth/quickstarts/with-expo-react-native-social-sign-in), [Google provider setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [Expo SecureStore](https://docs.expo.dev/versions/v55.0.0/sdk/securestore/). Pinned SDK source was also inspected for PKCE flow IDs and session-coordination behaviour.
+
+## Cloud widget trial — 0.3.3 (7)
+
+Open **Widgets → Test Google + D1 connection**. The account/session listener now lives at the app root, so closing this sheet does not stop sign-out clearing or foreground refresh. A restored or new signed-in session loads its test semester automatically. Manual refresh, sample creation and successful task updates also publish the widget; opening or returning to the app refreshes it. There is no background API polling, push or realtime subscription.
+
+Add **Semester Preview → Cloud deadline · Trial** from the Lock Screen gallery. It shows the next future deadline and the actual last successful sync time. The medium Home Screen version adds the second deadline and preparation counts. Tapping either opens the cloud connection sheet using `semester-preview://cloud-work`, never a local sample assessment. The sample widgets and their unit/title preferences remain separate and unchanged.
+
+Only unit, title, date labels, preparation counts, freshness text and a fixed app link enter the shared App Group. Auth credentials remain in private Keychain. A minimal app-private cache is bound to the Supabase/API environment, authenticated subject and verified API account. Restore rejects another account/environment, malformed data, future timestamps or snapshots at least 24 hours old. A network failure retains the last successful timestamp and labels the content Sync failed. At six hours a scheduled entry prompts Refresh; at 24 hours dated content is replaced by a refresh prompt. Sydney midnight and deadline transitions are scheduled, and passed dates are flagged for review without assuming submission status.
+
+Sign-out/account change replaces the entire native timeline before waiting for network revocation and removes the private snapshot. Generation checks and a serial storage queue stop late reads/writes from resurrecting prior-account content. API 401/403/404/409 clears the snapshot; an ordinary connectivity failure preserves the dated cache. WidgetKit controls actual redraw timing, so a requested refresh is not a guarantee that an already-visible widget has redrawn instantly.
+
+Validation: 40 tests pass, including 11 new cache/timeline tests for account isolation, delayed reads/writes across sign-out, native publication errors, failed persistence, monotonic revisions, date transitions and expiration. TypeScript and iOS JavaScript export pass. The final physical-device Release build and strict deep signature verification passed with 0 errors; both targets are 0.3.3 (7), retain the App Group and have no push entitlement. `devicectl` confirmed installation on the paired iPhone. Gallery rendering/tap, background aging and actual sign-out redraw remain physical-device checks; do not infer those from unit tests. Physical trial: verify deadlines match the cloud sheet, tap to return, change a preparation item and compare the medium widget after opening the app, then sign out and verify the cloud widget replaces its content with a sign-in prompt. Final build log: `/private/tmp/semester-ios-v033-device-final.log`.
+
+Read-only inspection of the physical phone's App Group verified four cloud timeline entries: the first contains the API's two dated assessments, 2/2 preparation and a successful-sync timestamp; the final entry removes deadline details at expiry. All entries contain only the eight allowed display properties and the fixed cloud link. All four original sample timelines remain present. This proves native publication, not rendered pixels or tap delivery. Sanitised evidence: ignored `outputs/setup/cloud-widget-device-checks.json` at the worktree root.
 
 Stage 2 investigation has started: see [hosting/authentication findings and the disposable API check](feasibility/README.md). The status-only connection test is not a native authentication implementation.
 
@@ -57,6 +71,8 @@ The widget gallery is deliberately small. No favourite/winning design, retention
 ## Local development
 
 ### Preserved comparison version
+
+The cloud-widget trial is preserved at **`ios-preview-v0.3.3`**. Source, tests and native configuration are included; live widget redraw/tap acceptance is tracked separately.
 
 The independently authenticated preview with verified bidirectional synthetic task updates is preserved at **`ios-preview-v0.3.2`**. It uses the staging Google/Supabase/D1 environment; cloud widgets and production migration remain separate work.
 

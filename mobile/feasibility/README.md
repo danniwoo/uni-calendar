@@ -10,6 +10,8 @@ The web proof signed in with Google, obtained a verified API identity, created a
 
 Remaining acceptance work includes phone restart/session renewal, real multi-account sign-in and isolation, live conflict/retry behaviour, and an account-scoped widget snapshot with sign-out clearing and freshness. Existing automated checks cover several of these failure paths, but device and live-service validation remain separate.
 
+0.3.3 implements the widget snapshot in a new cloud-only widget kind, preserving the sample widgets. Account ownership stays in private app storage; only display strings/counts and a fixed cloud-work link enter the App Group. The listener is rooted above the connection sheet, and delayed storage operations are guarded across account changes. Six-hour refresh and 24-hour content-expiry entries are scheduled alongside Sydney midnight and deadline transitions. Forty mobile tests, typecheck, JS export and the signed native build pass; gallery rendering, taps and actual sign-out redraw remain physical-device acceptance checks. This connects the isolated cloud sheet and widget, not the main sample tabs or existing Sites records.
+
 ## Decision
 
 The next experiment should prove **native sign-in → read one synthetic board → change one preparation task → observe that change in a web test client**. Keep it isolated from existing student accounts and records. Reuse the semester model and revision safeguards, but expose a narrow task update instead of saving a reduced mobile board through the existing whole-document PUT.
