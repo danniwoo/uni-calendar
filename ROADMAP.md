@@ -18,7 +18,8 @@
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
 | **原生實驗** | IOS-01：使用者批准 Stage 1，獨立 sample-only iPhone app／widget | [IOS-01](#ios-01)；不改 M1、Canvas 試用或正式發布 gate |
-| **之後再決定** | 自動 Canvas 更新、Friends、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
+| **Web course planning** | SOCIAL-01：多年選課計畫、朋友邀請與同科比對；本機已實作 | [SOCIAL-01](#social-01)；整份計畫只可分享給全部 accepted friends 或完全不分享，尚未發布 |
+| **之後再決定** | 自動 Canvas 更新、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
 
 CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並存；Now 同時推進最多 1–3 條，其餘留續接點。
 
@@ -55,6 +56,18 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 | 回顧結果 | 個別／總成績、單科摘要與目標估算 | recurring/parts 合計、未知分數與目標文案是否容易理解 | GRADE-01 |
 
 ## 工作卡：每條線的續接點
+
+<a id="social-01"></a>
+### SOCIAL-01
+
+**Web course plan & friends** · P2 · **待驗證（本機實作，未發布）** · 2026-11-02
+
+- 使用者認可方向：跨年／學期規劃選課 → 看同學期同科朋友 → 之後協調同一 tutorial group。第一個 slice 為計畫、friend requests、同科比對與可複製的聯絡文字；不是重做現有 semester board。
+- 使用者明確修正 sharing：**整份 course plan 分享給所有 accepted friends，或完全不分享**。包含所有年份、學期與日後新增 units；沒有 per-unit／per-friend permission。預設 private；grades、assessments、私人行程／feed URL 不在共享資料內。
+- 已寫 `/plan`、獨立 D1 tables／append-only migration、Considering／Planned／Enrolled／Completed、移動學期／年份、手動 credits、計畫 JSON export。朋友流程含 display name、七日 invitation code、接受／拒絕／取消、remove／block／unblock；只比對同校、同 code、同年與學期，completed 不算一起將修課。
+- 使用者追加 private final grades 與總平均，並選擇 **WAM**。已加入 final mark／grade code、跨年 standard WAM estimate、私人的排除選項與計算說明；grade／WAM 永不因朋友分享開啟而公開。數字失敗與重修 attempts 各自計入、未知不是零、非數字／incomplete codes 排除；external credit／exchange／2025 起 OLE 等由使用者排除，faculty weighting／CWAM 未支援。新增 migration 0003 與獨立 privacy／WAM／舊資料 migration tests；假資料 UI 已驗證改分、reload、排除但保留 mark。
+- 驗證：production SQL 的 disposable SQLite／HTTP tests、TypeScript、production build 通過。UI 假帳戶驗證 invitation → request → accept、從朋友清單新增 unit、全計畫 sharing 保存／reload、移動到 2028 S2。原 backup／storage／import regressions 通過。未使用真實帳戶或發布／套用正式 migration；不是多使用者負載或正式站驗收。
+- 下一步：檢視本機設計，確認多人真實使用與正式發布範圍。之後才做 tutorial preferences／allocated 狀態、可靠 options 來源及精確 group ID；同一時間不等於同一 tutorial。官方 prerequisites／degree audit、聊天與陌生人探索未實作。M1／M2 驗收不因此完成。
 
 <a id="ios-01"></a>
 ### IOS-01
@@ -265,7 +278,7 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 | CONNECT-03 | 可選自動保存已確認配對且沒有手動衝突的成績 | Later；目前 CONNECT-02 只送待確認預覽。T11 穩定後再討論，沒有授權自動保存。 |
 | DIST-01 | Chrome Web Store 發行與自動更新 | Later；先完成讀取驗收、安全／隱私與發行準備，目前仍 unpacked。 |
 | IOS-01 | 原生 iOS app | Stage 1 sample-only 實驗已獲批准，見上方工作卡；live sync／public app 仍未承諾。不做手機 web 專項重設計。 |
-| SOCIAL-01 | Friends：看朋友修哪些 units | Idea；先定自願分享、可見範圍與撤回。現有登入不代表已有社交功能。 |
+| SOCIAL-01 | Friends／course planning | 本機第一個 slice 與使用者確認的全朋友或不分享規則，見 [工作卡](#social-01)；tutorial coordination／陌生人探索留待後續。 |
 | PLATFORM-01 | 帳戶／後端與資料平台演進 | Idea／需求待釐清；已有 sign-in + D1，不預設必須重建或遷移。由 iOS、分享、可攜性需求決定。 |
 | EXPLORE-01 | 獨立 Today、大型 Dashboard、廣泛跨校／PDF/Ed 匯入 | 暫不投入；先說明現有 view 的具體缺口，再評估價值。 |
 

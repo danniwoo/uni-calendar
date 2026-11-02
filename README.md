@@ -71,15 +71,23 @@ npm ci
 npm run build
 ```
 
-For a **new local database only**, apply both migrations in order:
+For a **new local database only**, apply the migrations in order:
 
 ```sh
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0000_noisy_plazm.sql
 node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0001_lyrical_iron_patriot.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0002_acoustic_brother_voodoo.sql
+node --import ./scripts/sites-env.mjs ./node_modules/wrangler/bin/wrangler.js d1 execute DB --local --config dist/server/wrangler.json --persist-to .wrangler/state --file drizzle/0003_famous_gambit.sql
 npm run dev
 ```
 
 For an existing database, apply only missing migrations; do not reset it or rerun initial SQL blindly. Preview normally runs at `http://127.0.0.1:5173`. Local sign-in uses the bundled test identity; hosted sign-in uses the platform. Local database files live under ignored `.wrangler/`.
+
+Unreleased local work: **Course plan & friends** opens `/plan`. Plan USYD units across years/S1/S2, record status and credits, and connect through invitation codes and accepted requests. Sharing applies to **all unit plans: all accepted friends or nobody**, including future entries. It starts private. Final marks, grade codes and the WAM estimate are **always private**, independently of this switch. Plan status is self-reported; catalogue availability, prerequisites, degree audits and tutorial coordination are not implemented. Course-plan JSON export includes your private final results and is separate from the semester-board backup; it currently has no restore UI. See [SOCIAL-01](ROADMAP.md#social-01).
+
+Record final results in **Edit unit → Final result**. WAM uses numeric final marks weighted by positive credit points across all recorded years. Numerical failed attempts and repeats count separately; blank marks are not zero, and grade codes are not converted into marks. SR/FR/CN/DC/DF/IC/RI/UC/J2/WD/NE are excluded. Use **Exclude this result from WAM** for external credit, exchange, OLE units from 2025 or units outside the course. Missing credits and other excluded recorded results appear in calculation details. This is a standard estimate, without faculty-specific level weights or CWAM: [USYD WAM inclusions](https://www.sydney.edu.au/students/weighted-average-mark.html), [calculation](https://www.sydney.edu.au/students/weighted-average-mark/how-to-find-my-wam.html). Results do not change completion status or assessment grades. Tests: `node --import tsx scripts/check-course-plan-grades.ts`.
+
+For isolated synthetic UI QA (no real accounts, in-memory storage): `node --import tsx node_modules/vite/bin/vite.js --config scripts/course-plan-qa/vite.config.mjs --port 5194 --strictPort`. Open `http://127.0.0.1:5194/`; the sample account buttons switch Alice/Bob/Eve. Server restart resets these records. Stop the server when finished. Production SQL/HTTP checks: `node --import tsx scripts/check-course-plan.ts`.
 
 Checks (synthetic data; no real Canvas writes):
 

@@ -42,6 +42,16 @@ Semester 幫助大學生把分散的課表、考核、準備進度與成績放�
 
 Evolving mobile flows, widget concepts and product ideas now live in [Semester — Mobile & widget ideas](https://app.notion.com/p/40bd6bfd790e81c1800cdf60f250174f) in Notion, following the user’s preference. They are exploratory, not an implementation backlog. This repository retains implementation decisions, build/test evidence and version checkpoints. The working sample prototype remains preserved at `ios-preview-v0.1.0` (`6f544ba`); earlier idea notes remain available in Git history.
 
+## Course planning & friends
+
+2026-11-02：使用者認可 web 延伸主線 **規劃多年／各學期 units → 找同學期同科朋友 → 協調同一 tutorial group → 確認實際 allocation**。Course plan 在帶入課表之前就可用，與現有 semester 的考核／準備資料分開；未來才連接正式在修學期。
+
+Sharing 是整份計畫的一個選擇：**所有 accepted friends，或 nobody**；涵蓋所有年份／學期與之後新增 units，沒有逐科或逐位朋友權限。未開啟 sharing 時保持 private；不分享 grades、assessments、私人 calendar events 或 timetable URL。接受新朋友沿用當下的整體設定。
+
+Final results 是計畫內的私人資料：使用者可記錄 final mark／grade code，並查看以 credit points 加權的 standard WAM estimate。這些欄位、WAM 與個人排除設定永遠不給朋友，不隨 course-plan sharing 開啟。WAM 只根據已記錄且合資格的數字結果；不從 assessment 進度推算官方 final grade，也不自動把 grade 當成課程完成或學分認可。
+
+Considering／Planned／Enrolled／Completed 都是學生自行記錄，不能冒充官方 enrolment、credit recognition 或 degree audit。Tutorial preference 與實際 allocated 必須分開；辨識 university、unit、year、session、activity 與 group ID，同時段不同 group 不算同班。第一個 slice 與驗收狀態見 [SOCIAL-01](ROADMAP.md#social-01)。
+
 ## 設計原則
 
 - 重要資訊能直接掃到；細節漸進展開，不為了整潔把必要內容全部藏起來。

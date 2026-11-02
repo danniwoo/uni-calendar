@@ -15,6 +15,20 @@
       "when": 1791888891847,
       "tag": "0001_lyrical_iron_patriot",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793581930817,
+      "tag": "0002_acoustic_brother_voodoo",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793582265365,
+      "tag": "0003_famous_gambit",
+      "breakpoints": true
     }
   ]
 }

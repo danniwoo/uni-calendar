@@ -674,6 +674,7 @@ export default function SemesterBoard() {
         {semester && <div className="calendar-view-switch header-view-switch" role="group" aria-label="Board view">{(["semester","month","week","assessments"] as const).map(v=><button key={v} aria-pressed={view===v} onClick={()=>chooseView(v)}>{v[0].toUpperCase()+v.slice(1)}</button>)}<select className="mobile-board-view" aria-label="Board view" value={view} onChange={e=>chooseView(e.target.value as typeof view)}><option value="semester">Semester</option><option value="month">Month</option><option value="week">Week</option><option value="assessments">Assessments</option></select></div>}
         {semester && <div className="semester-nav-context"><h1>Semester {semester.session === "S2C" ? 2 : 1} {semester.year}</h1><span>{shortDate(today)} · {selectedWeek?.label || "Outside teaching weeks"} · Sydney</span></div>}
         <div className="header-actions">
+          <a href="/plan">Course plan &amp; friends</a>
           {semester && <select className="subject-picker" aria-label="Open subject overview" value="" onChange={e=>{if(e.target.value){setDetail(null);setSubject({code:e.target.value});}}}><option value="" disabled>Subjects</option>{semester.units.map(u=><option key={u.code} value={u.code}>{u.code}</option>)}</select>}
           {semester && <button className="primary header-add-task" aria-label="Add task" title="Add task" onClick={newTask}><Plus size={20} aria-hidden="true"/></button>}
           <span
