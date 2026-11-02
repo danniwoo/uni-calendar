@@ -17,7 +17,17 @@ function Chip({label, selected, onPress}: {label:string; selected?:boolean; onPr
 }
 const number = (n:number) => Number(n.toFixed(1)).toString();
 type GradeHeading = Pick<ImportedGrade, "id" | "unit" | "title" | "weight"> & {schedule?:string};
-function GradeRow({row, grade}: {row:GradeHeading; grade?:ImportedGrade}) {
+type WorkItem = ImportedAssessments["rows"][number];
+type OpenMonth = (unit:string, date:string)=>void;
+function attemptDate(row:WorkItem, weeks:ImportedAssessments["weeks"]) {
+  if (!row.date) return "Date to confirm";
+  const instant=sydneyInstant(row.date,"12:00");
+  const week=weeks.find(w=>w.start<=row.date! && row.date!<=w.end);
+  return [week?.label, instant ? shortDate(instant) : row.date, row.time ? row.time+" Sydney" : "time TBC"].filter(Boolean).join(" · ");
+}
+function GradeRow({row, grade, work, weeks, openMonth}: {
+  row:GradeHeading; grade?:ImportedGrade; work:Map<string,WorkItem>; weeks:ImportedAssessments["weeks"]; openMonth:OpenMonth;
+}) {
   const [expanded,setExpanded] = useState(false);
   return <View style={s.row}>
     <Text style={s.unit}>{row.unit}{row.weight ? ` · ${row.weight}` : ""}</Text>
@@ -32,10 +42,18 @@ function GradeRow({row, grade}: {row:GradeHeading; grade?:ImportedGrade}) {
       <Pressable accessibilityRole="button" accessibilityState={{expanded}} style={s.details} onPress={()=>setExpanded(!expanded)}>
         <Text style={s.link}>{expanded ? "Hide" : "Show"} {grade.parts.length} parts</Text>
       </Pressable>
-      {expanded && grade.parts.map(part => <View key={part.id} style={s.part}>
+      {expanded && grade.parts.map(part => {
+        const occurrence=part.occurrenceId ? work.get(part.occurrenceId) : undefined;
+        const date=occurrence?.date;
+        return <View key={part.id} style={s.part}>
         <Text style={s.note}>{part.name}</Text>
         <Text>{[part.mark ? `${part.mark.earned} / ${part.mark.possible}` : "", part.outcome?.replace(/_/g," "), part.excluded ? "Excluded" : ""].filter(Boolean).join(" · ") || "Unmarked"}</Text>
-      </View>)}
+        {occurrence && (date ? <Pressable accessibilityRole="button"
+          accessibilityLabel={`View ${part.name} in Month, ${attemptDate(occurrence,weeks)}`}
+          style={s.details} onPress={()=>openMonth(occurrence.unit,date)}>
+          <Text style={s.link}>{attemptDate(occurrence,weeks)} ›</Text>
+        </Pressable> : <Text style={s.note}>Date to confirm</Text>)}
+      </View>;})}
     </>}
   </View>;
 }
@@ -79,8 +97,9 @@ type Props = {
   backToMonth?:()=>void;
   backLabel: string;
   closeDetail: () => void;
+  openMonth: OpenMonth;
 };
-export default function CloudAssessments({connection, imported, target, initialView, initialUnit, backToMonth, backLabel, closeDetail}: Props) {
+export default function CloudAssessments({connection, imported, target, initialView, initialUnit, backToMonth, backLabel, closeDetail, openMonth}: Props) {
   const {board, message, loading, refresh} = imported;
   const [trial,setTrial] = useState(false);
   const [unit,setUnit] = useState<string|null>(initialUnit);
@@ -88,12 +107,14 @@ export default function CloudAssessments({connection, imported, target, initialV
   const [past,setPast] = useState(false);
   const today = dateKey(Date.now());
   const selected = useMemo(()=>board ? selectImportedWork(board,unit,today) : null,[board,unit,today]);
+  const work=useMemo(()=>new Map(board?.rows.map(row=>[row.id,row])),[board]);
   if (!connection.session || !stagingSetup.config) return <View style={s.panel}>
     <Text style={s.title}>Your imported semester</Text><Text style={s.note}>{stagingSetup.config ? "Use the Google account that owns your staging semester." : "Staging is not configured in this build."}</Text>
     {stagingSetup.config && <Chip label={connection.phase || "Continue with Google"} onPress={()=>void connection.login()}/>}
     {!!connection.message && <Text style={s.note}>{connection.message}</Text>}</View>;
   if (target) {
     const row = board && imported.scope ? findFocusRow(board, imported.scope, target) : undefined;
+    const part = row && board?.grades.flatMap(grade=>grade.parts).find(part=>part.occurrenceId===row.id);
     const date = row?.date && sydneyInstant(row.date,"12:00");
     return <View style={s.panel}>
       <Chip label={backLabel} onPress={closeDetail}/>
@@ -103,6 +124,7 @@ export default function CloudAssessments({connection, imported, target, initialV
         <Text style={s.score}>{date ? shortDate(date) : "Date to confirm"}{row.time ? ` · ${row.deadlineMode==="before" ? "before " : ""}${row.time} Sydney` : " · time TBC"}</Text>
         {!!row.timing && <Text style={s.note}>{row.timing}</Text>}
         {!!row.weight && <Text style={s.note}>Weight · {row.weight}</Text>}
+        {part && <Text style={s.score}>Result · {part.mark ? `${part.mark.earned} / ${part.mark.possible}` : "No recorded mark"}</Text>}
         <OccurrenceCompletion key={row.id} row={row} imported={imported}/>
       </> : <Text accessibilityLiveRegion="polite" style={s.note}>{loading ? "Opening this assessment…" : message || "This item is unavailable in the signed-in semester."}</Text>}
       {!!message && row && <Text style={s.note}>{message}</Text>}
@@ -133,11 +155,11 @@ export default function CloudAssessments({connection, imported, target, initialV
           {u.average!==null && <Text style={s.note}>Based on {number(u.currentWeight)}% of unit weight</Text>}
           {u.securedCompletionPoints > 0 && <Text style={s.note}>Separately secured from unfinished completion work: {number(u.securedCompletionPoints)} unit points</Text>}</View>)}
         <Text style={s.title}>Assessment grades · {selected.assessmentRows.length}</Text>
-        {selected.assessmentRows.map(row=><GradeRow key={row.id} row={row} grade={row.grade}/>)}
+        {selected.assessmentRows.map(row=><GradeRow key={row.id} row={row} grade={row.grade} work={work} weeks={board.weeks} openMonth={openMonth}/>)}
         {!selected.assessmentRows.length && <Text style={s.note}>No assessments in this selection.</Text>}
         {selected.additionalMarks.length > 0 && <>
           <Text style={s.title}>Other recorded results</Text>
-          {selected.additionalMarks.map(grade=><GradeRow key={grade.id} row={grade} grade={grade}/>)}
+          {selected.additionalMarks.map(grade=><GradeRow key={grade.id} row={grade} grade={grade} work={work} weeks={board.weeks} openMonth={openMonth}/>)}
         </>}
       </>}
       {view === "Work" && <>

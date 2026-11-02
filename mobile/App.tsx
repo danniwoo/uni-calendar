@@ -484,7 +484,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.12</Text>
+          <Text style={s.sample}>PREVIEW 0.3.13</Text>
         </View>
         {tab !== "Home" && tab !== "Month" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
         {tab === "Home" && <ImportedHome now={now} imported={imported} connection={cloudConnection}
@@ -521,6 +521,7 @@ function Prototype() {
               ))}
             </View>
             {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}
+              openMonth={(unit,date)=>{setAssessmentEntry(null); setFocusTarget(null); setCalendarDay(date); setCalendarUnit(unit); setTab("Month");}}
               imported={imported} target={focusTarget} initialView={assessmentEntry==="undated" || assessmentEntry==="monthUndated" ? "日期待確認" : "Work"}
               initialUnit={assessmentEntry==="monthUndated" ? calendarUnit : null}
               backToMonth={assessmentEntry==="monthUndated" ? ()=>{setAssessmentEntry(null);setTab("Month");} : undefined}
@@ -746,7 +747,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.12 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.13 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {

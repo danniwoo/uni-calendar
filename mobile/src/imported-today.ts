@@ -1,7 +1,7 @@
 import { sydneyInstant } from "../../lib/sydney-time";
 import { addDays } from "./experience";
 import { dateKey } from "./model";
-import type { ImportedAssessments } from "./imported-work";
+import { needsDate, type ImportedAssessments } from "./imported-work";
 import { MAX_TASK_TITLE } from "./personal-plan";
 
 export type PreparationSuggestion = {id:string; sourceKey:string; title:string; unit:string; context:string};
@@ -18,7 +18,7 @@ export function todaySuggestions(board:ImportedAssessments, now:number):Preparat
     const at=row.time ? sydneyInstant(row.date,row.time) : undefined;
     return at===undefined || at>now;
   }).sort((a,b)=>a.date!.localeCompare(b.date!) || (a.time || "24:00").localeCompare(b.time || "24:00") || a.id.localeCompare(b.id));
-  const undated=board.rows.filter(row=>!row.done && !row.date);
+  const undated=board.rows.filter(row=>!row.done && needsDate(row));
   return (rows.length ? rows : undated).slice(0,3).map(row=>{
     const verb=!row.date ? "Check the date for" : /\bdemo\b|presentation/i.test(row.title) ? "Rehearse" :
       /quiz|exam/i.test(row.title) ? "Review topics for" : /prework/i.test(row.title) ? "Work through" :

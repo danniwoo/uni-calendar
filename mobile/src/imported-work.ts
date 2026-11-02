@@ -2,6 +2,9 @@ import type { ImportedAssessments as Projection } from "../../lib/imported-asses
 export type ImportedAssessments = Omit<Projection,"rows"> & {rows:(Projection["rows"][number] & {completionRevision?:number})[]};
 export type ImportedView = "Work" | "Grades" | "日期待確認";
 export type ImportedGrade = ImportedAssessments["grades"][number];
+export function needsDate(row:ImportedAssessments["rows"][number]) {
+  return row.date === null && !row.datesOnAttempts;
+}
 const record = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object";
 const strings = (obj: Record<string, unknown>, keys: string[]) => keys.every(key => typeof obj[key] === "string");
 const finite = (v: unknown) => typeof v === "number" && Number.isFinite(v);
@@ -13,12 +16,12 @@ export function readImportedAssessments(v: unknown): ImportedAssessments {
     || !Array.isArray(v.weeks) || !v.weeks.every(w => record(w) && strings(w, ["label","start","end"]))
     || !Array.isArray(v.units) || !v.units.every(u => record(u) && strings(u, ["code","name"]) && maybeNumber(u.average) && finite(u.currentWeight) && finite(u.securedCompletionPoints))
     || !Array.isArray(v.overview) || !v.overview.every(row => record(row) && strings(row, ["id","unit","title","weight","schedule"]))
-    || !Array.isArray(v.rows) || !v.rows.every(r => record(r) && strings(r, ["id","unit","title","timing","weight"]) && maybeString(r.date) && maybeString(r.time) && typeof r.done === "boolean" && (r.completionRevision === undefined || (Number.isSafeInteger(r.completionRevision) && Number(r.completionRevision)>=0)) && typeof r.scheduledActivity === "boolean" && (r.deadlineMode === null || r.deadlineMode === "before" || r.deadlineMode === "due"))
+    || !Array.isArray(v.rows) || !v.rows.every(r => record(r) && strings(r, ["id","unit","title","timing","weight"]) && maybeString(r.date) && maybeString(r.time) && typeof r.done === "boolean" && (r.datesOnAttempts===undefined || typeof r.datesOnAttempts==="boolean") && (r.completionRevision === undefined || (Number.isSafeInteger(r.completionRevision) && Number(r.completionRevision)>=0)) && typeof r.scheduledActivity === "boolean" && (r.deadlineMode === null || r.deadlineMode === "before" || r.deadlineMode === "due"))
     || !Array.isArray(v.grades) || !v.grades.every(g => record(g) && strings(g, ["id","unit","title","weight","score"]) && mark(g.mark)
       && maybeString(g.progress) && maybeString(g.threshold)
       && maybeNumber(g.ratio) && typeof g.finished === "boolean" && finite(g.recorded) && finite(g.total) && maybeString(g.rule) && maybeString(g.error)
       && (g.source === "parts" || g.source === "overall") && Array.isArray(g.parts) && g.parts.every(p =>
-        record(p) && strings(p, ["id","name"]) && mark(p.mark) && typeof p.excluded === "boolean" && maybeString(p.outcome))))
+        record(p) && strings(p, ["id","name"]) && mark(p.mark) && typeof p.excluded === "boolean" && maybeString(p.outcome) && (p.occurrenceId===undefined || typeof p.occurrenceId==="string"))))
     throw new Error("Unsupported imported semester.");
   return v as ImportedAssessments;
 }
@@ -35,7 +38,7 @@ export function selectImportedWork(board: ImportedAssessments, code: string | nu
   return {
     upcoming: ordered.filter(row => row.date! >= today),
     earlier: ordered.filter(row => row.date! < today).reverse(),
-    undated: rows.filter(row => row.date === null),
+    undated: rows.filter(needsDate),
     grades, assessmentRows, additionalMarks: grades.filter(grade => !roots.has(grade.id)),
   };
 }

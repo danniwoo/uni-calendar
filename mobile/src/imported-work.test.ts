@@ -23,3 +23,17 @@ test("filtering keeps completed, week-only and unscheduled work, including zero 
   assert.deepEqual(all.additionalMarks.map(item=>item.id),["B"]);
   assert.throws(()=>readImportedAssessments({...data,rows:[{...row,date:12}]}));
 });
+
+test("only actionable missing dates reach Home, Month, Assessments and Today",async()=>{
+  const {homeSummary}=await import("./imported-home");
+  const {importedMonth}=await import("./imported-month");
+  const {todaySuggestions}=await import("./imported-today");
+  const row={id:"scheduled-parent",unit:"A",title:"Quiz",date:null,time:null,timing:"",weight:"",done:false,deadlineMode:null,scheduledActivity:false};
+  const board=readImportedAssessments({version:1,year:2026,session:"S2C",units:[],weeks:[],grades:[],overview:[],
+    rows:[{...row,datesOnAttempts:true},{...row,id:"unknown"}]});
+  const now=Date.parse("2026-11-02T12:00:00+11:00");
+  assert.equal(homeSummary(board,now).undated,1);
+  assert.equal(importedMonth(board,"2026-11","A").undated,1);
+  assert.deepEqual(selectImportedWork(board,"A","2026-11-02").undated.map(r=>r.id),["unknown"]);
+  assert.deepEqual(todaySuggestions(board,now).map(r=>r.id),["unknown"]);
+});

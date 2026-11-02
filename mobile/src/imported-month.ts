@@ -1,4 +1,4 @@
-import type { ImportedAssessments } from "./imported-work";
+import { needsDate, type ImportedAssessments } from "./imported-work";
 
 type Row = ImportedAssessments["rows"][number];
 export type MonthCounts = {deadlines:number; activities:number; other:number};
@@ -22,5 +22,5 @@ export function importedMonth(board:ImportedAssessments, month:string, unit:stri
     else byDay.set(date,[row]);
   }
   const days = new Map(Array.from(byDay,([date,items])=>[date,{items,...counts(items)}] as const));
-  return {days, totals:counts(rows), undated:scoped.filter(row=>row.date===null).length};
+  return {days, totals:counts(rows), undated:scoped.filter(needsDate).length};
 }

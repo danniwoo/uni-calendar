@@ -1,7 +1,7 @@
 import { addDays, monday } from "./experience";
 import { dateKey } from "./model";
 import { nextFocusDeadline } from "./deadline-focus";
-import type { ImportedAssessments } from "./imported-work";
+import { needsDate, type ImportedAssessments } from "./imported-work";
 
 type WorkRow = ImportedAssessments["rows"][number];
 
@@ -29,5 +29,5 @@ export function homeSummary(board: ImportedAssessments, now: number) {
   return {today, currentPeriod, nextPeriod:periodAt(nextStart),
     day:window(today,today), week:window(start,addDays(start,6)), nextWeek:window(nextStart,addDays(start,13)),
     nextDeadline:nextFocusDeadline(board.rows,now),
-    undated:board.rows.filter(row=>row.date===null).length};
+    undated:board.rows.filter(needsDate).length};
 }

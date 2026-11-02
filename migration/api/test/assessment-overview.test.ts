@@ -23,3 +23,17 @@ test("grade overview includes unmarked quizzes and displays recurring completion
   assert.equal(units[0].average,null);
   assert.equal(units[0].securedCompletionPoints,2);
 });
+
+test("attempt dates belong to the specific result slot and only fully scheduled parents can leave date confirmation", () => {
+  const base:Task={id:"q",unit:"A",title:"Quiz",kind:"quiz",timing:"During tutorial",weight:"15%",description:"",source:"",sourceText:"",hurdle:false,group:false,
+    gradePlan:{mode:"parts",method:"highest",items:[{id:"one",name:"Attempt 1",grade:{earned:0,possible:15}},{id:"two",name:"Attempt 2"}]}};
+  const child=(id:string,parentId:string,attemptId:string,date?:string):Task=>({...base,id,parentId,attemptId,date,gradePlan:undefined,weight:""});
+  const board:Semester={year:2026,session:"S2C",importedAt:"example",classes:[],weeks:[],feedUrl:"",warnings:[],completed:{},units:[],
+    tasks:[base,{...base,id:"other"},child("later","q","two","2026-11-04"),child("earlier","q","one","2026-10-28"),
+      child("unconfirmed","other","one"),child("other-later","other","two","2026-11-05")]};
+  const projection=importedAssessments(board);
+  assert.equal(projection.rows.find(r=>r.id==="q")?.datesOnAttempts,true);
+  assert.equal(projection.rows.find(r=>r.id==="other")?.datesOnAttempts,undefined);
+  assert.deepEqual(projection.grades.find(g=>g.id==="q")?.parts.map(p=>[p.occurrenceId,p.mark?.earned]),[["earlier",0],["later",undefined]]);
+  assert.deepEqual(projection.grades.find(g=>g.id==="other")?.parts.map(p=>p.occurrenceId),["unconfirmed","other-later"]);
+});

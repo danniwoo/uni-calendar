@@ -2,6 +2,10 @@
 
 Home, Today, Month, Assessments and the Deadline focus widget read the signed-in user's imported semester.
 
+## Quiz attempt dates and marks · 0.3.13 (17)
+
+Expand a quiz in Grades to see each linked attempt's mark and Sydney date. Tap the date to open Month with that day and unit selected. Opening the occurrence shows its own result. When every attempt has a date, the quiz parent is omitted from **日期待確認**. Backup previews still count every raw row that has no date of its own.
+
 ## Semester account · 0.3.12 (16)
 
 Open **Widgets → Semester account** to sign in or sign out of this device. The account control appears above the sample widget trial.
