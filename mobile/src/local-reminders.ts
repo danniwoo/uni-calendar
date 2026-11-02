@@ -1,8 +1,10 @@
 import * as Notifications from "expo-notifications";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { ImportedAssessments } from "./imported-work";
 
 const OFFSETS = [24 * 60, 30] as const;
 const PREFIX = "semester-deadline:";
+const TIMES_KEY = "semester.local-reminder-times.v1";
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -43,6 +45,7 @@ export async function syncLocalReminders(board: ImportedAssessments) {
     .sort((a, b) => a.date.getTime() - b.date.getTime())
     .slice(0, 16);
   let scheduled = 0;
+  const times: Record<string, number> = {};
   for (const { row, date } of candidates) {
     for (const offset of OFFSETS) {
       const triggerAt = date.getTime() - offset * 60_000;
@@ -56,9 +59,11 @@ export async function syncLocalReminders(board: ImportedAssessments) {
         },
         trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(triggerAt) },
       });
+      times[`${PREFIX}${row.id}:${offset}`] = triggerAt;
       scheduled += 1;
     }
   }
+  await AsyncStorage.setItem(TIMES_KEY, JSON.stringify(times));
   return { scheduled, permitted: true };
 }
 
@@ -67,6 +72,7 @@ export async function cancelLocalReminders() {
   await Promise.all(existing
     .filter(item => String(item.identifier).startsWith(PREFIX))
     .map(item => Notifications.cancelScheduledNotificationAsync(item.identifier)));
+  await AsyncStorage.removeItem(TIMES_KEY);
 }
 
 export async function scheduleTestReminder() {
@@ -89,11 +95,12 @@ export async function scheduleTestReminder() {
 
 export async function listLocalReminders() {
   const items = await Notifications.getAllScheduledNotificationsAsync();
+  const saved = JSON.parse((await AsyncStorage.getItem(TIMES_KEY)) || "{}") as Record<string, number>;
   return items
     .filter(item => String(item.identifier).startsWith(PREFIX) && item.identifier !== `${PREFIX}test`)
     .map(item => {
       const trigger = item.trigger as { date?: Date | number; timestamp?: number } | null;
-      const rawDate = trigger?.date ?? (trigger?.timestamp ? trigger.timestamp * 1000 : null);
+      const rawDate = saved[item.identifier] ?? trigger?.date ?? (trigger?.timestamp ? trigger.timestamp * 1000 : null);
       return {
         id: item.identifier,
         title: item.content.title || "Semester reminder",
