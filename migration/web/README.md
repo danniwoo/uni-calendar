@@ -1,6 +1,6 @@
 # Browser connection trial
 
-Independent, synthetic-data proof for Google → Supabase Auth → Cloudflare API → D1. This is not the replacement Semester website and is not published through Sites. It does not import existing student records.
+Independent staging proof for Google → Supabase Auth → Cloudflare API → D1. This is not the replacement Semester website and is not published through Sites. The synthetic board and the opt-in, private backup trial are separate.
 
 ## Local setup
 
@@ -28,7 +28,7 @@ Google OAuth uses PKCE, and this client explicitly exchanges the returned code w
 6. Check a second account sees its own board. Sign out and confirm no previous board remains.
 7. With a stale revision on one device, confirm a 409 reloads the latest version without automatically overwriting the other device's change.
 
-Pending requests are invalidated when identity changes or the user signs out. API rejection clears the displayed board; sign-out must complete before signing in again. Network failure leaves the displayed board unchanged and reports failure; it does not report a save. This proof does not yet add Apple Login, account linking, existing JSON imports, user-facing email or the full current website UI.
+Pending requests are invalidated when identity changes or the user signs out. API rejection clears the displayed board; sign-out must complete before signing in again. Network failure leaves the displayed board unchanged and reports failure; it does not report a save. This proof does not yet add Apple Login, account linking, general-purpose migration, user-facing email or the full current website UI.
 
 ## Validation
 
@@ -42,3 +42,7 @@ The local tests cover configuration, callback cleanup, API token/body/redirect h
 Live verification on 2026-11-02: Google sign-in through the staging Supabase provider succeeded; the deployed Worker verified the account, created its synthetic semester, and saved a preparation task from revision 1 to revision 2. A full page reload restored the session and fetched the same checked task. A separate aggregate D1 query confirmed one account, one identity, one board and revision 2. Daniel's iPhone screenshot then confirmed the same verified account and revision 2 task state. After Daniel checked the second task on the phone, a web refresh independently returned revision 3 with both tasks checked. Both directions passed using explicit refresh; real multi-account provider testing and cloud widgets remain pending. Google external Testing mode did not restrict this basic-identity flow to the displayed test-user list; do not treat it as an application access allowlist.
 
 Sources: [Supabase Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [PKCE code exchange](https://supabase.com/docs/reference/javascript/auth-exchangecodeforsession), [session guidance](https://supabase.com/docs/guides/auth/server-side/advanced-guide).
+
+## Private restore trial
+
+Choose a saved-semester JSON for a local preview. The separate import button names the destination account. **Check my staging restore point** and **Download my staging re-export** each perform a fresh authenticated read. To verify the download offline, run `node --import tsx ../compare-backup.ts SOURCE DOWNLOADED` from `migration/api` after installing its dependencies. It compares the complete JSON and exact bytes, and checks marks, grade plans, the completion map and task flags, and whole undated work rows without printing their contents.

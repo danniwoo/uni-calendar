@@ -40,7 +40,7 @@ function render() {
   const header = element("header");
   header.append(element("span", "semester.", "brand"), element("span", "CONNECTION TRIAL", "badge"));
   main.append(header, element("h1", "One account. One test semester."), element("p", "Check the same tasks on the web and your iPhone.", "intro"));
-  main.append(element("p", "Synthetic data · Separate from your current Semester website", "caption"));
+  main.append(element("p", "Sample board and private backup trial · Separate from your current Semester website", "caption"));
 
   if (!config.ready) {
     const section = element("section", undefined, "panel");
@@ -104,7 +104,22 @@ function render() {
     }
     main.append(section);
   }
-  if (state.session && state.accountId && !state.rejected) main.append(backupCheckPanel());
+  if (state.session && state.accountId && !state.rejected) {
+    const {accountId, session} = state;
+    main.append(backupCheckPanel({ accountId, email: session.user.email || "this account", request: async text => {
+      const current = controller.getState();
+      if (!current.session || current.session.user.id !== session.user.id || current.accountId !== accountId || current.rejected)
+        throw new Error("The signed-in account changed. Select the file again.");
+      const write = text !== undefined;
+      const res = await fetch(`${config.apiUrl}/v1/backup-trial/${encodeURIComponent(accountId)}`, {
+        method: write ? "POST" : "GET", cache: "no-store", credentials: "omit", redirect: "error",
+        headers: { Authorization: `Bearer ${current.session.access_token}`, ...(write ? {"Content-Type":"application/json"} : {}) },
+        ...(write ? {body:text} : {}),
+      });
+      if (!res.ok) throw new Error((await res.json()).error?.message || "The backup request failed.");
+      return write ? res.json() : res.text();
+    }}));
+  }
   main.append(element("footer", "Changes to test tasks are saved under your signed-in account."));
   root.replaceChildren(main);
 }

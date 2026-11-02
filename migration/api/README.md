@@ -1,6 +1,6 @@
 # Semester staging API
 
-Independent, synthetic-data proof for Web + iPhone + widgets. This is not a migration of the existing Sites API and is not deployed by this folder's creation. It never reads or writes the seven production tables. The three `pilot_*` tables exist only in the separately owned staging D1 database.
+Independent staging API for the Web, iPhone and widget trials, including an allowlisted private backup route. It never reads or writes the seven production tables. The three `pilot_*` tables exist only in the separately owned staging D1 database.
 
 ## Setup
 
@@ -10,7 +10,7 @@ Copy `wrangler.example.jsonc` to ignored `wrangler.local.jsonc`. Set the new Clo
 
 The API requires an asymmetric Supabase signing key (ES256 or RS256). It fetches public keys from the configured project's JWKS endpoint; neither a service-role key nor the Google OAuth secret belongs in this Worker. Google credentials belong in the Supabase provider settings. The client sends a Supabase **access token**, not Google's token.
 
-Apply `migrations/0001_pilot.sql` to the independent staging DB after confirming its ID. For local development, use `npx wrangler d1 migrations apply semester-staging --local --config wrangler.local.jsonc`, then `npm run dev`. `npm run build` bundles with `--dry-run`; it does not publish. There is deliberately no deployment script in package.json.
+Apply the versioned migrations in `migrations/` to the independent staging DB after confirming its ID. For local development, use `npx wrangler d1 migrations apply semester-staging --local --config wrangler.local.jsonc`, then `npm run dev`. `npm run build` bundles with `--dry-run`; it does not publish. There is deliberately no deployment script in package.json.
 
 ## HTTP contract
 
@@ -22,6 +22,8 @@ All responses use `Cache-Control: no-store`. Private routes need `Authorization:
 | `GET /v1/session` | Bearer token | `{accountId}`; stable app-owned identity |
 | `GET /v1/semester` | Bearer token | `SemesterResponse`, or 404 if no sample exists |
 | `POST /v1/semester/sample` | Empty body or `{}` | Creates an explicitly labelled synthetic board once; subsequent calls return the existing board unchanged |
+| `POST /v1/backup-trial/:accountId` | Raw web backup JSON; enrolled owner only | 201 creates an independent immutable snapshot. Identical bytes return 200, a different file returns 409. |
+| `GET /v1/backup-trial/:accountId` | Enrolled owner only | Original JSON bytes read from D1, or 404 when no snapshot exists. |
 | `PATCH /v1/tasks/:id` | `{completed:boolean,expectedRevision:number}` | Updated `SemesterResponse`; 409 on stale revision |
 
 `SemesterResponse` is defined in `src/contract.ts`: `{semester:{id,title,weekLabel,assessments:[{id,unitCode,title,dueAt,weightLabel}],tasks:[{id,title,unitCode,completed}]},revision}`. Dates are ISO strings and the initial revision is 1. Sample deadlines are relative to initial creation time and do not continually move with refreshes.
@@ -38,7 +40,7 @@ Account creation uses a D1 transaction (`batch`) and unique identity mapping. Ea
 
 Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, anonymous/admin tokens, malformed requests, stale/concurrent updates, idempotent seeding and exact-origin CORS. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
 
-This first proof checks signed access tokens locally. Revoking a refresh token, deleting an Auth account or signing out does not immediately invalidate an already issued access token; it remains usable until expiry. No claim is made of immediate revocation. Before real-data release, complete account deletion, required revocation checks, session lifetime policy, abuse controls and data migration. This proof has no general-purpose import/write endpoint and no email, grades, Canvas credentials, private notes or real student records.
+This first proof checks signed access tokens locally. Revoking a refresh token, deleting an Auth account or signing out does not immediately invalidate an already issued access token; it remains usable until expiry. No claim is made of immediate revocation. Before real-data release, complete account deletion, required revocation checks, session lifetime policy, abuse controls and data migration. The private backup route accepts only a validated website export with an empty feed URL and limits streamed input to 1.8 MB. Admission requires an existing app account entered explicitly in D1; Google Testing mode alone does not enforce this. The synthetic endpoints cannot read or overwrite private restore points.
 
 The staging sample endpoint is available to authenticated nonanonymous users of the configured project. Restrict Google OAuth testing access while piloting; a project opened for unrestricted sign-up would also permit those users to create sample boards. No API token or SQL values are logged.
 

@@ -1,4 +1,5 @@
 import { ApiError, authenticate } from "./auth.ts";
+import { exportBackup, maxBackupBytes, requireMember, storeBackup } from "./backup.ts";
 import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
 import type { JWTVerifyGetKey } from "jose";
 
@@ -21,7 +22,7 @@ function origins(value: string): Set<string> {
   return result;
 }
 
-async function boundedText(request: Request): Promise<string> {
+async function boundedText(request: Request, limit = 2048): Promise<string> {
   // Bound streamed bytes as well as Content-Length; the header is untrusted.
   let length = 0;
   const chunks: Uint8Array[] = [];
@@ -31,7 +32,7 @@ async function boundedText(request: Request): Promise<string> {
       const { done, value } = await reader.read();
       if (done) break;
       length += value.byteLength;
-      if (length > 2048) { await reader.cancel(); throw new ApiError(413, "body_too_large", "This update is too large."); }
+      if (length > limit) { await reader.cancel(); throw new ApiError(413, "body_too_large", "This update is too large."); }
       chunks.push(value);
     }
   }
@@ -68,9 +69,10 @@ export function createApi(testKey?: JWTVerifyGetKey) {
           headers.set("Access-Control-Allow-Origin", origin);
         }
         const path = new URL(request.url).pathname;
+        const backup = path.match(/^\/v1\/backup-trial\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
         const methods = path === "/health" || path === "/v1/session" || path === "/v1/semester" ? ["GET"]
-          : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
+          : backup ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
         if (!methods.length) throw new ApiError(404, "not_found", "This endpoint does not exist.");
         if (request.method === "OPTIONS") {
           const wanted = request.headers.get("access-control-request-method") ?? "";
@@ -86,6 +88,14 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
         const identity = await authenticate(request, env.SUPABASE_URL, testKey);
         const accountId = await resolveAccount(env.DB, identity);
+        if (backup) {
+          await requireMember(env.DB, accountId, backup[1]);
+          if (request.method === "GET") return new Response(await exportBackup(env.DB, accountId), { headers });
+          if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json")
+            throw new ApiError(415, "json_required", "Choose a JSON backup.");
+          const result = await storeBackup(env.DB, accountId, await boundedText(request, maxBackupBytes));
+          return send(result, result.created ? 201 : 200);
+        }
         if (path === "/v1/session") return send({ accountId });
         if (path === "/v1/semester") return send(await getSemester(env.DB, accountId));
         if (path === "/v1/semester/sample") {

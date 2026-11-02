@@ -36,6 +36,7 @@ class SQLiteDatabase implements SqlDatabase {
   constructor() {
     this.sqlite.exec("PRAGMA foreign_keys=ON");
     this.sqlite.exec(readFileSync(new URL("../migrations/0001_pilot.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0002_backup_trial.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -66,6 +67,36 @@ function setup(t: { after(fn: () => void): void }) {
   };
   return { db, env, api, call };
 }
+
+test("private restore is admitted, owner-bound, byte-preserving and never replaces another board", async t => {
+  const { call, db } = setup(t);
+  const a = await token(), b = await token(bob);
+  const account = (await (await call("/v1/session", a)).json() as {accountId:string}).accountId;
+  const other = (await (await call("/v1/session", b)).json() as {accountId:string}).accountId;
+  const url = "/v1/backup-trial/" + account;
+  const board = {year: 2026, session:"S2C", feedUrl:"", importedAt:"example",
+    weeks:[{id:"1",label:"Week 1",start:"2026-08-03",end:"2026-08-09",kind:"teaching"}],
+    units:[{code:"TEST1000",name:"Test",session:"S2C",outline:"",status:"",summary:"",assessments:[],topics:[]}],
+    tasks:[{id:"undated",unit:"TEST1000",kind:"task",title:"No date",weight:"",timing:"",description:"",source:"",sourceText:"",grade:{earned:0,possible:10}}],
+    classes:[],warnings:[],completed:{one:true,two:false}};
+  assert.equal((await call(url, a, "POST", board)).status, 403);
+  db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(account);
+  db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(other);
+  assert.equal((await call(url)).status, 401);
+  assert.equal((await call(url, b)).status, 403);
+  assert.equal((await call(url, b, "POST", board)).status, 403);
+  assert.equal((await call(url, a)).status, 404);
+  assert.equal((await call(url, a, "POST", {format:"semester-course-plan"})).status, 400);
+  assert.equal((await call(url, a, "POST", {...board,feedUrl:"private-url"})).status, 400);
+  const seeded = await (await call("/v1/semester/sample", a, "POST")).text();
+  const receipt = await call(url, a, "POST", board);
+  assert.equal(receipt.status, 201);
+  assert.equal((await call(url, a, "POST", board)).status, 200);
+  assert.equal((await call(url, a, "POST", {...board,completed:{one:false}})).status, 409);
+  assert.equal(await (await call(url, a)).text(), JSON.stringify(board));
+  assert.equal(await (await call("/v1/semester", a)).text(), seeded);
+  assert.equal((await call("/v1/backup-trial/" + other, b)).status, 404);
+});
 
 test("real signatures: valid sessions have a stable app account, not a caller supplied identity", async t => {
   const { call, db } = setup(t);
