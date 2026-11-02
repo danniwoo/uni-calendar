@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.20.0 — 2026-11-02
+
+- Plan units across years and semesters in Course plan & friends. Record Considering, Planned, Enrolled or Completed, move units between semesters, and export a separate plan snapshot.
+- Connect through invitation codes and accepted requests, then see friends taking the same unit in the same semester. Sharing is one setting for the whole plan: all accepted friends or nobody. Remove and block revoke access; invitation codes expire and can be replaced or revoked.
+- Record private final marks and grade codes, with a credit-weighted WAM estimate across recorded results. Show included credits and exclusions; missing results are never zero. Final results and WAM are excluded from friend responses regardless of sharing.
+- Preserve the latest scheduling, attempts and automatic-reminder releases. Add independent course-plan/friend tables and result columns through append-only migrations. Exact tutorial coordination and the real two-person trial remain follow-ups.
+
 ## 0.19.0 — 2026-11-02
 
 - Opt-in automatic reminders under the persistent top-bar Reminders button: upcoming deadlines (24 hours / 2 hours), scheduled quizzes and activities (24 hours / 30 minutes), and known-week dates to confirm. Date-only items use 9 am rather than an invented deadline. Availability windows are not deadlines.
