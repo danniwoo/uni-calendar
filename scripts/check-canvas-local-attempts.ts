@@ -1,0 +1,52 @@
+import assert from "node:assert/strict";
+import {canvasLocalAttemptsFixture} from "./fixtures/canvas-local-attempts";
+import {prepareCanvasImport} from "../lib/canvas-prepare";
+import {canvasKey,planCanvasImport,readCanvasBundle} from "../lib/canvas-import";
+import {saveGradePlan,partGrade} from "../lib/grades";
+import {backupText,readBackup} from "../lib/backup";
+import {canvasResultChange,canvasAssessmentImpact} from "../lib/canvas-preview-impact";
+import type {Semester} from "../lib/semester";
+const {board,bundle,quizId}=canvasLocalAttemptsFixture();
+const b=readCanvasBundle(JSON.stringify(bundle)),c=b.courses[0],a=c.assignments[0],key=`${c.course.id}:${a.id}`,sourceKey=canvasKey(b,c.course.id,a.id);
+const choices=(s=board,batch=b)=>prepareCanvasImport(s,batch).choices;
+const quiz=(s:Semester)=>s.tasks.find(t=>t.id===quizId)!;
+const original=structuredClone(board),schedules=board.tasks.filter(t=>t.parentId===quizId);
+const choice=choices()[key];
+assert.equal(choice.attemptItemId,"local-first");assert.equal(choice.rule?.method,"highest");
+const p=planCanvasImport(board,b,[choice]);
+assert.deepEqual(board,original,"preview never mutates the saved board");assert.equal(p.changed,1);
+assert.deepEqual(p.semester.tasks.filter(t=>t.parentId===quizId),schedules,"both weeks and reminders kept");
+assert.equal(quiz(p.semester).weight,"15%");assert.deepEqual(quiz(p.semester).gradePlan?.items.map(i=>[i.id,i.grade?.earned]),[["local-first",8],["local-second",undefined]]);
+assert.deepEqual(canvasResultChange(board,p.semester,sourceKey,c.course.code,quizId,true),{before:"Not recorded",after:"8 / 15"});
+assert.equal(canvasAssessmentImpact(board,p.semester,c.course.code,quizId)?.unlinked,1);
+const saved=readBackup(backupText(p.semester));assert.equal(choices(saved)[key].attemptItemId,"local-first");
+const differentMax=structuredClone(b);differentMax.courses[0].assignments[0].pointsPossible=20;
+const paused=planCanvasImport(saved,differentMax,Object.values(choices(saved,differentMax)));
+assert.equal(paused.changed,0);assert.equal(paused.actions[0].kind,"attention");
+assert.equal(planCanvasImport(saved,b,Object.values(choices(saved))).changed,0,"repeat is idempotent");
+const competing=structuredClone(b);competing.courses[0].assignments[0].id="48";
+assert(!Object.keys(choices(saved,competing)).length);
+assert.equal(planCanvasImport(saved,competing,[{...choice,assignmentId:"48"}]).changed,0,"another source cannot take an occupied slot");
+const newer=structuredClone(b);newer.courses[0].assignments[0].name="Renamed on Canvas";newer.courses[0].assignments[0].submission!.score=9;
+newer.courses[0].assignments.push({...structuredClone(a),id:"42",name:"Sample Quiz 3 attempt 2",submission:{...a.submission!,score:13}});
+const second=planCanvasImport(saved,newer,Object.values(choices(saved,newer)));
+assert.equal(second.changed,2);assert.equal(partGrade(quiz(second.semester).gradePlan!).earned,13);assert.deepEqual(second.semester.tasks.filter(t=>t.parentId===quizId),saved.tasks.filter(t=>t.parentId===quizId));
+const override=planCanvasImport(board,b,[{...choice,attemptItemId:"local-second"}]);assert.equal(quiz(override.semester).gradePlan!.items[1].grade?.earned,8);
+const manual=structuredClone(saved),plan=structuredClone(quiz(manual).gradePlan!);plan.items[0].grade=null;
+const edited=saveGradePlan(manual,quizId,plan,quiz(manual).gradePlan);
+assert(edited.canvasImports?.[0].manual);assert.equal(planCanvasImport(edited,newer,[choices(edited,newer)[key]]).changed,0);
+for(const grade of [null,{earned:0,possible:15}]){
+  const manual=structuredClone(board);quiz(manual).gradePlan!.items[0].grade=grade;
+  assert(!choices(manual)[key]);assert.equal(planCanvasImport(manual,b,[choice]).changed,0);
+}
+const duplicate=structuredClone(b);duplicate.courses[0].assignments.push({...structuredClone(a),id:"45"});
+assert.equal(Object.keys(choices(board,duplicate)).length,0,"two Canvas rows must not claim one slot");
+const duplicateLocal=structuredClone(board);quiz(duplicateLocal).gradePlan!.items[1].name="Attempt 1";assert(!choices(duplicateLocal)[key]);
+for(const title of ["Quiz 4 attempt 1","Quiz 3 or Quiz 4 attempt 1","Quiz 3 retake","Quiz 3 attempt 3","Quiz 3 attempt 1 or attempt 2"]){
+  const different=structuredClone(b);different.courses[0].assignments[0].name=title;assert(!choices(board,different)[key],title);
+}
+const closed=structuredClone(board);quiz(closed).gradePlan!.attemptsClosed=true;assert(!choices(closed)[key]);
+const wrongRule=structuredClone(board);quiz(wrongRule).gradePlan!.method="points";assert(!choices(wrongRule)[key]);assert.equal(planCanvasImport(wrongRule,b,[choice]).changed,0);
+const max=structuredClone(board);quiz(max).gradePlan!.items[0].maximum=20;assert(!choices(max)[key]);
+assert.throws(()=>planCanvasImport({...board,canvasAccountId:"100"},b,[choice]),/different Canvas account/);
+console.log("PASS: unique attempt suggestions, explicit override, unchanged W12/W13 schedules, single weight, backup, repeat, later scores, manual and ambiguous protections.");

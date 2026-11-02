@@ -115,7 +115,7 @@ export type Semester = {
   canvasHistory?: import("./canvas-history").CanvasUpdateBatch[];
   canvasAccountId?: string;
   canvasImports?: {key:string;targetId:string;mode:"overall"|"part";lastGrade?:Grade;readAt?:string;manual?:boolean;
-    rule?:CanvasRule;lastItem?:GradePlan["items"][number];sourceRules?:string}[];
+    rule?:CanvasRule;lastItem?:GradePlan["items"][number];sourceRules?:string;attemptItemId?:string}[];
   // A new generation marks an explicit snapshot replacement, including same-feed restores.
   boardGeneration?: string;
   year: number;

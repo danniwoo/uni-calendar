@@ -9,7 +9,7 @@ export const CANVAS_SOURCE="https://canvas.sydney.edu.au";
 export type CanvasAssignment={id:string;name:string;groupId:string|null;dueAt:string|null;opensAt:string|null;closesAt:string|null;pointsPossible:number|null;omitted:boolean;result?:"complete"|"incomplete";submission:null|{released:boolean;excused:boolean;score:number|null;releaseEvidence:string|null;currentAttemptGraded:boolean|null}};
 export type CanvasCourse={course:{id:string;name:string;code:string;term:string;weighted:boolean|null};fetchedAt:string;groupsUnavailable:boolean;marksPageUnavailable:boolean;assignments:CanvasAssignment[];groups:{id:string;name:string;weight:number|null;rules:{dropLowest:number|null;dropHighest:number|null;neverDrop:string[]}}[]};
 export type CanvasBundle={format:"semester-connect";schemaVersion:1;source:typeof CANVAS_SOURCE;accountId:string;exportedAt:string;courses:CanvasCourse[]};
-export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal";rule?:CanvasRule;outcome?:"missed"|"not_taken";reviewedSourceRules?:string};
+export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal";rule?:CanvasRule;attemptItemId?:string;outcome?:"missed"|"not_taken";reviewedSourceRules?:string};
 export type CanvasImportRecord=NonNullable<Semester["canvasImports"]>[number];
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==="object"&&!Array.isArray(x);
 const id=(x:unknown):x is string=>typeof x==="string"&&/^[1-9]\d{0,19}$/.test(x);
@@ -17,7 +17,7 @@ const text=(x:unknown,max=400):x is string=>typeof x==="string"&&x.length<=max;
 const date=(x:unknown):x is string=>typeof x==="string"&&/^\d{4}-\d\d-\d\dT/.test(x)&&Number.isFinite(Date.parse(x));
 const finite=(x:unknown)=>x===null||(typeof x==="number"&&Number.isFinite(x)&&x>=0);
 const unique=(xs:string[])=>new Set(xs).size===xs.length;
-export function validCanvasRecords(x:unknown):x is CanvasImportRecord[]{return Array.isArray(x)&&x.length<=5000&&x.every(r=>object(r)&&text(r.key,150)&&/^\d+:\d+:\d+$/.test(r.key)&&text(r.targetId,500)&&["overall","part"].includes(String(r.mode))&&(r.lastGrade===undefined||validGrade(r.lastGrade))&&(r.readAt===undefined||date(r.readAt))&&(r.manual===undefined||typeof r.manual==="boolean")&&validRuleRecord(r))&&unique(x.map(r=>r.key));}
+export function validCanvasRecords(x:unknown):x is CanvasImportRecord[]{return Array.isArray(x)&&x.length<=5000&&x.every(r=>object(r)&&text(r.key,150)&&/^\d+:\d+:\d+$/.test(r.key)&&text(r.targetId,500)&&["overall","part"].includes(String(r.mode))&&(r.lastGrade===undefined||validGrade(r.lastGrade))&&(r.readAt===undefined||date(r.readAt))&&(r.manual===undefined||typeof r.manual==="boolean")&&validRuleRecord(r))&&unique(x.map(r=>r.key))&&unique(x.filter(r=>r.attemptItemId!==undefined).map(r=>JSON.stringify([r.targetId,r.attemptItemId])));}
 export function validCanvasMetadata(s:{canvasAccountId?:unknown;canvasImports?:unknown;canvasHistory?:unknown}) {
   return validCanvasHistory(s.canvasHistory,s.canvasAccountId)&&(s.canvasAccountId===undefined||id(s.canvasAccountId))&&(s.canvasImports===undefined||(validCanvasRecords(s.canvasImports)&&s.canvasImports.every(r=>id(s.canvasAccountId)&&r.key.startsWith(`${s.canvasAccountId}:`))));
 }
@@ -99,7 +99,7 @@ export function suggestCanvasMatches(s:Semester,b:CanvasBundle){
     for(const a of c.assignments){
       const key=`${c.course.id}:${a.id}`,prior=remembered.find(r=>r.key===canvasKey(b,c.course.id,a.id)),target=targets.find(t=>t.id===prior?.targetId);
       if(prior){
-        if(target){if(prior.rule){choices[key]={courseId:c.course.id,assignmentId:a.id,unit,targetId:target.id,mode:"part",rule:prior.rule};reasons[key]="Saved rule mapping · review";continue;}const method=target.gradePlan?.method;if(prior.mode==="part"&&method!=="points"&&method!=="equal")continue;
+        if(target){if(prior.rule){choices[key]={courseId:c.course.id,assignmentId:a.id,unit,targetId:target.id,mode:"part",rule:prior.rule,...(prior.attemptItemId?{attemptItemId:prior.attemptItemId}:{})};reasons[key]="Saved rule mapping · review";continue;}const method=target.gradePlan?.method;if(prior.mode==="part"&&method!=="points"&&method!=="equal")continue;
           choices[key]={courseId:c.course.id,assignmentId:a.id,unit,targetId:target.id,mode:prior.mode,...(prior.mode==="part"?{method:method as "points"|"equal"}:{})};reasons[key]="Saved mapping";
         }continue;
       }
@@ -125,6 +125,8 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
   const next=structuredClone(s),actions:import("./canvas-update-status").CanvasAction[]=[];
   if(s.canvasAccountId&&s.canvasAccountId!==b.accountId)throw new Error("This board is linked to a different Canvas account. Import stopped; use the correct account.");
   if(!unique(choices.map(c=>`${c.courseId}:${c.assignmentId}`)))throw new Error("An assignment was selected twice.");
+  const slots=choices.filter(c=>c.attemptItemId!==undefined);
+  if(slots.some(c=>c.mode!=="part"||c.rule?.method!=="highest"||!c.attemptItemId)||!unique(slots.map(c=>JSON.stringify([c.targetId,c.attemptItemId]))))throw new Error("Choose a separate existing attempt for each Canvas result.");
   const records=new Map((s.canvasImports||[]).map(r=>[r.key,r]));
   const ruleChoices=choices.filter(c=>c.rule);
   if(ruleChoices.some(c=>!validCanvasRule(c.rule)||c.mode!=="part"||c.targetId==="new"))throw new Error("Choose an existing assessment and valid grading rule.");
