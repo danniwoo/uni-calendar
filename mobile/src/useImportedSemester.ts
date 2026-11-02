@@ -6,6 +6,7 @@ import { readImportedAssessments, type ImportedAssessments } from "./imported-wo
 import { stagingSetup } from "./staging-auth";
 import { stagingRequest, StagingApiError } from "./staging-core";
 import DeadlineFocus from "./widgets/DeadlineFocus";
+import { syncLocalReminders } from "./local-reminders";
 import type { StagingConnectionState } from "./useStagingConnection";
 
 type Loaded = {subject:string; scope:string; board:ImportedAssessments; syncedAt:number};
@@ -60,6 +61,9 @@ export function useImportedSemester({session,authReady}: StagingConnectionState)
         if (!active) return;
         const syncedAt = Date.now();
         setLoaded({subject:subject!,scope,board,syncedAt});
+        // Notifications are device-local. Refreshing the board replaces the
+        // schedule; the app never polls the API just to fire reminders.
+        void syncLocalReminders(board).catch(() => undefined);
         try {DeadlineFocus.updateTimeline(focusTimeline(board.rows,scope,syncedAt)); setWidgetIssue("");}
         catch {setWidgetIssue("Reopen Semester to refresh the widget.");}
       } catch(error) {
