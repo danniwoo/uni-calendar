@@ -68,10 +68,13 @@ export async function restoreRecovery(db:SqlDatabase,owner:string,body:Record<st
       revision=max(imported_completion.revision+1,excluded.revision)
       WHERE active=0 OR done!=excluded.done OR imported_completion.revision<excluded.revision`).bind(owner,changes));
   }
-  try {await db.batch(statements);}
+  statements.push(db.prepare("SELECT version FROM recovery_versions WHERE account_id=?1").bind(owner));
+  let results;
+  try {results=await db.batch(statements);}
   catch(e) {
     if ((await currentRecovery(db,owner)).version!==current.version) throw conflict();
     throw e;
   }
-  return {sha256:snapshot.sha256};
+  const clock=results[results.length-1] as {results:{version:number}[]};
+  return {sha256:snapshot.sha256,revision:clock.results[0].version};
 }

@@ -1,3 +1,4 @@
+import { getWebBoard, saveWebBoard } from "./web-board.ts";
 import { ApiError, authenticate } from "./auth.ts";
 import { readTodayPlan, saveTodayPlan } from "./today-plan.ts";
 import { currentRecovery, restoreRecovery } from "./recovery.ts";
@@ -81,7 +82,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         const recovery = path.match(/^\/v1\/recovery\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
         const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments"].includes(path) ? ["GET"]
-          : path === "/v1/imported/completion" ? ["PATCH"] : path === "/v1/today/plan" ? ["GET", "PATCH"] : backup || recovery ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
+          : path === "/v1/imported/board" ? ["GET","PUT"] : path === "/v1/imported/completion" ? ["PATCH"] : path === "/v1/today/plan" ? ["GET", "PATCH"] : backup || recovery ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
         if (!methods.length) throw new ApiError(404, "not_found", "This endpoint does not exist.");
         if (request.method === "OPTIONS") {
           const wanted = request.headers.get("access-control-request-method") ?? "";
@@ -97,6 +98,8 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
         const identity = await authenticate(request, env.SUPABASE_URL, testKey);
         const accountId = await resolveAccount(env.DB, identity);
+        if (path === "/v1/imported/board") return send(request.method === "GET" ? await getWebBoard(env.DB,accountId)
+          : await saveWebBoard(env.DB,accountId,await jsonBody(request,1_800_000)));
         if (recovery) {
           await requireMember(env.DB,accountId,recovery[1]);
           return send(request.method==="GET" ? await currentRecovery(env.DB,accountId)

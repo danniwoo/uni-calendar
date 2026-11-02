@@ -1,12 +1,15 @@
-# Browser connection trial
+# Original Semester web board on staging
 
-The [private pilot](https://semester-pilot.pages.dev/) runs on Cloudflare Pages. The web client and iPhone use the same separate staging API Worker. Google signs people in through Supabase Auth. Enrolled accounts can import their own semester, or preview a fictional DEMO1001 semester when their account is empty. The imported semester feeds the iPhone Home, Today, Month, Assessments and Deadline focus widget.
+The [private pilot](https://semester-pilot.pages.dev/) signs students in with the same Google account as Semester Preview on iPhone. Signed-in students land on the original [semester board](https://semester-pilot.pages.dev/board/). Semester, Month, Week and Assessments use the original React components. Account & backups opens the import, export and Today tools. Empty accounts can import their semester or try the DEMO1001 practice semester.
+
+The staging Worker reads the active D1 snapshot and applies occurrence completion records shared with iOS. Board saves check the loaded revision. Refresh the page or the phone’s Assessments view to see changes from the other device. The first backup remains available through Account & backups. Course plan, Friends, timetable import and the Canvas browser connection still use the original Sites environment.
 
 ## Local setup
 
-Use Node 22.13+ (the existing Node 24 toolchain is also suitable). From this directory:
+Use Node 22.13+ (the existing Node 24 toolchain is also suitable). Install the locked dependencies at the repository root for the original board, then install the web client dependencies. From this directory:
 
 ```sh
+npm ci --prefix ../..
 npm ci
 cp .env.example .env.local
 npm run dev

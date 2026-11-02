@@ -50,6 +50,7 @@ class SQLiteDatabase implements SqlDatabase {
       // batch, matching D1's transactional/non-interleaving batch boundary.
       const results = statements.map(s => {
         const statement = s as SQLiteStatement;
+        if (statement.sql.startsWith("SELECT ")) return {results:this.sqlite.prepare(statement.sql).all(statement.parameters())};
         return { meta: { changes: Number(this.sqlite.prepare(statement.sql).run(statement.parameters()).changes) } };
       });
       this.sqlite.exec("COMMIT");
@@ -374,4 +375,39 @@ test("a newer website export preserves progress; a full restore recovers it with
   assert.deepEqual(projected.grades[0].parts.map(p=>p.mark),[{earned:4,possible:15},null]);
   assert.equal(projected.rows.find(row=>row.id==="second")?.date,"2026-11-04");
   assert.equal(projected.rows.find(row=>row.id==="quiz")?.done,true);
+});
+
+test("the original web board and phone share occurrence revisions without replacing backups or Today tasks",async t=>{
+  const {call,db}=setup(t), web="/v1/imported/board", phone="/v1/imported/completion";
+  const a=await token(), b=await token(bob);
+  const {accountId}=await (await call("/v1/session",a)).json() as {accountId:string};
+  assert.equal((await call(web,b)).status,403);
+  db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(accountId);
+  const {pilotDemo}=await import("../../web/src/pilot-demo.ts");
+  const board=pilotDemo(new Date("2026-11-02T01:00:00Z"));
+  const id=board.tasks[0].id, file=JSON.stringify(board,null,2);
+  const recovery="/v1/recovery/"+accountId;
+  assert.equal((await call(recovery,a,"POST",{file,expectedVersion:0})).status,200);
+  const plan={id:"p",title:"Draft",plannedFor:"2026-11-02",createdAt:1,sourceKey:JSON.stringify([2026,"S2C",id])};
+  assert.equal((await call("/v1/today/plan",a,"PATCH",{expectedRevision:0,tasks:[plan]})).status,200);
+  const read=async ()=>(await (await call(web,a)).json()) as {revision:number;semester:typeof board};
+  const state=await read();
+  state.semester.tasks[0].done=true;
+  const save=await call(web,a,"PUT",state);
+  assert.equal(save.status,200);
+  const revision=(await save.json() as {revision:number}).revision;
+  assert.equal((await read()).revision,revision);
+  const rows=(await (await call("/v1/imported/assessments",a)).json() as {rows:{id:string;done:boolean;completionRevision:number}[]}).rows;
+  const row=rows.find(item=>item.id===id)!;
+  assert.equal(row.done,true);
+  assert.equal((await call(phone,a,"PATCH",{id,done:false,expectedRevision:row.completionRevision})).status,200);
+  assert.equal((await call(web,a,"PUT",{...state,revision})).status,409);
+  const refreshed=await read();
+  assert.equal(refreshed.semester.tasks[0].done,false);
+  refreshed.semester.tasks[0].title="Updated on web";
+  assert.equal((await call(web,a,"PUT",refreshed)).status,200);
+  assert.equal((await read()).semester.tasks[0].title,"Updated on web");
+  assert.equal((await (await call("/v1/backup-trial/"+accountId,a)).text()),file);
+  assert.deepEqual((await (await call("/v1/today/plan",a)).json() as {tasks:unknown[]}).tasks,[plan]);
+  assert.equal((await call(web,b,"PUT",refreshed)).status,403);
 });

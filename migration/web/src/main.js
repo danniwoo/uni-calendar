@@ -1,4 +1,4 @@
-import { createClient } from "@supabase/supabase-js";
+import { pilotClient } from "./auth.js";
 import { readConfig, takeAuthCallback } from "./config.js";
 import { createApi } from "./api.js";
 import { createController } from "./controller.js";
@@ -37,10 +37,14 @@ function status(text, kind = "notice") {
 
 function render() {
   const state = controller.getState();
+  if (state.accountId && !state.rejected && !new URLSearchParams(location.search).has("tools")) {
+    location.replace("/board/");
+    return;
+  }
   const main = element("main");
   const header = element("header");
   header.append(element("span", "semester.", "brand"), element("span", "PRIVATE PILOT", "badge"));
-  main.append(header, element("h1", "Your semester on iPhone"), element("p", "Sign in with your invited Google account. Preview a practice semester or import your own, then open Semester Preview on your iPhone.", "intro"));
+  main.append(header, element("h1", "Your Semester account"), element("p", "Sign in with the Google account you use on iPhone to open your semester.", "intro"));
 
   if (!config.ready) {
     const section = element("section", undefined, "panel");
@@ -107,6 +111,9 @@ function render() {
     diagnostics.append(section);
   }
   if (state.session && state.accountId && !state.rejected) {
+    const openBoard=element("a","Open my semester board");
+    openBoard.href="/board/";
+    main.append(openBoard);
     const {accountId, session} = state;
     const signedRequest = async (path, text, method) => {
       const current = controller.getState();
@@ -169,9 +176,7 @@ async function start() {
   window.history.replaceState({}, "", callback.cleanUrl);
   render();
   if (!config.ready) return;
-  client = createClient(config.supabaseUrl, config.publishableKey, {
-    auth: { flowType: "pkce", detectSessionInUrl: false, persistSession: true, autoRefreshToken: true, storageKey: `semester-staging-auth-${new URL(config.supabaseUrl).hostname}` },
-  });
+  client = pilotClient(config);
   client.auth.onAuthStateChange((_event, session) => {
     authEvents += 1;
     if (suppressSessionEvents) return;

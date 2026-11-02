@@ -118,7 +118,11 @@ type ApiResult = {
   error?: string;
   signIn?: boolean;
 };
-export default function SemesterBoard() {
+export type StagingBoard = { request: (init?: RequestInit) => Promise<Response>; header: React.ReactNode };
+const sitesBoardRequest=(init?:RequestInit)=>fetch("/api/semester",init);
+
+export default function SemesterBoard({staging}:{staging?:StagingBoard} = {}) {
+  const boardRequest=staging?.request ?? sitesBoardRequest;
   const [semester, setSemester] = useState<Semester | null>(null),
     [loaded, setLoaded] = useState(false),
     [loadError, setLoadError] = useState(""),
@@ -203,7 +207,7 @@ export default function SemesterBoard() {
   async function load() {
     setLoadError("");
     try {
-      const r = await fetch("/api/semester", { cache: "no-store" }),
+      const r = await boardRequest({ cache: "no-store" }),
         j = (await r.json()) as ApiResult;
       if (!r.ok) {
         setSignIn(!!j.signIn);
@@ -254,7 +258,7 @@ export default function SemesterBoard() {
       while (pending.current) {
         const snapshot = pending.current;
         setSaveStatus("Saving…");
-        const r = await fetch("/api/semester", {
+        const r = await boardRequest({
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -265,7 +269,7 @@ export default function SemesterBoard() {
         });
         const j = (await r.json()) as ApiResult;
         if (r.status === 409 && retries++ < 2) {
-          const latest = await fetch("/api/semester", {cache:"no-store"});
+          const latest = await boardRequest({cache:"no-store"});
           const remote = await latest.json() as ApiResult;
           if (!latest.ok || !remote.semester) throw new Error("Could not read the latest saved version. Your edits remain in this tab.");
           const merged = reconcile(baseline.current, pending.current || snapshot, remote.semester);
@@ -690,7 +694,7 @@ export default function SemesterBoard() {
   }
   return (
     <ReminderDeliveryContext.Provider value={reminderDelivery}><AutomaticReminderContext.Provider value={{settings:semester?.automaticReminders,open:()=>setReminderSettings(true)}}><main className={`${focus ? "focus-layout" : "full-layout"}${calendarView||view==="assessments" ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
-      <AppHeader active="semester"/>
+      {staging ? staging.header : <AppHeader active="semester"/>}
       {semester&&<div className="board-toolbar">
         <div className="board-context"><h1>Semester {semester.session==="S2C"?2:1} {semester.year}</h1><div className="board-context-meta"><span>{shortDate(today)} · {selectedWeek?.label||"Outside teaching weeks"} · Sydney</span><span className={`save-state ${saveError?"danger":""} ${saveStatus==="Saved"?"is-saved":""}`} role="status">{saveStatus==="Saved"&&<Check size={12}/>} {saveStatus}</span></div></div>
         <div className="board-view-tabs" role="group" aria-label="Board view">{(["semester","month","week","assessments"] as const).map(v=><button key={v} aria-pressed={!settings&&view===v} onClick={()=>{setSettings(false);chooseView(v);}}>{v[0].toUpperCase()+v.slice(1)}</button>)}</div>
@@ -699,11 +703,11 @@ export default function SemesterBoard() {
           <button className="primary board-add-task" aria-label="Add task" title="Add task" onClick={newTask}><Plus size={17} aria-hidden="true"/><span>Add task</span></button>
           <DropdownMenu><DropdownMenuTrigger className="board-more" aria-label="More semester options" title="More"><Ellipsis size={20}/></DropdownMenuTrigger><DropdownMenuContent className="app-options-menu" align="end">
             <DropdownMenuItem onSelect={()=>setReminderSettings(true)}><Bell size={16}/>Reminders</DropdownMenuItem>
-            <DropdownMenuItem onSelect={()=>setSettings(!settings)}><Settings size={16}/>{settings?"Back to semester":"Manage semester"}</DropdownMenuItem>
+            {staging ? <DropdownMenuItem asChild><a href="/?tools=1">Account &amp; backups</a></DropdownMenuItem> : <DropdownMenuItem onSelect={()=>setSettings(!settings)}><Settings size={16}/>{settings?"Back to semester":"Manage semester"}</DropdownMenuItem>}
           </DropdownMenuContent></DropdownMenu>
         </div>
       </div>}
-      {semester&&!loadError&&<CanvasInbox semester={semester} reviewOpen={canvasImport} onImportFile={()=>{setCanvasRaw(undefined);setCanvasImport(true);}} onReview={raw=>{setCanvasRaw(raw);setCanvasImport(true);}}/>}
+      {!staging&&semester&&!loadError&&<CanvasInbox semester={semester} reviewOpen={canvasImport} onImportFile={()=>{setCanvasRaw(undefined);setCanvasImport(true);}} onReview={raw=>{setCanvasRaw(raw);setCanvasImport(true);}}/>}
       {semester&&!loadError&&unreadCanvasGrades(semester).size>0&&<div className="canvas-history-notice"><button onClick={()=>setCanvasHistory(true)}><span className="canvas-new-dot" aria-hidden="true"/>{unreadCanvasGrades(semester).size} assessments have unseen Canvas grade updates · View history</button></div>}
       {loadError && (
         <div className="notice error">
@@ -724,7 +728,8 @@ export default function SemesterBoard() {
           <button onClick={backup}>Export unsaved progress</button>
         </div>
       )}
-      {(!semester || settings) && (
+      {staging && !semester && !loadError && <section className="setup"><h1>{loaded ? "Bring your semester" : "Loading your semester…"}</h1>{loaded && <a href="/?tools=1">Import a semester or open the practice semester</a>}</section>}
+      {!staging && (!semester || settings) && (
         <section className={semester?"setup manage-compact":"setup"}>
           <div>
             {!semester&&<p className="eyebrow">YOUR SEMESTER, IN ONE PLACE</p>}
@@ -804,7 +809,7 @@ export default function SemesterBoard() {
           </button>
         </div>
       )}
-      {!semester && !loadError && (
+      {!staging && !semester && !loadError && (
         <section className="onboarding-empty">
           <div className="empty-weeks">
             <span>Week 01</span>
