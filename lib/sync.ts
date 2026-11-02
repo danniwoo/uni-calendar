@@ -1,4 +1,6 @@
 import type { Semester } from "./semester";
+import {taskTimingKeys} from "./task-timing";
+import {attemptSnapshot} from "./assessment-attempts";
 
 // Three-way merge: never overwrite another tab's unrelated edits. Conflicting
 // fields require an explicit choice; the caller retains both source snapshots.
@@ -17,10 +19,16 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
     }
     // Keep grades/plans and activity timing atomic. Mixing independently valid
     // activity edits can invent a week + time or a multi-day range + time.
-    const atomic = [".grade", ".gradePlan", ".activity"].some(field=>path.endsWith(field));
+    const atomic = path==="automaticReminders" || [".grade", ".gradePlan", ".activity", ".schedule"].some(field=>path.endsWith(field));
     if (!atomic && object(l) && object(r) && (object(b) || b == null)) {
       const out: Record<string, unknown> = {};
+      const task = typeof l.id === "string" && path === `tasks.${l.id}`;
+      if (task) {
+        const schedule = (v: unknown) => Object.fromEntries(taskTimingKeys.map(k=>[k,object(v)?v[k]:undefined]));
+        Object.assign(out,merge(schedule(b),schedule(l),schedule(r),`${path}.schedule`));
+      }
       for (const key of new Set([...Object.keys(l),...Object.keys(r)]))
+        if (!task || !taskTimingKeys.includes(key as typeof taskTimingKeys[number]))
         out[key] = merge(object(b) ? b[key] : undefined,l[key],r[key],path ? `${path}.${key}` : key);
       return out;
     }
@@ -31,5 +39,15 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
     || local.boardGeneration !== remote.boardGeneration || (local.canvasAccountId&&remote.canvasAccountId&&local.canvasAccountId!==remote.canvasAccountId))
     return { semester: prefer === "local" ? local : remote, conflicts: ["Whole board changed — restore / timetable switch"] };
   const semester = merge(base,local,remote,"") as Semester;
+  // A result-to-schedule connection spans a parent plan and child tasks. Never
+  // combine two concurrent arrangements into duplicate attempts or wrong scores.
+  const attemptParents=new Set([...(base?.tasks||[]),...local.tasks,...remote.tasks].filter(t=>t.attemptId).map(t=>t.parentId!));
+  for(const id of attemptParents){
+    if(!base||attemptSnapshot(base,id)===attemptSnapshot(local,id)||attemptSnapshot(base,id)===attemptSnapshot(remote,id)||attemptSnapshot(local,id)===attemptSnapshot(remote,id))continue;
+    conflicts.push(`attempts.${id}`);
+    const chosen=prefer==="local"?local:remote,belongs=(t:Semester["tasks"][number])=>t.id===id||t.parentId===id||t.series===id;
+    semester.tasks=[...semester.tasks.filter(t=>!belongs(t)),...chosen.tasks.filter(belongs)];
+    if(semester.canvasImports)semester.canvasImports=[...semester.canvasImports.filter(r=>r.targetId!==id),...(chosen.canvasImports||[]).filter(r=>r.targetId===id)];
+  }
   return { semester, conflicts };
 }

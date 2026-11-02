@@ -8,13 +8,15 @@ import { gradeNumber as n, validGrade } from "@/lib/grade-value";
 import { GradePartsEditor } from "./grade-parts-editor";
 import { gradeRuleSummary, gradeThreshold } from "@/lib/grades";
 import {unreadCanvasGrades} from "@/lib/canvas-history";
+import {supportsAttempts} from "@/lib/assessment-attempts";
 
-export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,onToggle,onGradeSeen,focusGrade}:{
+export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,onToggle,onGradeSeen,focusGrade,onAttempts}:{
   semester:Semester;rows:AssessmentRow[];unit:string;
   onGrade:(id:string,grade:Grade|null,expected:Grade|null|undefined)=>void;
   onGradePlan?:(id:string,plan:GradePlan,expected:GradePlan|null|undefined)=>void;
   onOpen:(task:Task)=>void;onToggle:(task:Task)=>void;
   onGradeSeen?:(id:string)=>void;focusGrade?:{id:string;request:number};
+  onAttempts?:(task:Task)=>void;
 }) {
   const id=useId();
   const [editing,setEditing]=useState<{task:Task;earned:string;possible:string;mode:"marks"|"percent"}|null>(null);
@@ -38,6 +40,7 @@ export function AssessmentGrades({semester,rows,unit,onGrade,onGradePlan,onOpen,
   }
   function editParts(task:Task) {
     if(partsEditing||editing) {setError("Save or cancel the open editor first. Your entries have been kept.");return;}
+    if(onAttempts&&supportsAttempts(task)&&(task.rules?.attempts||task.gradePlan?.method==="highest")){onAttempts(task);return;}
     setPartsEditing(task);setError("");setNotice("");
     onGradeSeen?.(task.id);
   }

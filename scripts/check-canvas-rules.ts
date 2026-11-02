@@ -5,6 +5,7 @@ import {partGrade,saveGradePlan} from "../lib/grades";
 import {backupText,readBackup} from "../lib/backup";
 import type {CanvasRule} from "../lib/semester";
 import {existingCanvasRuleChoices,defaultCanvasStage} from "../lib/canvas-update-status";
+import {attemptSchedules,newAttemptTask,saveAttempts} from "../lib/assessment-attempts";
 
 // Invented scores and identifiers, not a student's export.
 const board=structuredClone(fixtureBoard),bundle=structuredClone(fixtureBundle),course=bundle.courses[2];
@@ -24,10 +25,25 @@ const suggested=Object.values(suggestCanvasMatches(first.semester,bundle).choice
 assert.equal(suggested.length,2);assert.deepEqual(suggested[0].rule,highest);
 const newer=structuredClone(bundle),newCourse=newer.courses[2];newCourse.fetchedAt="2026-10-22T00:00:00Z";
 Object.assign(newCourse.assignments[1].submission!,{released:true,score:9,releaseEvidence:"marks-page"});
+// Scheduling an exact linked result must not mark its score manual or block a
+// later Canvas update; the schedule survives that result update unchanged.
+const scheduleRows=attemptSchedules(first.semester,root(),root().gradePlan!);
+scheduleRows[1].task={...newAttemptTask(root(),1),week:13};
+const scheduled=saveAttempts(first.semester,root().id,root().gradePlan!,scheduleRows,first.semester);
+assert.deepEqual(scheduled.canvasImports,first.semester.canvasImports);
+assert.deepEqual(scheduled.tasks.find(t=>t.id===root().id)!.gradePlan,root().gradePlan);
+const scheduledUpdate=planCanvasImport(scheduled,newer,suggested);
+assert.equal(scheduledUpdate.changed,1);
+assert.equal(scheduledUpdate.semester.tasks.find(t=>t.attemptId===root().gradePlan!.items[1].id)?.week,13);
 const update=planCanvasImport(first.semester,newer,suggested);
 assert.equal(update.changed,1);assert.equal(partGrade(update.semester.tasks[2].gradePlan!).earned,9);
 assert.equal(planCanvasImport(update.semester,bundle,suggested).changed,0,"stale source cannot roll back");
 const future={...structuredClone(newCourse.assignments[0]),id:"3",name:"Quiz alpha attempt 3"};newCourse.assignments.push(future);
+const futureRows=attemptSchedules(first.semester,root(),root().gradePlan!);
+futureRows[2].task={...newAttemptTask(root(),2),week:13};
+const futureScheduled=saveAttempts(first.semester,root().id,root().gradePlan!,futureRows,first.semester);
+const unknownSource=planCanvasImport(futureScheduled,newer,[...suggested,{...suggested[0],assignmentId:"3"}]);
+assert.equal(unknownSource.semester.tasks.find(t=>t.id===root().id)!.gradePlan!.items[2].id,root().gradePlan!.items[2].id,"An incoming source cannot silently replace a scheduled placeholder by position");
 const added=planCanvasImport(update.semester,newer,[...suggested,{...suggested[0],assignmentId:"3"}]);
 assert.equal(added.semester.tasks[2].gradePlan!.items.length,3);assert.equal(partGrade(added.semester.tasks[2].gradePlan!).finished,true);
 assert.equal(planCanvasImport(added.semester,newer,[...suggested,{...suggested[0],assignmentId:"3"}]).changed,0);

@@ -1,6 +1,7 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-更新：2026-11-01 · Web **0.16.0** 已發布（Sites 60）；包含可選多提醒與 Connect **0.5.0** 下載。通知需更新擴充套件、使用者明確授權並保持 Chrome 運行；真實系統通知驗收待 REMIND-01。原四科試用 gate 不變。
+本輪狀態（2026-11-02）：Web **0.19.0** 已發布（Sites 63）；已合併 shared-attempt editor、排程表單與自動提醒。Connect **0.5.0** 沿用；自動提醒預設關閉，使用者自己開啟。原有實機通知、四科與 M1/M2 使用者驗收仍保留。下列舊版本記錄為先前試用背景，不是目前網站版本。
+
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
 
@@ -97,6 +98,10 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 **Apple Calendar 式多提醒 → Chrome 系統通知** · P1 · **待驗證** · 使用者明確批准的增量
 
+- 2026-11-02／0.19.0：使用者批准三類自動提醒：截止前、已排好的 quiz／activity、已知本週但日期待確認。上方 Reminders 一次開啟（預設 off），支援單筆關閉、自訂優先、完成停送、quiet hours 與同時刻合併；不猜 available-until 截止或可選 attempt。Synthetic 取消、儲存失敗／重試、單筆關閉／reload、自訂優先及 controller 完成／Undo 已測。下一步：使用者 refresh → Reminders 開啟並保存 → 核對 Upcoming notifications，再自行選測試項目實機驗收；本次未改真實資料。已知限制：新加入的週次待定項若已過週一提醒時間，不追補當週通知；仍會在 Week／Month 的待確認區出現。聲音、Chrome 關閉時送達、native Snooze 和跨裝置即時同步未承諾。
+
+- 2026-11-01／0.17.0：依 Apple／Google Calendar 參考，提醒改為 Alert · None 直接選、每筆緊湊列／移除／新增；裝置狀態常駐、說明預設收起。當日使用者已回報看到測試橫幅並提供通知中心截圖；**聲音及關分頁後的定時通知仍未驗證**。本次 synthetic 測過取消不寫入、兩種時間方式、預覽跟隨、增刪／自訂提醒與儲存重載；發布狀態見 PROGRESS。
+
 - 2026-11-01：使用者選擇設定留在 Semester、Connect 發系統通知、Chrome 必須運行；不使用 n8n、不做 Apple Calendar 匯出／同步，也不擴大到分類或歷史紀錄。
 - 已實作 Web 0.16.0／Connect 0.5.0：每個 dated assessment step／personal task/event 最多五個提醒、準確 Sydney 時刻、取消不改排程、保存失敗保留舊排程、完成／刪除撤銷未來提醒；日期改動與 Undo 重建未來排程。週次未定日期不猜時間；提醒設定沿用帳戶／backup／refresh／conflict 保護。
 - 已發布 Sites 60；25 個 Web regression scripts、TypeScript、SQL、66 個 extension tests、production build 與 synthetic UI 通過，發布證據見 PROGRESS。**未代表已驗證使用者電腦真正收到通知。** T11 四科試用與 M1/M2 gates 不因此完成。
@@ -175,6 +180,10 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 ### FLOW-01
 
+- 2026-11-01 / Web 0.18.0 candidate: retake 的 **Attempts & schedule** 共用一筆 attempt 身分；日期／時間或週次＋課堂、提醒、成績放同張卡。Semester W13、Week 與 Month 投影同一排程；原有 schedule 必須明確選擇沿用，不按名稱／順序猜配對。合計仍只計 parent 權重一次。Synthetic 取消、保存、Undo、reload 與三 view 已實際操作；使用者回測待完成。發布收據見 PROGRESS。
+
+- 2026-11-01／0.17.0：作業編輯新增明顯 Date & time／Week & class 切換；Week 13＋Tutorial 從本人的課表帶入日期／開始／結束，多堂需選、缺課表只保留週次。保存不把課堂時段轉回 deadline；跨分頁時程整組處理衝突。假資料核對取消、保存／重載、缺課與多堂、提醒換算及手動成績／筆記保留。下一步：使用者確認編輯入口與兩種選擇是否直覺；不宣稱整體 T03／FLOW-01 已驗收。發布證據見 PROGRESS。
+
 **作業新增／編輯／回到原位置** · P1 · **待驗證** · Next
 
 - 2026-10-28／0.15.0：依朋友試用回饋，只處理三項已批准的日曆改善：只有週次的作業直接列在 Week／Month 對應週；頂部獨立切換作業／課堂／個人安排；Keep visible 勾選留在原位並可 Undo。Set date 開既有編輯器，取消不保存，不猜日期。歷史紀錄、個人分類擴展及外部日曆同步延後。
@@ -214,6 +223,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 證據：產品方向已討論；**具體方案、實作與試用尚未完整確認**。
 
 ### GRADE-01
+
+- 0.18.0 的整合範圍為 highest-attempt retakes；普通加總 parts／週週提交保留既有功能。本輪沒有把所有 item 類型強行合併。既有 Canvas source ID 可延續更新；尚無 source ID 的已排程 attempt 不會按位置自動接入新結果，後續配對 UX 仍需補齊。使用者下一步：Quiz → Attempts & schedule → Attempt 2 選 W13 tutorial（有既有 Part 2 時明確沿用），核對三 view，先 Cancel，再自行決定是否保存。
 
 **個別成績 → 合計 → 單科目標** · P1 · **待驗證** · Next
 

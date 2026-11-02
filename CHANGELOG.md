@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.19.0 — 2026-11-02
+
+- Opt-in automatic reminders under the persistent top-bar Reminders button: upcoming deadlines (24 hours / 2 hours), scheduled quizzes and activities (24 hours / 30 minutes), and known-week dates to confirm. Date-only items use 9 am rather than an invented deadline. Availability windows are not deadlines.
+- Per-item off, custom-alert precedence, optional-item opt-in and scheduled-attempt safeguards. Completed/deleted items stop; date changes and Undo rebuild future alerts. Quiet hours move automatic alerts earlier; simultaneous alerts combine into a clickable item list.
+- Upcoming-notification preview and compact task summary. Settings apply only after a successful save and retain backup/refresh/conflict protections; sync v12 rejects older clients that would erase these preferences. Existing boards remain off until enabled.
+- Uses existing Connect 0.5.0 delivery; no new extension permissions, subscriptions or n8n. Chrome must run. Sleep/Focus/system settings may delay actual delivery; this release does not promise sound or push while Chrome is closed.
+
+## 0.18.0 — 2026-11-01
+
+- One Attempts & schedule editor for retakes: each result has its own optional schedule, reminders and marks. Highest-attempt scoring must already be configured or explicitly chosen. Separate graded components keep their existing editor.
+- Show each scheduled attempt in Semester's teaching-week column, Week and Month; calendar children carry no additional assessment weight. Reuse an existing schedule explicitly rather than guessing from names or order. Preserve any original unassigned time.
+- Cancel discards draft changes; Save applies results and schedules together, with conflict-aware Undo. Exact grade-item links survive reload, backup, timetable refresh and existing linked Canvas updates. Unknown incoming sources cannot silently replace a scheduled placeholder.
+- No migration of existing user records or reminder permission changes. Synthetic interaction and regression verification; real-user acceptance remains pending.
+
+## 0.17.0 — 2026-11-01
+
+- Put two clear scheduling choices in the assessment editor: **Date & time** and **Week & class**. A unique timetable class fills its actual date/start/end; multiple classes require a choice and missing classes retain the known week without inventing a date.
+- Compact reminder rows start with **Alert · None**, offer familiar minute/hour and day-at-clock presets, and support additional/custom reminders and individual removal. Device status stays visible; delivery instructions expand only when needed.
+- Preserve saved choices on cancellation, keep reminder previews in sync with date edits, and preserve class timing on save/reload/backup/refresh. Conflicting schedule edits from two tabs resolve as one schedule rather than mixing unrelated fields.
+- Synthetic UI and data-safety tests only; this release does not alter existing assignments or notification permissions. Connect remains 0.5.0.
+
 ## 0.16.0 — 2026-11-01
 
 - Apple Calendar–style reminders in assessment and personal task/event editors: up to five, editable presets/custom days/time or minutes before, plus exact Sydney send-time previews. Add/Edit reminders opens the relevant controls directly.

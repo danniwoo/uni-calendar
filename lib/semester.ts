@@ -71,6 +71,8 @@ export type Task = {
   rules?: AssessmentRules;
   routine?: boolean;
   parentId?: string;
+  // Exact grade-item identity; never inferred from a title or attempt order.
+  attemptId?: string;
   endTime?: string;
   timeBasis?: "class" | "deadline";
   passed?: boolean;
@@ -85,6 +87,7 @@ export type Task = {
   availableUntilTime?: string;
   activity?: AssessmentActivity | null;
   reminders?: import("./reminders").Reminder[];
+  automaticReminder?: import("./automatic-reminders").AutomaticReminderChoice;
 };
 export type AssessmentRules = {
   count?: number;
@@ -108,6 +111,7 @@ export type Unit = {
   topics: { week: number; activity: string; topic: string }[];
 };
 export type Semester = {
+  automaticReminders?: import("./automatic-reminders").AutomaticReminders;
   canvasHistory?: import("./canvas-history").CanvasUpdateBatch[];
   canvasAccountId?: string;
   canvasImports?: {key:string;targetId:string;mode:"overall"|"part";lastGrade?:Grade;readAt?:string;manual?:boolean;
@@ -203,9 +207,12 @@ export function shortDate(date: string) {
     timeZone: "UTC",
   });
 }
+export function classTimingName(timing: string) {
+  return /lecture/i.test(timing)?"Lecture":/practical|lab/i.test(timing)?"Lab":/workshop/i.test(timing)?"Workshop":/seminar/i.test(timing)?"Seminar":/tutorial/i.test(timing)?"Tutorial":"Class";
+}
 export function timingLabel(t: Task) {
   if (t.date && t.timeBasis === "class")
-    return `${shortDate(t.date)} · ${t.timing.startsWith("Before") ? "before" : "in"} ${/lecture/i.test(t.timing) ? "lecture" : /practical|lab/i.test(t.timing) ? "lab" : "tutorial"}${t.time ? ` ${t.time}${t.endTime ? `–${t.endTime}` : ""}` : ""}`;
+    return `${shortDate(t.date)} · ${t.timing.startsWith("Before") ? "before" : "in"} ${classTimingName(t.timing).toLowerCase()}${t.time ? ` ${t.time}${t.endTime ? `–${t.endTime}` : ""}` : ""}`;
   return t.date
     ? `${shortDate(t.date)}${t.time ? ` · ${t.time}` : " · time TBC"}`
     : t.kind === "exam"
@@ -224,6 +231,7 @@ export function mergeSemester(
   fresh.canvasAccountId = old.canvasAccountId;
   fresh.canvasImports = old.canvasImports;
   fresh.canvasHistory = old.canvasHistory;
+  fresh.automaticReminders = old.automaticReminders;
   // Canvas-only courses may not occur in the refreshed timetable. Keep the
   // unit shell for retained, linked results so their grades stay discoverable.
   fresh.units.push(...old.units.filter(u=>!fresh.units.some(v=>v.code===u.code)&&
@@ -236,7 +244,7 @@ export function mergeSemester(
       return { ...t, ...prev, rules: t.rules, source: t.source, sourceText: t.sourceText,
         sourceConflict: t.sourceConflict,
         warning: [t.warning, "Previously edited: your dates are preserved. Compare with the current outline."].filter(Boolean).join(" ") };
-    const next = { ...t, done: prev.done, grade: prev.grade, gradePlan: prev.gradePlan, reminders:prev.reminders, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
+    const next = { ...t, done: prev.done, grade: prev.grade, gradePlan: prev.gradePlan, reminders:prev.reminders, automaticReminder:prev.automaticReminder, passed: prev.passed, manual: prev.manual, overrides: prev.overrides };
     for (const key of prev.overrides || [])
       (next as unknown as Record<string, unknown>)[key] = (prev as unknown as Record<string, unknown>)[key];
     return next;

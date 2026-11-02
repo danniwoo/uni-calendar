@@ -73,7 +73,7 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
         continue;
       }
       if(!current) {
-        const index=plan.items.findIndex(i=>i.id.startsWith(`canvas-rule-empty:${targetId}:`)&&same(i,placeholder(targetId,Number(i.id.split(":").at(-1)))));
+        const index=plan.items.findIndex(i=>i.id.startsWith(`canvas-rule-empty:${targetId}:`)&&same(i,placeholder(targetId,Number(i.id.split(":").at(-1))))&&!s.tasks.some(t=>t.parentId===targetId&&t.attemptId===i.id));
         if(index<0){keep("no untouched slot available — review the count / entries","attention");continue;}
         plan.items[index]=item;
       }else plan.items=plan.items.map(i=>i.id===itemId?item:i);
