@@ -1,5 +1,5 @@
 import { ApiError, authenticate } from "./auth.ts";
-import { exportBackup, maxBackupBytes, requireMember, storeBackup } from "./backup.ts";
+import { exportBackup, getImportedAssessments, maxBackupBytes, requireMember, storeBackup } from "./backup.ts";
 import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
 import type { JWTVerifyGetKey } from "jose";
 
@@ -71,7 +71,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         const path = new URL(request.url).pathname;
         const backup = path.match(/^\/v1\/backup-trial\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
-        const methods = path === "/health" || path === "/v1/session" || path === "/v1/semester" ? ["GET"]
+        const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments"].includes(path) ? ["GET"]
           : backup ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
         if (!methods.length) throw new ApiError(404, "not_found", "This endpoint does not exist.");
         if (request.method === "OPTIONS") {
@@ -88,6 +88,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
         const identity = await authenticate(request, env.SUPABASE_URL, testKey);
         const accountId = await resolveAccount(env.DB, identity);
+        if (path === "/v1/imported/assessments") return send(await getImportedAssessments(env.DB, accountId));
         if (backup) {
           await requireMember(env.DB, accountId, backup[1]);
           if (request.method === "GET") return new Response(await exportBackup(env.DB, accountId), { headers });

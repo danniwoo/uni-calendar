@@ -106,6 +106,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 - 2026-11-02 cloud widget trial: **0.3.3 (7)** built, signature-verified and installed on the paired iPhone. New **Cloud deadline · Trial** supports rectangular Lock Screen and medium Home Screen layouts, syncing on app foreground and successful cloud requests. The account listener now survives closing the connection sheet. Private cache ownership, shared-data minimisation, sign-out/account-switch clearing, stale/expired timelines and failure handling are covered by 11 new tests (40 total pass), typecheck and JS export. Daniel confirmed the SOFT2412 deadline and Synced time appeared on his iPhone Lock Screen and tapping the widget opened the cloud connection sheet. Sign-out redraw remains pending. Main tabs/personal tasks remain local and no production records have been imported.
 
+- 0.3.5 (9) · Imported Assessments uses the authenticated account's restore point with the web grade rules and unit filters for dated work, grades and 日期待確認. Authenticated staging readback, source comparisons, signature verification and device installation/launch passed. For the proposed rollout, dependencies and device acceptance, see the [mobile roadmap in Notion](https://app.notion.com/p/40bd6bfd790e81c1800cdf60f250174f).
+
 ### REMIND-01
 
 **Apple Calendar 式多提醒 → Chrome 系統通知** · P1 · **待驗證** · 使用者明確批准的增量

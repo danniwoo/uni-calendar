@@ -279,6 +279,10 @@ function Prototype() {
         setDetail(undefined); setConnectionCheck(false); setStagingConnection(true); setSettings(true);
         return;
       }
+      if (url === "semester-preview://imported-assessments") {
+        setDetail(undefined); setSettings(false); setAssessmentSource("cloud"); setTab("Assessments");
+        return;
+      }
       const destination = resolveLink(url, board);
       if (destination) {
         setSettings(false);
@@ -517,11 +521,11 @@ function Prototype() {
       <ScrollView key={tab} contentContainerStyle={s.content}>
         <View style={s.row}>
           <Text style={s.eyebrow}>
-            {cloudTab ? "CLOUD · TEST SEMESTER" : tab === "Today"
+            {cloudTab ? "CLOUD · IMPORTED SEMESTER" : tab === "Today"
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.4</Text>
+          <Text style={s.sample}>PREVIEW 0.3.5</Text>
         </View>
         <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>
         {tab === "Home" && (
@@ -1059,7 +1063,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.4 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.5 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {

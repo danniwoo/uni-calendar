@@ -80,6 +80,8 @@ test("private restore is admitted, owner-bound, byte-preserving and never replac
     tasks:[{id:"undated",unit:"TEST1000",kind:"task",title:"No date",weight:"",timing:"",description:"",source:"",sourceText:"",grade:{earned:0,possible:10}}],
     classes:[],warnings:[],completed:{one:true,two:false}};
   assert.equal((await call(url, a, "POST", board)).status, 403);
+  const assessments = "/v1/imported/assessments";
+  assert.equal((await call(assessments, a)).status, 403);
   db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(account);
   db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(other);
   assert.equal((await call(url)).status, 401);
@@ -94,6 +96,14 @@ test("private restore is admitted, owner-bound, byte-preserving and never replac
   assert.equal((await call(url, a, "POST", board)).status, 200);
   assert.equal((await call(url, a, "POST", {...board,completed:{one:false}})).status, 409);
   assert.equal(await (await call(url, a)).text(), JSON.stringify(board));
+  const response = await call(assessments, a);
+  assert.equal(response.status, 200);
+  const imported = await response.json() as {rows:{id:string;date:string|null}[];grades:{mark:unknown}[]};
+  assert.equal(imported.rows[0].id, "undated");
+  assert.equal(imported.rows[0].date, null);
+  assert.deepEqual(imported.grades[0].mark, {earned:0,possible:10});
+  assert.equal("completed" in imported, false);
+  assert.equal((await call(assessments + "?owner=" + account, b)).status, 404);
   assert.equal(await (await call("/v1/semester", a)).text(), seeded);
   assert.equal((await call("/v1/backup-trial/" + other, b)).status, 404);
 });

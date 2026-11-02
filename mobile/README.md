@@ -1,6 +1,12 @@
 # Semester iPhone experiment
 
-Semester Preview has a connection sheet, an Assessments tab and a deadline widget that read the authenticated staging semester. Home, Today and Month use sample data, and personal tasks are stored on the device. The existing website serves the production semester.
+Assessments reads the signed-in user's imported semester. The connection sheet and cloud widget use the separate synthetic trial board. Home, Today and Month use sample data, and personal tasks are stored on the device.
+
+## Imported Assessments · 0.3.5 (9)
+
+Open **Assessments → Cloud semester**, select **All units** or a unit, then **Grades** or **日期待確認**. Grades uses the website's rules for weighted averages and individual results. Tap a parts row to see its grades and outcomes. The date check includes all work items without an exact date, including items with a known week or a completion flag. **Work** shows today and upcoming dated items, with a separate control for earlier work.
+
+The app calls the read-only staging API for its own account and keeps the response in memory while the screen is open. The staging web client's **Check my staging restore point** compares the deployed mobile response against the authenticated D1 re-export, including the identities of undated work per unit. Tested against the real restore point and original backup without placing personal records in Git. Mobile 41 tests, API 10 tests, web 10 tests and typechecks passed. The signed release installed and launched on the physical iPhone. Device UI acceptance is tracked separately in the [decision log](https://app.notion.com/p/40cd6bfd790e81f6b844f3331ee4928a).
 
 ## Cloud Assessments — 0.3.4 (8)
 

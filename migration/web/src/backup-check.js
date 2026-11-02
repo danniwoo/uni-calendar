@@ -1,4 +1,7 @@
 import { previewBackup } from "../../backup-preview.ts";
+import { readBackup } from "../../../lib/backup.ts";
+import { importedAssessments } from "../../../lib/imported-assessments.ts";
+import { readImportedAssessments, selectImportedWork } from "../../../mobile/src/imported-work.ts";
 
 const labels = {
   units: "Units", weeks: "Weeks", classes: "Classes", outlineAssessments: "Unit outline assessments",
@@ -6,7 +9,7 @@ const labels = {
   completionEntries: "Completion entries", canvasMappings: "Canvas mappings", canvasHistoryBatches: "Reviewed Canvas import batches",
 };
 
-export function backupCheckPanel({ accountId, email, request }) {
+export function backupCheckPanel({ accountId, email, request, assessments }) {
   const panel = document.createElement("section");
   panel.className = "panel";
   const heading = document.createElement("h2");
@@ -27,10 +30,19 @@ export function backupCheckPanel({ accountId, email, request }) {
   view.onclick = async () => {
     view.disabled = true;
     try {
-      const data = await request();
+      const [data, projection] = await Promise.all([request(), assessments()]);
       if (!panel.isConnected) return;
       const summary = previewBackup(data);
-      saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries.`;
+      const board = readBackup(data);
+      const mobile = readImportedAssessments(projection);
+      if (JSON.stringify(mobile) !== JSON.stringify(importedAssessments(board))) throw new Error("The iPhone response differs from the restore point.");
+      const check = mobile.units.map(({code}) => {
+        const {undated} = selectImportedWork(mobile, code, "");
+        const ids = board.tasks.filter(t => t.unit === code && !t.date).map(t => t.id);
+        if (JSON.stringify(undated.map(row => row.id)) !== JSON.stringify(ids)) throw new Error("An undated item differs from the restore point.");
+        return `${code} ${ids.length}`;
+      });
+      saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries. iPhone API matches the restore point. Undated by unit: ${check.join(" · ")}.`;
     } catch (error) { if (panel.isConnected) saved.textContent = error.message; }
     finally { view.disabled = false; }
   };

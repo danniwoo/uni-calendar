@@ -106,19 +106,26 @@ function render() {
   }
   if (state.session && state.accountId && !state.rejected) {
     const {accountId, session} = state;
-    main.append(backupCheckPanel({ accountId, email: session.user.email || "this account", request: async text => {
+    const signedRequest = async (path, text) => {
       const current = controller.getState();
       if (!current.session || current.session.user.id !== session.user.id || current.accountId !== accountId || current.rejected)
         throw new Error("The signed-in account changed. Select the file again.");
       const write = text !== undefined;
-      const res = await fetch(`${config.apiUrl}/v1/backup-trial/${encodeURIComponent(accountId)}`, {
+      const res = await fetch(`${config.apiUrl}${path}`, {
         method: write ? "POST" : "GET", cache: "no-store", credentials: "omit", redirect: "error",
         headers: { Authorization: `Bearer ${current.session.access_token}`, ...(write ? {"Content-Type":"application/json"} : {}) },
         ...(write ? {body:text} : {}),
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "The backup request failed.");
-      return write ? res.json() : res.text();
-    }}));
+      return res;
+    };
+    main.append(backupCheckPanel({ accountId, email: session.user.email || "this account",
+      request: async text => {
+        const res = await signedRequest(`/v1/backup-trial/${encodeURIComponent(accountId)}`, text);
+        return text === undefined ? res.text() : res.json();
+      },
+      assessments: async () => (await signedRequest("/v1/imported/assessments")).json(),
+    }));
   }
   main.append(element("footer", "Changes to test tasks are saved under your signed-in account."));
   root.replaceChildren(main);

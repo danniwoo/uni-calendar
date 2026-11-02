@@ -1,4 +1,5 @@
 import { readBackup } from "../../../lib/backup.ts";
+import { importedAssessments } from "../../../lib/imported-assessments.ts";
 import { ApiError } from "./auth.ts";
 import type { SqlDatabase } from "./store.ts";
 
@@ -26,4 +27,9 @@ export async function exportBackup(db: SqlDatabase, owner: string): Promise<stri
   const row = await db.prepare("SELECT data FROM backup_trial_snapshots WHERE account_id = ?1").bind(owner).first<{data:string}>();
   if (!row) throw new ApiError(404, "no_snapshot", "No backup has been imported for this account.");
   return row.data;
+}
+
+export async function getImportedAssessments(db: SqlDatabase, owner: string) {
+  await requireMember(db, owner, owner);
+  return importedAssessments(readBackup(await exportBackup(db, owner)));
 }
