@@ -2,7 +2,7 @@
   "expo": {
     "name": "Semester Preview",
     "slug": "semester-preview",
-    "version": "0.3.0",
+    "version": "0.3.1",
     "scheme": "semester-preview",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "4"
+      "buildNumber": "5"
     },
     "plugins": [
       "expo-dev-client",
@@ -57,7 +57,8 @@
             }
           ]
         }
-      ]
+      ],
+      "expo-web-browser"
     ]
   }
 }

@@ -1,6 +1,6 @@
 {
   "name": "semester-mobile-preview",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "main": "index.ts",
   "dependencies": {
     "@expo/ui": "~55.0.17",
@@ -9,6 +9,7 @@
     "expo-dev-client": "~55.0.41",
     "expo-linking": "~55.0.17",
     "expo-status-bar": "~55.0.6",
+    "expo-web-browser": "~55.0.20",
     "expo-widgets": "55.0.20",
     "react": "19.2.0",
     "react-native": "0.83.10",

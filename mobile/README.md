@@ -1,8 +1,16 @@
 # Semester iPhone experiment
 
-Stage 1 only: an Expo/React Native app with an **invented sample semester and device-local personal tasks**. Version 0.3.0 explores compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. No sign-in, live timetable, Canvas access, analytics, cloud writes or migration. The existing website remains the production app.
+An Expo/React Native preview with an **invented sample semester and device-local personal tasks**. Version 0.3.1 retains compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. Its optional connection diagnostic opens the existing website in the system authentication browser and checks API response headers. No native account, live timetable, Canvas access, analytics, record sync or migration is implemented. The existing website remains the production app.
 
-Stage 2 investigation has started separately: see [hosting/authentication findings and the disposable API check](feasibility/README.md). No live integration is installed in 0.3.0.
+Stage 2 investigation has started: see [hosting/authentication findings and the disposable API check](feasibility/README.md). The status-only connection test is not a native authentication implementation.
+
+## Try the website connection
+
+Open **Widgets → Test website connection → Start connection check**. Continue into the iOS authentication browser and sign in to the existing Semester website if prompted. Once the website opens, tap **Cancel** in the browser to return. This closes the diagnostic browser; it does not establish whether website sign-in succeeded or failed. The site currently has no automatic callback to this app.
+
+The screen compares a native API HEAD request before and after the browser and lets you record whether the website opened. **Check app access only** retries without opening sign-in. Record the Before/After statuses and your website observation. A 200 JSON header is only an API response, not verified identity; 403 does not distinguish access policy from request restrictions. A redirect or HTML page is never treated as a connected session. A 405/501 means HEAD is unsupported, not that native auth is impossible.
+
+Only response status, content type and the destination's match to the expected API are inspected. The app does not read a semester response body, extract browser cookies, receive a supported token, write records, persist diagnostic results or publish them to analytics/widgets. These results test direct browser-session reuse only. An authenticated read, account isolation, refresh/revocation and a narrow synthetic write remain separate acceptance checks.
 
 ## Try the journey
 
@@ -27,6 +35,8 @@ The widget gallery is deliberately small. No favourite/winning design, retention
 ## Local development
 
 ### Preserved comparison version
+
+The status-only connection diagnostic is preserved at **`ios-preview-v0.3.1`**. Its sign-in trial is separate from the local preview's sample data and personal tasks.
 
 The personal-planning preview is preserved at **`ios-preview-v0.3.0`**. Widget content customisation remains at **`ios-preview-v0.2.1`**, commit **`45ab767`**. These checkpoints preserve source, not a backup of tasks stored on the phone.
 
@@ -70,6 +80,12 @@ Stage 1 acceptance and outstanding student/device trials remain in **../ROADMAP.
 - Simulator and physical-device Release builds passed with 0 errors / 4 warnings each. `devicectl` confirms **0.3.0 (4)** installed on the paired iPhone. Build logs: `/private/tmp/semester-ios-v03-export.log`, `/private/tmp/semester-ios-v03-simulator.log`, `/private/tmp/semester-ios-v03-device.log`.
 - Simulator UI verified blank-title prevention, creating a task with a unit, editing its title and moving it to Tomorrow, copying a suggestion, completion/Undo, confirmed deletion/Undo, and retaining both personal tasks after sample refresh and full close/reopen. Widget preferences survived the upgrade.
 - Phone task usability, background widget refresh and broader Stage 1 usefulness remain unverified. Personal tasks do not yet appear in widgets or sync with the website. No live records or hosted application were changed.
+
+### 0.3.1 connection diagnostic evidence — 2026-11-02
+
+- TypeScript, all 21 tests and production iOS JavaScript export passed. New tests cover status/redirect classification, HEAD-only requests without reading bodies, timeout and cancellation; no response establishes a verified account.
+- Simulator and device Release builds passed with 0 errors / 4 warnings each. Installer completed, `devicectl` confirmed **0.3.1 (5)**, and Daniel confirmed 0.3.1 appears on his iPhone. Logs: `/private/tmp/semester-ios-v031-export.log`, `/private/tmp/semester-ios-v031-simulator.log`, `/private/tmp/semester-ios-v031-device.log`.
+- Simulator UI verified the settings entry and instructions, disabled controls while checking, retained widget preferences, and arrival at the Google/OpenAI sign-in browser. Simulator automation subsequently timed out; Daniel chose to complete the signed-in trial on his iPhone. Before/After API results and a successful website login remain pending. This is not evidence of a native token/session or a failure of every Sites integration.
 
 The experiment asks: can a student see the week and upcoming work across units, notice unknown dates, distinguish deadlines from preparation, and use a Lock Screen widget? Ask them to perform these tasks without coaching and record missed items and assistance needed. Stage 2 owns authentication/hosting feasibility and live cross-device writes.
 

@@ -55,6 +55,8 @@ import {
 } from "./src/widget-settings";
 import TodayPlan from "./src/TodayPlan";
 import { usePersonalPlan } from "./src/usePersonalPlan";
+import ConnectionCheck from "./src/ConnectionCheck";
+import { CONNECTION_RETURN_URL } from "./src/connection-check";
 const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
 const STORAGE_KEY = "semester.preview.sample.v1";
 const P = {
@@ -134,6 +136,7 @@ function Prototype() {
   const [now, setNow] = useState(Date.now());
   const [detail, setDetail] = useState<Detail>();
   const [settings, setSettings] = useState(false);
+  const [connectionCheck, setConnectionCheck] = useState(false);
   const [widgetChoice, setWidgetChoice] = useState<
     "Single" | "Two" | "Overview"
   >("Single");
@@ -260,6 +263,9 @@ function Prototype() {
     let active = true;
     const open = (url: string) => {
       if (!active) return;
+      // Authentication-browser diagnostics own this return; never treat it as
+      // a widget link or as evidence that the app is signed in.
+      if (url.split(/[?#]/)[0] === CONNECTION_RETURN_URL) return;
       const destination = resolveLink(url, board);
       if (destination) {
         setSettings(false);
@@ -499,7 +505,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3</Text>
+          <Text style={s.sample}>PREVIEW 0.3.1</Text>
         </View>
         <Text style={s.title}>{titles[tab]}</Text>
         {tab === "Home" && (
@@ -1026,206 +1032,238 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.1 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
-              onPress={() => setSettings(false)}
+              onPress={() => {
+                setSettings(false);
+                setConnectionCheck(false);
+              }}
               style={s.smallButton}
             >
               <Text style={s.link}>Done</Text>
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={s.content}>
-            <Text style={s.title}>A useful glance.</Text>
-            <Text style={s.subtitle}>
-              Choose what your deadline widgets show.
-            </Text>
-            <Heading
-              title="Units to show"
-              link="All units"
-              onPress={() => {
-                setWidgetDraft({ ...widgetDraft, units: null });
-                setWidgetSaveState("");
-              }}
-            />
-            <Text style={s.caption}>
-              Choose one or more. This only filters your widgets.
-            </Text>
-            <View style={s.panel}>
-              {units.map((u) => {
-                const selected =
-                  widgetDraft.units === null || widgetDraft.units.includes(u);
-                return (
-                  <Pressable
-                    key={u}
-                    accessibilityRole="checkbox"
-                    accessibilityLabel={`Show ${u} in widgets`}
-                    accessibilityState={{ checked: selected, disabled: busy }}
+            {connectionCheck ? (
+              <>
+                <Button
+                  label="← Back to widgets"
+                  secondary
+                  onPress={() => setConnectionCheck(false)}
+                />
+                <ConnectionCheck />
+              </>
+            ) : (
+              <>
+                <Text style={s.title}>A useful glance.</Text>
+                <Text style={s.subtitle}>
+                  Choose what your deadline widgets show.
+                </Text>
+                <Button
+                  label="Test website connection →"
+                  secondary
+                  onPress={() => setConnectionCheck(true)}
+                />
+                <Heading
+                  title="Units to show"
+                  link="All units"
+                  onPress={() => {
+                    setWidgetDraft({ ...widgetDraft, units: null });
+                    setWidgetSaveState("");
+                  }}
+                />
+                <Text style={s.caption}>
+                  Choose one or more. This only filters your widgets.
+                </Text>
+                <View style={s.panel}>
+                  {units.map((u) => {
+                    const selected =
+                      widgetDraft.units === null ||
+                      widgetDraft.units.includes(u);
+                    return (
+                      <Pressable
+                        key={u}
+                        accessibilityRole="checkbox"
+                        accessibilityLabel={`Show ${u} in widgets`}
+                        accessibilityState={{
+                          checked: selected,
+                          disabled: busy,
+                        }}
+                        disabled={busy}
+                        onPress={() => {
+                          setWidgetDraft(
+                            toggleWidgetUnit(widgetDraft, u, units),
+                          );
+                          setWidgetSaveState("");
+                        }}
+                        style={s.unitRow}
+                      >
+                        <Tag unit={u} />
+                        <View style={[s.check, selected && s.checked]}>
+                          <Text style={s.checkMark}>{selected ? "✓" : ""}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+                <View style={s.preferenceRow}>
+                  <View style={s.flex}>
+                    <Text style={s.rowTitle}>Show assessment titles</Text>
+                    <Text style={s.meta}>
+                      Turn off to show unit and due time.
+                    </Text>
+                  </View>
+                  <Switch
+                    accessibilityLabel="Show assessment titles in widgets"
                     disabled={busy}
-                    onPress={() => {
-                      setWidgetDraft(toggleWidgetUnit(widgetDraft, u, units));
+                    value={widgetDraft.showTitles}
+                    onValueChange={(showTitles) => {
+                      setWidgetDraft({ ...widgetDraft, showTitles });
                       setWidgetSaveState("");
                     }}
-                    style={s.unitRow}
-                  >
-                    <Tag unit={u} />
-                    <View style={[s.check, selected && s.checked]}>
-                      <Text style={s.checkMark}>{selected ? "✓" : ""}</Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-            <View style={s.preferenceRow}>
-              <View style={s.flex}>
-                <Text style={s.rowTitle}>Show assessment titles</Text>
-                <Text style={s.meta}>Turn off to show unit and due time.</Text>
-              </View>
-              <Switch
-                accessibilityLabel="Show assessment titles in widgets"
-                disabled={busy}
-                value={widgetDraft.showTitles}
-                onValueChange={(showTitles) => {
-                  setWidgetDraft({ ...widgetDraft, showTitles });
-                  setWidgetSaveState("");
-                }}
-                trackColor={{ true: P.purple }}
-              />
-            </View>
-            <Text style={s.caption}>
-              Applies to both Lock Screen deadline designs and Work overview on
-              this iPhone.
-            </Text>
-            <Button
-              label={busy ? "Saving…" : "Save widget content"}
-              disabled={busy || !widgetDirty || widgetDraft.units?.length === 0}
-              onPress={() => void saveWidgetSettings()}
-            />
-            <Text accessibilityLiveRegion="polite" style={s.caption}>
-              {widgetSaveState ||
-                (widgetDraft.units?.length === 0
-                  ? "Choose at least one unit to save."
-                  : widgetDirty
-                    ? "Previewing unsaved changes below."
-                    : "Saved settings · iOS controls refresh timing.")}
-            </Text>
-            <Heading title="Preview a layout" />
-            <View style={s.segments}>
-              {(["Single", "Two", "Overview"] as const).map((choice) => (
-                <Pressable
-                  key={choice}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: choice === widgetChoice }}
-                  onPress={() => setWidgetChoice(choice)}
+                    trackColor={{ true: P.purple }}
+                  />
+                </View>
+                <Text style={s.caption}>
+                  Applies to both Lock Screen deadline designs and Work overview
+                  on this iPhone.
+                </Text>
+                <Button
+                  label={busy ? "Saving…" : "Save widget content"}
+                  disabled={
+                    busy || !widgetDirty || widgetDraft.units?.length === 0
+                  }
+                  onPress={() => void saveWidgetSettings()}
+                />
+                <Text accessibilityLiveRegion="polite" style={s.caption}>
+                  {widgetSaveState ||
+                    (widgetDraft.units?.length === 0
+                      ? "Choose at least one unit to save."
+                      : widgetDirty
+                        ? "Previewing unsaved changes below."
+                        : "Saved settings · iOS controls refresh timing.")}
+                </Text>
+                <Heading title="Preview a layout" />
+                <View style={s.segments}>
+                  {(["Single", "Two", "Overview"] as const).map((choice) => (
+                    <Pressable
+                      key={choice}
+                      accessibilityRole="tab"
+                      accessibilityState={{ selected: choice === widgetChoice }}
+                      onPress={() => setWidgetChoice(choice)}
+                      style={[
+                        s.segment,
+                        choice === widgetChoice && s.segmentActive,
+                      ]}
+                    >
+                      <Text style={s.segmentText}>
+                        {choice === "Single"
+                          ? "One deadline"
+                          : choice === "Two"
+                            ? "Two deadlines"
+                            : "Overview"}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <Text style={s.eyebrow}>
+                  {widgetChoice === "Overview"
+                    ? "HOME SCREEN · MEDIUM"
+                    : "LOCK SCREEN · RECTANGULAR"}
+                </Text>
+                <View
                   style={[
-                    s.segment,
-                    choice === widgetChoice && s.segmentActive,
+                    s.widgetPreview,
+                    widgetChoice === "Overview" && s.overviewPreview,
                   ]}
                 >
-                  <Text style={s.segmentText}>
-                    {choice === "Single"
-                      ? "One deadline"
-                      : choice === "Two"
-                        ? "Two deadlines"
-                        : "Overview"}
+                  <Text style={s.widgetEyebrow}>
+                    {widgetChoice === "Overview"
+                      ? "COMING UP · SAMPLE"
+                      : widget.unit}
                   </Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={s.eyebrow}>
-              {widgetChoice === "Overview"
-                ? "HOME SCREEN · MEDIUM"
-                : "LOCK SCREEN · RECTANGULAR"}
-            </Text>
-            <View
-              style={[
-                s.widgetPreview,
-                widgetChoice === "Overview" && s.overviewPreview,
-              ]}
-            >
-              <Text style={s.widgetEyebrow}>
-                {widgetChoice === "Overview"
-                  ? "COMING UP · SAMPLE"
-                  : widget.unit}
-              </Text>
-              <Text style={s.widgetTitle}>{widget.title}</Text>
-              <Text style={s.widgetMeta}>{widget.when}</Text>
-              {widgetChoice !== "Single" && (
-                <>
-                  <View style={s.widgetRule} />
-                  <Text style={s.widgetTitle}>{widget.second}</Text>
-                  <Text style={s.widgetMeta}>{widget.secondWhen}</Text>
-                </>
-              )}
-              {widgetChoice === "Overview" && (
-                <Text style={s.widgetMeta}>{widget.context}</Text>
-              )}
-            </View>
-            <Text style={s.caption}>
-              This previews your content choices. To change the layout on your
-              Lock Screen, choose the other Semester widget in the iOS gallery.
-            </Text>
-            <Button
-              label="Try where this widget opens →"
-              onPress={() => {
-                setSettings(false);
-                const destination = resolveLink(widget.url, board);
-                if (widgetChoice === "Single" && destination)
-                  setDetail(destination);
-                else {
-                  setUnit("All units");
-                  setAssessmentView("Work");
-                  setTab("Assessments");
-                }
-              }}
-            />
-            <Heading
-              title={
-                widgetChoice === "Overview"
-                  ? "Add to your Home Screen"
-                  : "Add to your Lock Screen"
-              }
-            />
-            <Text style={s.body}>
-              {widgetChoice === "Overview"
-                ? "Touch and hold the Home Screen → Edit → Add Widget → Semester Preview → Work overview · Sample."
-                : "Touch and hold your Lock Screen → Customise → Lock Screen → Add Widgets → Semester Preview. Choose Next deadline · Sample or Two deadlines · Sample."}
-            </Text>
-            <Text style={s.caption}>
-              {widgetError
-                ? "Widget update failed. Reopen the app to retry."
-                : "Sample timeline prepared. iOS controls refresh timing."}
-            </Text>
-            <Heading title="About this preview" />
-            <Text style={s.body}>
-              Semester dates, teaching weeks, requirements and marks are sample
-              data. Your personal tasks and preparation stay on this iPhone. No
-              account, notifications or analytics are connected.
-            </Text>
-            <Text style={s.caption}>
-              Sample generated {shortDate(board.createdAt)}. Week 10 starts on
-              the Monday of that sample week; this is not the USYD academic
-              calendar.
-            </Text>
-            <Button
-              label="Refresh sample week"
-              secondary
-              disabled={busy}
-              onPress={() =>
-                Alert.alert(
-                  "Refresh sample week?",
-                  "Replace invented dates and reset local preparation.",
-                  [
-                    { text: "Cancel", style: "cancel" },
-                    {
-                      text: "Refresh sample",
-                      style: "destructive",
-                      onPress: () => void refreshSample(),
-                    },
-                  ],
-                )
-              }
-            />
+                  <Text style={s.widgetTitle}>{widget.title}</Text>
+                  <Text style={s.widgetMeta}>{widget.when}</Text>
+                  {widgetChoice !== "Single" && (
+                    <>
+                      <View style={s.widgetRule} />
+                      <Text style={s.widgetTitle}>{widget.second}</Text>
+                      <Text style={s.widgetMeta}>{widget.secondWhen}</Text>
+                    </>
+                  )}
+                  {widgetChoice === "Overview" && (
+                    <Text style={s.widgetMeta}>{widget.context}</Text>
+                  )}
+                </View>
+                <Text style={s.caption}>
+                  This previews your content choices. To change the layout on
+                  your Lock Screen, choose the other Semester widget in the iOS
+                  gallery.
+                </Text>
+                <Button
+                  label="Try where this widget opens →"
+                  onPress={() => {
+                    setSettings(false);
+                    const destination = resolveLink(widget.url, board);
+                    if (widgetChoice === "Single" && destination)
+                      setDetail(destination);
+                    else {
+                      setUnit("All units");
+                      setAssessmentView("Work");
+                      setTab("Assessments");
+                    }
+                  }}
+                />
+                <Heading
+                  title={
+                    widgetChoice === "Overview"
+                      ? "Add to your Home Screen"
+                      : "Add to your Lock Screen"
+                  }
+                />
+                <Text style={s.body}>
+                  {widgetChoice === "Overview"
+                    ? "Touch and hold the Home Screen → Edit → Add Widget → Semester Preview → Work overview · Sample."
+                    : "Touch and hold your Lock Screen → Customise → Lock Screen → Add Widgets → Semester Preview. Choose Next deadline · Sample or Two deadlines · Sample."}
+                </Text>
+                <Text style={s.caption}>
+                  {widgetError
+                    ? "Widget update failed. Reopen the app to retry."
+                    : "Sample timeline prepared. iOS controls refresh timing."}
+                </Text>
+                <Heading title="About this preview" />
+                <Text style={s.body}>
+                  Semester dates, teaching weeks, requirements and marks are
+                  sample data. Your personal tasks and preparation stay on this
+                  iPhone. No account, notifications or analytics are connected.
+                </Text>
+                <Text style={s.caption}>
+                  Sample generated {shortDate(board.createdAt)}. Week 10 starts
+                  on the Monday of that sample week; this is not the USYD
+                  academic calendar.
+                </Text>
+                <Button
+                  label="Refresh sample week"
+                  secondary
+                  disabled={busy}
+                  onPress={() =>
+                    Alert.alert(
+                      "Refresh sample week?",
+                      "Replace invented dates and reset local preparation.",
+                      [
+                        { text: "Cancel", style: "cancel" },
+                        {
+                          text: "Refresh sample",
+                          style: "destructive",
+                          onPress: () => void refreshSample(),
+                        },
+                      ],
+                    )
+                  }
+                />
+              </>
+            )}
           </ScrollView>
         </SafeAreaView>
       </Modal>
