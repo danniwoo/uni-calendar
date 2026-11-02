@@ -37,6 +37,8 @@ npm test
 npm run build
 ```
 
-The local tests cover configuration, callback cleanup, API token/body/redirect handling, unexpected data, logout and account-switch races, stale updates, expired/rejected sessions, explicit seeding and refreshed tokens. They do not establish that a real Google provider, Cloudflare deployment, iPhone or widget has connected; those require the account setup and live trial above.
+The local tests cover configuration, callback cleanup, API token/body/redirect handling, unexpected data, logout and account-switch races, stale updates, expired/rejected sessions, explicit seeding and refreshed tokens.
+
+Live verification on 2026-11-02: Google sign-in through the staging Supabase provider succeeded; the deployed Worker verified the account, created its synthetic semester, and saved a preparation task from revision 1 to revision 2. A full page reload restored the session and fetched the same checked task. A separate aggregate D1 query confirmed one account, one identity, one board and revision 2. This establishes the web-to-cloud path; physical iPhone sync, real multi-account provider testing and cloud widgets remain pending. Google external Testing mode did not restrict this basic-identity flow to the displayed test-user list; do not treat it as an application access allowlist.
 
 Sources: [Supabase Google setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [PKCE code exchange](https://supabase.com/docs/reference/javascript/auth-exchangecodeforsession), [session guidance](https://supabase.com/docs/guides/auth/server-side/advanced-guide).
