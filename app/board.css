@@ -511,6 +511,43 @@ aside {
   }
 }
 .unit-detail { min-width: 0; }
+
+/* The standalone Pages build does not include the utility classes used by the
+   shared Sheet primitive. Keep overlays in the viewport in every build. */
+[data-slot="sheet-overlay"] {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgb(15 23 42 / 0.42);
+}
+[data-slot="sheet-content"] {
+  position: fixed;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  background: var(--background, #fff);
+  box-shadow: 0 20px 50px rgb(15 23 42 / 0.22);
+  overflow-y: auto;
+}
+[data-slot="sheet-content"][data-side="right"] {
+  inset-block: 0;
+  right: 0;
+  width: min(92vw, 560px);
+  border-left: 1px solid var(--border, #dbe1ec);
+}
+[data-slot="sheet-content"][data-side="left"] {
+  inset-block: 0;
+  left: 0;
+  width: min(92vw, 560px);
+  border-right: 1px solid var(--border, #dbe1ec);
+}
+[data-slot="sheet-content"][data-side="bottom"] {
+  inset-inline: 0;
+  bottom: 0;
+  max-height: 88vh;
+  border-top: 1px solid var(--border, #dbe1ec);
+}
 .unit-tabs [data-slot="tabs-list"] { width: 100%; height: auto; display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); padding: 3px; background: #e9edf5; }
 .unit-tabs [data-slot="tabs-trigger"] { padding: 9px 4px; font-size: 14px; white-space: normal; line-height: 1.3; }
 .unit-tabs [data-slot="tabs-trigger"][data-state="inactive"] { background: transparent; border-color: transparent; box-shadow: none; color: #64748b; }
