@@ -1,5 +1,12 @@
 # Changelog
 
+## Web 0.23.0 — 2026-11-02
+
+- Invitations show saved active/expired/revoked status and Sydney expiry after reload. Fixed the invite-creation panel being nested inside the received-invitation preview; replacement clears old-link access and refresh hides stale local tokens.
+- Added year/semester/friend filtering, cursor pages for connections/shared units/blocked users, full request counts and independent exact-offering match pages. Private final results and the single all-friends/nobody setting are preserved.
+- Added atomic D1 invitation rate windows and pending-request caps, with useful retry feedback and an additive migration. No audience or account-access changes.
+
+
 ## 0.22.0 — 2026-11-02
 
 - Add Profile & settings to the semester board and course plan: display name, all-friends/private sharing, blocked users, private exports and sign out. Friend requests appear as a profile badge. Saved sharing changes update the plan without a page reload.

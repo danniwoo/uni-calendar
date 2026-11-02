@@ -25,16 +25,16 @@ export default function AccountMenu() {
   const baseline=useRef(JSON.stringify(draft)),dirty=useRef(false),request=useRef(0),active=useRef(false),identity=useRef<string|null>(null);
   dirty.current=JSON.stringify(draft)!==baseline.current;
   const changed=dirty.current,disabled=busy||!!loadError||!data;
-  async function load() {
+  async function load(after?:string) {
     const version=++request.current;
     try {
-      const response=await fetch("/api/account",{cache:"no-store"});
+      const response=await fetch(`/api/account${after?`?after=${encodeURIComponent(after)}`:""}`,{cache:"no-store"});
       const result=await response.json() as AccountData & {error?:string;signIn?:boolean};
       if(version!==request.current)return;
       if(!response.ok){setSignIn(!!result.signIn);if(result.signIn)setData(null);throw new Error(result.error||"Could not load your profile.");}
       const account=result as AccountData;
       if(!dirty.current||identity.current!==account.email){const next=draftOf(account);baseline.current=JSON.stringify(next);setDraft(next);}
-      identity.current=account.email;setData(account);setLoadError("");setSignIn(false);
+      identity.current=account.email;setData(old=>after&&old?.email===account.email?{...account,blocked:[...old.blocked,...account.blocked.filter(f=>!old.blocked.some(o=>o.connectionId===f.connectionId))]}:account);setLoadError("");setSignIn(false);
     }catch(e){if(version===request.current)setLoadError(e instanceof Error?e.message:"Could not load your profile.");}
   }
   useEffect(()=>{
@@ -101,7 +101,7 @@ export default function AccountMenu() {
           </fieldset>
         </form>
         {draft.revision!==(data.profile?.revision??0)&&<div className="notice">Your saved profile changed in another tab. <button disabled={busy} onClick={()=>{const next=draftOf(data);baseline.current=JSON.stringify(next);setDraft(next);setError("");}}>Use saved profile</button></div>}
-        <section className="account-section"><h3>Blocked users{data.blocked.length?` · ${data.blocked.length}`:""}</h3>{data.blocked.length?data.blocked.map(friend=><div className="account-blocked" key={friend.connectionId}><span>{friend.name}</span><button disabled={disabled} onClick={()=>unblock(friend)}>Unblock</button></div>):<p>No blocked users.</p>}<p>Unblocking allows a new friend request; it does not reconnect you.</p></section>
+        <section className="account-section"><h3>Blocked users{data.blocked.length?` · ${data.blocked.length}${data.blockedNext?"+":""}`:""}</h3>{data.blocked.length?data.blocked.map(friend=><div className="account-blocked" key={friend.connectionId}><span>{friend.name}</span><button disabled={disabled} onClick={()=>unblock(friend)}>Unblock</button></div>):<p>No blocked users.</p>}<p>{data.blockedNext&&<button disabled={disabled} onClick={async()=>{setBusy(true);active.current=true;await load(data.blockedNext!);active.current=false;setBusy(false);}}>Load more blocked users</button>}</p><p>Unblocking allows a new friend request; it does not reconnect you.</p></section>
         <section className="account-section"><h3>Your data</h3><div className="account-exports"><button disabled={disabled} onClick={()=>exportData("plan")}><Download size={15}/>Export course plan</button><button disabled={disabled} onClick={()=>exportData("semester")}><Download size={15}/>Export saved semester</button></div><p>Exports include recorded results. The saved-semester backup omits your timetable subscription URL and any unsaved edits. Course-plan export is a separate snapshot without a restore option yet.</p></section>
         <a className="account-signout" href="/signout-with-chatgpt?return_to=%2F" target="_top"><LogOut size={16}/>Sign out</a>
       </>}

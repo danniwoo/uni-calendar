@@ -10,7 +10,7 @@ const account=async(owner:string)=>(await accountResponse({owner,email:`${owner}
 const preview=async(owner:string,code:string)=>(await change(owner,{action:"preview-invite",code})).invitePreview!;
 let calls=0;assert.equal((await accountResponse(null,()=>{calls++;return db;})).status,401);assert.equal(calls,0);
 assert.equal((await accountResponse({owner:"alice",email:"alice@example.test"},()=>db)).headers.get("Cache-Control"),"no-store");
-assert.deepEqual(await account("bob"),{email:"bob@example.test",profile:null,incoming:0,blocked:[]});
+assert.deepEqual(await account("bob"),{email:"bob@example.test",profile:null,incoming:0,blocked:[],blockedNext:null});
 await change("alice",{action:"save-profile",name:"Alice Example",sharing:true,revision:0});
 const invitation=await change("alice",{action:"create-invite"}),code=invitation.inviteCode!;
 const link=invitationLink("https://semester.example",code);

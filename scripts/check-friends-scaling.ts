@@ -1,0 +1,102 @@
+import {DatabaseSync} from "node:sqlite";
+import {readFileSync,readdirSync} from "node:fs";
+import assert from "node:assert/strict";
+import {coursePlanTestDb} from "./course-plan-test-db";
+import {changeCoursePlan,readCoursePlan,readFriends,readSharedPlans} from "../lib/course-plan-store";
+import {coursePlanResponse} from "../lib/course-plan-api";
+import {accountResponse,type AccountData} from "../lib/account";
+import {PlanError,type CoursePlanData,type SharedPage,type PlanFriend} from "../lib/course-plan";
+const {db,sqlite}=coursePlanTestDb();
+const change=(owner:string,body:unknown)=>changeCoursePlan(db,owner,body);
+const profile=(owner:string,sharing=true)=>sqlite.prepare("INSERT INTO friend_profiles(owner,id,name,sharing,revision) VALUES(?,?,?,?,1)").run(owner,crypto.randomUUID(),`Sample ${owner}`,Number(sharing));
+const relation=(owner:string,peer:string,status="accepted",requester=peer,blockedBy:string|null=null)=>sqlite.prepare("INSERT INTO friendships(id,a,b,requester,status,blocked_by,revision) VALUES(?,?,?,?,?,?,1)").run(crypto.randomUUID(),...[owner,peer].sort(),requester,status,blockedBy);
+const unit=(owner:string,n:number,year=2027,session="S1C")=>sqlite.prepare("INSERT INTO course_plans(id,owner,university,code,name,year,session,status,credits,final_mark,final_grade,wam_excluded,revision,updated_at) VALUES(?,?,'usyd',?,'Sample unit',?,?,'planned',6,91,'SECRET-GRADE',0,1,'2026-11-02')").run(crypto.randomUUID(),owner,`TEST${String(n).padStart(4,"0")}`,year,session);
+profile("owner");
+for(let i=0;i<125;i++){const peer=`peer-${i}`;profile(peer);relation("owner",peer,i<70?"pending":i<105?"accepted":"pending",i>=105?"owner":peer);}
+const first=await readCoursePlan(db,"owner",{year:2027});
+assert.equal(first.friends.length,50);assert.equal(first.incomingCount,70);assert.equal(first.friendCount,35);assert.ok(first.friends.every(f=>f.state==="incoming"));
+let all:PlanFriend[]=[...first.friends],cursor=first.friendsNext;
+while(cursor){const page=await readFriends(db,"owner",cursor);assert.ok(page.friends.length<=50);all.push(...page.friends);cursor=page.friendsNext;}
+assert.equal(all.length,125);assert.equal(new Set(all.map(f=>f.connectionId)).size,125);
+assert.ok(all.slice(0,70).every(f=>f.state==="incoming"));
+assert.ok(all.slice(70,105).every(f=>f.state==="accepted"));
+for(let n=0;n<205;n++)unit("peer-70",n);
+unit("peer-70",300,2027,"S2C");unit("peer-70",301,2028);unit("peer-0",0);
+profile("private",false);relation("owner","private");unit("private",0);
+profile("stranger");unit("stranger",0);
+profile("blocked");relation("owner","blocked","blocked","owner","owner");unit("blocked",0);
+const url="https://semester.example/api/course-plan";
+const response=await coursePlanResponse(new Request(url+"?year=2027&session=S1C"),"owner",()=>db);
+const data=await response.json() as CoursePlanData;assert.equal(data.sharedPlans.length,100);assert.ok(data.sharedNext);
+let shared=[...data.sharedPlans];let after:string|null=data.sharedNext;
+while(after){const next=await coursePlanResponse(new Request(url+`?scope=shared&year=2027&session=S1C&after=${after}`),"owner",()=>db);const page=await next.json() as SharedPage;shared.push(...page.sharedPlans);after=page.sharedNext;}
+assert.equal(shared.length,205);assert.equal(new Set(shared.map(p=>p.code)).size,205);
+assert.ok(shared.every(p=>p.friendName==="Sample peer-70"&&p.session==="S1C"&&p.year===2027));
+const encoded=JSON.stringify(shared);for(const secret of ["SECRET-GRADE","final_mark","finalMark","finalGrade","wamExcluded","owner","email","cursor"])assert.equal(encoded.includes(secret),false);
+assert.equal((await readSharedPlans(db,"owner",{year:2027,session:"S2C"})).sharedPlans.length,1);
+assert.equal((await readSharedPlans(db,"owner",{year:2028})).sharedPlans.length,1);
+assert.equal((await readSharedPlans(db,"owner",{year:2027,code:"TEST0204"})).sharedPlans.length,1,"targeted match beyond the first page");
+const peerId=all.find(f=>f.name==="Sample peer-70")!.id;
+assert.equal((await readSharedPlans(db,"owner",{year:2027,friend:peerId})).sharedPlans.length,100);
+sqlite.prepare("UPDATE course_plans SET status='completed' WHERE owner='peer-70' AND code='TEST0204'").run();
+assert.equal((await readSharedPlans(db,"owner",{year:2027,code:"TEST0204"})).sharedPlans.length,0,"completed units do not crowd out taking-together matches");
+// A cursor is a position, never an access grant. Recheck sharing and connection each time.
+sqlite.prepare("UPDATE friend_profiles SET sharing=0 WHERE owner='peer-70'").run();
+assert.equal((await readSharedPlans(db,"owner",{year:2027},data.sharedNext!)).sharedPlans.length,0);
+sqlite.prepare("UPDATE friend_profiles SET sharing=1 WHERE owner='peer-70'").run();
+sqlite.prepare("DELETE FROM friendships WHERE a='owner' AND b='peer-70'").run();
+assert.equal((await readSharedPlans(db,"owner",{year:2027},data.sharedNext!)).sharedPlans.length,0);
+assert.equal((await readSharedPlans(db,"stranger",{year:2027},data.sharedNext!)).sharedPlans.length,0);
+for(const query of ["year=2027.5","year=2101","session=S3C","friend=secret","code=bad","scope=other","scope=shared&after=bad","scope=friends&after=bad"])assert.equal((await coursePlanResponse(new Request(url+"?"+query),"owner",()=>db)).status,400);
+assert.equal((await coursePlanResponse(new Request(url+"?scope=shared"),null,()=>db)).status,401);
+for(let i=0;i<56;i++){const peer=`blocked-${i}`;profile(peer);relation("owner",peer,"blocked","owner","owner");}
+const account=await (await accountResponse({owner:"owner",email:"owner@example.test"},()=>db)).json() as AccountData;
+assert.equal(account.blocked.length,50);assert.ok(account.blockedNext);
+const remainder=await (await accountResponse({owner:"owner",email:"owner@example.test"},()=>db,account.blockedNext!)).json() as AccountData;
+assert.equal(remainder.blocked.length,7);assert.equal(remainder.blockedNext,null);
+// Persist status, never a recoverable token. Replacement/revocation survive new reads.
+profile("sender");profile("recipient");
+assert.equal((await readCoursePlan(db,"sender")).invitation.state,"none");
+const invite=await change("sender",{action:"create-invite"});
+let status=(await readCoursePlan(db,"sender")).invitation;
+assert.equal(status.state,"active");assert.equal(status.expiresAt,invite.expiresAt);assert.equal(status.revision,invite.inviteRevision);
+assert.equal(JSON.stringify(await readCoursePlan(db,"sender")).includes(invite.inviteCode!),false);
+assert.notEqual(sqlite.prepare("SELECT code_hash FROM friend_invites WHERE owner='sender'").get()!.code_hash,invite.inviteCode);
+const replacement=await change("sender",{action:"create-invite"});assert.equal(replacement.inviteRevision,2);
+await assert.rejects(()=>change("recipient",{action:"preview-invite",code:invite.inviteCode}),/expired or been replaced/);
+await change("sender",{action:"revoke-invite"});assert.equal((await readCoursePlan(db,"sender")).invitation.state,"revoked");
+await assert.rejects(()=>change("recipient",{action:"preview-invite",code:replacement.inviteCode}),/expired or been replaced/);
+await change("sender",{action:"create-invite"});sqlite.prepare("UPDATE friend_invites SET expires_at='2000-01-01' WHERE owner='sender'").run();assert.equal((await readCoursePlan(db,"sender")).invitation.state,"expired");
+// Atomic fixed-window limits remain enforced across calls, and revoke stays available.
+profile("rate-user");
+const attempts=await Promise.allSettled(Array.from({length:7},()=>change("rate-user",{action:"create-invite"})));
+assert.equal(attempts.filter(a=>a.status==="fulfilled").length,5);assert.ok(attempts.filter(a=>a.status==="rejected").every(a=>a.reason instanceof PlanError&&a.reason.status===429));
+const limited=await coursePlanResponse(new Request(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"create-invite"})}),"rate-user",()=>db);
+assert.equal(limited.status,429);assert.ok(Number(limited.headers.get("Retry-After"))>0);assert.equal(limited.headers.get("Cache-Control"),"no-store");
+await change("rate-user",{action:"revoke-invite"});
+sqlite.prepare("UPDATE friend_rate_limits SET window_start=0 WHERE owner='rate-user'").run();await change("rate-user",{action:"create-invite"});
+assert.equal(sqlite.prepare("SELECT count FROM friend_rate_limits WHERE owner='rate-user'").get()!.count,1);
+for(let i=0;i<30;i++)await assert.rejects(()=>change("preview-limit",{action:"preview-invite",code:"invalid"}),e=>e instanceof PlanError&&e.status===400);
+await assert.rejects(()=>change("preview-limit",{action:"preview-invite",code:"invalid"}),e=>e instanceof PlanError&&e.status===429);
+// Sent/incoming pending caps are part of the INSERT, including its invitation recheck.
+const targetInvite=await change("recipient",{action:"create-invite"});
+await assert.rejects(()=>change("owner",{action:"request-friend",code:targetInvite.inviteCode}),/20 sent requests/);
+sqlite.prepare("DELETE FROM friendships WHERE requester='owner' AND status='pending'").run();
+await change("owner",{action:"request-friend",code:targetInvite.inviteCode});
+profile("full-inbox");const fullInvite=await change("full-inbox",{action:"create-invite"});
+for(let i=0;i<100;i++)relation("full-inbox",`inbox-${i}`,"pending",`inbox-${i}`);
+await assert.rejects(()=>change("sender",{action:"request-friend",code:fullInvite.inviteCode}),/100 incoming requests/);
+assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM friendships WHERE (a='full-inbox' OR b='full-inbox') AND status='pending'").get()!.n,100);
+for(let i=0;i<20;i++)await assert.rejects(()=>change("rate-requests",{action:"request-friend",code:"invalid"}));
+await assert.rejects(()=>change("rate-requests",{action:"request-friend",code:"invalid"}),e=>e instanceof PlanError&&e.status===429);
+assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM semesters").get()!.n,0);
+// Appended migration keeps existing invitations valid and existing results intact.
+const legacy=new DatabaseSync(":memory:"),directory=new URL("../drizzle/",import.meta.url);
+const migrations=readdirSync(directory).filter(f=>f.endsWith(".sql")).sort();
+for(const file of migrations.filter(f=>f<"0004"))legacy.exec(readFileSync(new URL(file,directory),"utf8"));
+legacy.prepare("INSERT INTO friend_invites(owner,code_hash,expires_at) VALUES('legacy','existing-hash','2099-01-01')").run();
+for(const file of migrations.filter(f=>f>="0004"))legacy.exec(readFileSync(new URL(file,directory),"utf8"));
+const migrated=legacy.prepare("SELECT * FROM friend_invites WHERE owner='legacy'").get()!;
+assert.equal(migrated.code_hash,"existing-hash");assert.equal(migrated.revoked_at,null);assert.equal(migrated.revision,1);assert.equal(migrated.expires_at,"2099-01-01");legacy.close();
+sqlite.close();
+console.log("PASS: bounded cursor pages, incoming priority and counts, semester/friend/unit filters, match beyond first page, privacy after sharing/removal, blocked pagination, persistent invite lifecycle, atomic rate windows and pending caps.");

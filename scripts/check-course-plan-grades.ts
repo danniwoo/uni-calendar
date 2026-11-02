@@ -43,7 +43,7 @@ await change("owner",{action:"friend-action",friendId:request.id,connectionId:re
 const friendRead=await read("friend");
 assert.equal(friendRead.sharedPlans.length,1);
 assert.deepEqual(Object.keys(friendRead.sharedPlans[0]).sort(),["university","code","name","year","session","status","credits","updatedAt","friendId","friendName"].sort(),"friend DTO is an explicit public allowlist");
-const friendResponse=await coursePlanResponse(new Request("https://semester.example/api/course-plan"),"friend",()=>db);
+const friendResponse=await coursePlanResponse(new Request("https://semester.example/api/course-plan?year=2026"),"friend",()=>db);
 const json=await friendResponse.text();
 for(const secret of ["83.625","PRIVATE-RESULT","finalMark","finalGrade","wamExcluded","final_mark","final_grade","wam_excluded","average"])assert.equal(json.includes(secret),false,`${secret} must never reach a friend's browser`);
 await assert.rejects(()=>change("friend",{action:"save-plan",id:row.id,revision:row.revision,plan:{...base,finalMark:10}}),/changed/);

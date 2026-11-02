@@ -105,3 +105,5 @@
 .course-private-note svg {flex-shrink:0;}
 @media(max-width:760px) {.course-semesters,.course-friend-setup{grid-template-columns:1fr}.course-heading{align-items:flex-start;flex-direction:column}.course-year{gap:10px}.course-year>span{font-size:13px}.course-header .wordmark small{display:none}}
 @media(max-width:420px) {.course-form-pair{grid-template-columns:1fr}.course-header>a:last-child{font-size:13px}.course-unit-actions{align-items:flex-start;flex-direction:column}.course-year>button{margin-left:0}}
+
+.course-invite-status {font-weight:600;padding:10px 12px;background:var(--secondary);border-radius:6px;}

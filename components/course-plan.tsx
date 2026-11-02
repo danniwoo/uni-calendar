@@ -2,13 +2,14 @@
 import {useEffect, useRef, useState} from "react";
 import {CalendarDays, Plus, Users, LockKeyhole, ArrowRight} from "lucide-react";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
-import {creditSummary,wamSummary,wamExclusion,matchesFor,sameOffering,PLAN_STATUSES,STATUS_LABEL,type CoursePlanData,type PlanEntry,type PlanDraft,type PlanFriend,type SharedPlan,type PlanSession} from "@/lib/course-plan";
+import {creditSummary,wamSummary,wamExclusion,matchesFor,sameOffering,PLAN_STATUSES,STATUS_LABEL,type CoursePlanData,type PlanEntry,type PlanDraft,type PlanFriend,type SharedPlan,type PlanSession,type FriendsPage,type SharedPage} from "@/lib/course-plan";
+import {useSharedPlanPage} from "./shared-plan-page";
 import {sydneyDate} from "@/lib/semester";
 import AccountMenu,{openProfileSettings,PROFILE_CHANGED} from "./account-menu";
 import {invitationCode,invitationLink,planningYear,type InvitePreview} from "@/lib/friend-invitation";
 
 type Editor = {id:string|null;revision:number;draft:PlanDraft;initial:string};
-type MutationResult = {message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview};
+type MutationResult = {message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview;inviteRevision?:number};
 const period = (p:{year:number;session:PlanSession}) => `Semester ${p.session==="S1C"?1:2}, ${p.year}`;
 
 export default function CoursePlan() {
@@ -23,20 +24,27 @@ export default function CoursePlan() {
   const [inviteFromLink,setInviteFromLink]=useState<string|null>(null);
   const [signInPath,setSignInPath]=useState("/signin-with-chatgpt?return_to=%2Fplan");
   const [origin,setOrigin]=useState("");
-  const [invite,setInvite]=useState<{code:string;expiresAt:string}|null>(null);
-  const [friendFilter,setFriendFilter]=useState("all");
+  const [invite,setInvite]=useState<{code:string;expiresAt:string;revision:number}|null>(null);
+  const [friendFilter,setFriendFilter]=useState("all"),[sessionFilter,setSessionFilter]=useState<""|PlanSession>(""),[ready,setReady]=useState(false);
+  const [moreBusy,setMoreBusy]=useState(false),[refreshKey,setRefreshKey]=useState(0);
+  const moreRef=useRef(false),queryRef=useRef("");
+  const query=new URLSearchParams({year:String(year),...(tab==="friends"&&sessionFilter?{session:sessionFilter}:{}),...(tab==="friends"&&friendFilter!=="all"?{friend:friendFilter}:{})}).toString();
+  queryRef.current=query;
   const busyRef=useRef(false),dirtyRef=useRef(false),requestVersion=useRef(0);
   dirtyRef.current=!!editor&&JSON.stringify(editor.draft)!==editor.initial;
 
   async function refresh(initial=false) {
-    const request=++requestVersion.current;
+    const request=++requestVersion.current,currentQuery=queryRef.current;
+    setRefreshKey(key=>key+1);
     if(initial)setLoading(true);
+    setData(old=>old?{...old,sharedPlans:[],sharedNext:null}:old);
     try {
-      const response=await fetch("/api/course-plan",{cache:"no-store"});
+      const response=await fetch(`/api/course-plan?${currentQuery}`,{cache:"no-store"});
       const result=await response.json() as CoursePlanData & {error?:string;signIn?:boolean};
-      if(request!==requestVersion.current)return;
-      if(!response.ok){setSignIn(!!result.signIn);throw new Error(result.error||"Could not load course plans.");}
+      if(request!==requestVersion.current||currentQuery!==queryRef.current)return;
+      if(!response.ok){setSignIn(!!result.signIn);if(result.signIn)setData(null);throw new Error(result.error||"Could not load course plans.");}
       setData(result);setLoadError("");setSignIn(false);
+      setInvite(old=>old&&old.revision===result.invitation.revision&&result.invitation.state==="active"?old:null);
 
     } catch(e) {if(request===requestVersion.current)setLoadError(e instanceof Error?e.message:"Could not load course plans.");}
     finally {if(request===requestVersion.current)setLoading(false);}
@@ -51,9 +59,10 @@ export default function CoursePlan() {
     };
     readLocation();window.addEventListener("hashchange",readLocation);window.addEventListener("popstate",readLocation);
     try{setYear(planningYear(sydneyDate(new Date()),localStorage.getItem("semester-plan-year")));}catch{}
-    void refresh(true);
+    setReady(true);
     return()=>{window.removeEventListener("hashchange",readLocation);window.removeEventListener("popstate",readLocation);};
   },[]);
+  useEffect(()=>{if(ready)void refresh(true);},[query,ready]);
   useEffect(()=>{
     if(!data||busy||loadError||inviteFromLink===null)return;
     const pending=inviteFromLink;setInviteFromLink(null);void checkInvite(pending);
@@ -70,7 +79,7 @@ export default function CoursePlan() {
   },[]);
   async function mutate(body:unknown):Promise<MutationResult|null> {
     if(busyRef.current||loadError)return null;
-    busyRef.current=true;setBusy(true);setError("");setNotice("");
+    busyRef.current=true;++requestVersion.current;setBusy(true);setError("");setNotice("");
     try {
       const response=await fetch("/api/course-plan",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
       const result=await response.json() as MutationResult & {error?:string};
@@ -78,6 +87,19 @@ export default function CoursePlan() {
       setNotice(result.message);await refresh();return result;
     } catch(e) {setError(e instanceof Error?e.message:"Could not save. Your edits are still open.");return null;}
     finally {busyRef.current=false;setBusy(false);}
+  }
+  async function loadMore(scope:"friends"|"shared") {
+    const after=scope==="friends"?data?.friendsNext:data?.sharedNext;
+    if(!after||moreRef.current||busyRef.current||loading||loadError)return;
+    moreRef.current=true;setMoreBusy(true);setError("");const version=requestVersion.current,currentQuery=queryRef.current;
+    try {
+      const response=await fetch(`/api/course-plan?${currentQuery}&scope=${scope}&after=${encodeURIComponent(after)}`,{cache:"no-store"});
+      const result=await response.json() as FriendsPage & SharedPage & {error?:string};
+      if(version!==requestVersion.current||currentQuery!==queryRef.current)return;
+      if(!response.ok)throw new Error(result.error||"Could not load more. Try again.");
+      setData(old=>old?scope==="friends"?{...old,friends:[...old.friends,...result.friends.filter(f=>!old.friends.some(o=>o.connectionId===f.connectionId))],friendsNext:result.friendsNext}:{...old,sharedPlans:[...old.sharedPlans,...result.sharedPlans.filter(p=>!old.sharedPlans.some(o=>o.friendId===p.friendId&&sameOffering(o,p)))],sharedNext:result.sharedNext}:old);
+    }catch(e){if(version===requestVersion.current)setError(e instanceof Error?e.message:"Could not load more.");}
+    finally{moreRef.current=false;setMoreBusy(false);}
   }
   async function checkInvite(value:string) {
     setPreview(null);const normalized=invitationCode(value);
@@ -111,10 +133,13 @@ export default function CoursePlan() {
     const url=URL.createObjectURL(new Blob([JSON.stringify({format:"semester-course-plan",version:1,exportedAt:new Date().toISOString(),plans:data.plans},null,2)],{type:"application/json"}));
     const anchor=document.createElement("a");anchor.href=url;anchor.download="semester-course-plan.json";anchor.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
   }
-  const disabled=busy||!!loadError;
+  const activeInvite=invite?.revision===data?.invitation.revision&&data?.invitation.state==="active"?invite:null;
+  const disabled=busy||loading||!!loadError;
   const selectedPlan=data?.plans.find(p=>p.id===selected);
+  const matchQuery=selectedPlan?new URLSearchParams({scope:"shared",year:String(selectedPlan.year),session:selectedPlan.session,code:selectedPlan.code}).toString():null;
+  const matchPage=useSharedPlanPage(matchQuery,refreshKey);
   const years=Array.from(new Set([...Array.from({length:10},(_,i)=>thisYear-3+i),...data?.plans.map(p=>p.year)??[],year])).sort((a,b)=>a-b);
-  const incoming=data?.friends.filter(f=>f.state==="incoming")??[];
+  const incomingCount=data?.incomingCount??0;
   const friends=data?.friends.filter(f=>f.state==="accepted")??[];
   const sharedForYear=data?.sharedPlans.filter(p=>p.year===year&&(friendFilter==="all"||p.friendId===friendFilter))??[];
   const wam=wamSummary(data?.plans??[]);
@@ -123,7 +148,7 @@ export default function CoursePlan() {
   return <main className="course-page">
     <header className="course-header"><a className="wordmark" href="/"><CalendarDays aria-hidden="true"/> semester <small>USYD</small></a><div className="course-actions"><a href="/">Current semester <ArrowRight size={16}/></a><AccountMenu/></div></header>
     <div className="course-heading"><div><p className="eyebrow">LOOK AHEAD, TOGETHER</p><h1>Course plan</h1><p className="muted">Map out your semesters. Find friends taking the same units.</p></div><div className="course-actions"><button onClick={()=>refresh()} disabled={busy||loading}>Refresh</button><button onClick={exportPlan} disabled={!data||busy}>Export my plan</button></div></div>
-    <nav className="course-tabs" aria-label="Course planning"><button aria-pressed={tab==="plan"} onClick={()=>chooseTab("plan")}>My plan</button><button aria-pressed={tab==="friends"} onClick={()=>chooseTab("friends")}><Users size={16}/> Friends{incoming.length?` · ${incoming.length} request${incoming.length===1?"":"s"}`:""}</button></nav>
+    <nav className="course-tabs" aria-label="Course planning"><button aria-pressed={tab==="plan"} onClick={()=>chooseTab("plan")}>My plan</button><button aria-pressed={tab==="friends"} onClick={()=>chooseTab("friends")}><Users size={16}/> Friends{incomingCount?` · ${incomingCount} request${incomingCount===1?"":"s"}`:""}</button></nav>
     {notice&&<div className="course-notice" role="status">{notice}</div>}
     {error&&!editor&&<div className="notice error" role="alert">{error} <button onClick={()=>refresh()} disabled={busy}>Refresh records</button></div>}
     {loadError&&<div className="notice error" role="alert"><p>{loadError}</p>{signIn?<a href={signInPath} target="_top">Sign in with ChatGPT</a>:<button onClick={()=>refresh()} disabled={busy}>Retry loading</button>}</div>}
@@ -147,37 +172,41 @@ export default function CoursePlan() {
               <div className="course-unit-top"><strong>{unit.code}</strong><span className={`course-status status-${unit.status}`}>{STATUS_LABEL[unit.status]}</span></div><h3>{unit.name}</h3>
               <p className="muted">{unit.credits===null?"Credits not entered":`${unit.credits} cp`}</p>
               {(unit.finalMark!==null||unit.finalGrade)&&<div className="course-final-result"><span>Final result · {unit.finalMark!==null?`${unit.finalMark} / 100`:"No numeric mark"}{unit.finalGrade?` · ${unit.finalGrade}`:""}</span>{wamExclusion(unit)&&<small>WAM: {wamExclusion(unit)}</small>}</div>}
-              <div className="course-unit-actions"><button onClick={()=>{setSelected(unit.id);setError("");}}>{matches.length?`${matches.length} friend${matches.length===1?"":"s"} considering / taking this`:"See friends in this unit"}<ArrowRight size={14}/></button><button disabled={disabled} onClick={()=>openEditor(unit)}>Edit</button></div>
+              <div className="course-unit-actions"><button onClick={()=>{setSelected(unit.id);setError("");}}>{matches.length?`${matches.length}${data.sharedNext?"+":""} friend${matches.length===1?"":"s"} considering / taking this`:"See friends in this unit"}<ArrowRight size={14}/></button><button disabled={disabled} onClick={()=>openEditor(unit)}>Edit</button></div>
             </article>;})}
           </section>;
         })}</div>
         <p className="course-footnote">Plans, enrolment and completion are self-reported. Check official unit availability, prerequisites and degree requirements before enrolling. Credit totals exclude considering and completed entries.</p>
       </>:<>
-        <div className="course-friends-heading"><div><h2>Your friends</h2><p className="muted">{friends.length} friend{friends.length===1?"":"s"}{incoming.length?` · ${incoming.length} pending request${incoming.length===1?"":"s"}`:""}</p></div><button className="primary" onClick={()=>setConnectOpen(!connectOpen)} aria-expanded={connectOpen}><Plus size={16}/>Add friend</button></div>
+        <div className="course-friends-heading"><div><h2>Your friends</h2><p className="muted">{data.friendCount} friend{data.friendCount===1?"":"s"}{incomingCount?` · ${incomingCount} pending request${incomingCount===1?"":"s"}`:""}</p></div><button className="primary" onClick={()=>setConnectOpen(!connectOpen)} aria-expanded={connectOpen}><Plus size={16}/>Add friend</button></div>
         {!data.profile&&<div className="course-onboarding"><div><strong>Introduce yourself</strong><p>Choose a name your friends recognise before sending or accepting requests.</p></div><button onClick={openProfileSettings}>Set up profile</button></div>}
         {data.friends.some(f=>f.state!=="blocked")?<section className="course-connections" aria-label="Friends and requests">{[...data.friends].filter(f=>f.state!=="blocked").sort((a,b)=>(a.state==="incoming"?0:a.state==="accepted"?1:2)-(b.state==="incoming"?0:b.state==="accepted"?1:2)||a.name.localeCompare(b.name)).map(friend=><div className="course-connection" key={friend.connectionId}><div><strong>{friend.name}</strong><span className="muted">{friend.state==="accepted"?"Friends":friend.state==="incoming"?"Wants to connect":"Request sent"}</span></div><div className="course-actions">
           {friend.state==="incoming"&&<button className="primary" disabled={disabled} onClick={()=>friendAction(friend,"accept")}>Accept</button>}
           <button disabled={disabled} onClick={()=>friendAction(friend,"remove")}>{friend.state==="incoming"?"Decline":friend.state==="outgoing"?"Cancel request":"Remove"}</button><button disabled={disabled} onClick={()=>friendAction(friend,"block")}>Block</button>
         </div></div>)}</section>:!connectOpen&&<div className="course-empty">Add a friend to start planning together.</div>}
+        {data.friendsNext&&<button disabled={disabled||moreBusy} onClick={()=>loadMore("friends")}>{moreBusy?"Loading…":"Load more friends and requests"}</button>}
         {connectOpen&&<div className="course-friend-setup">
           <section className="course-panel"><h2>Have an invitation?</h2><form onSubmit={async e=>{e.preventDefault();await checkInvite(code);}}><label htmlFor="friend-code">Friend’s link or code</label><div className="course-inline"><input id="friend-code" value={code} maxLength={2048} onChange={e=>{setCode(e.target.value);setPreview(null);}} autoComplete="off" required disabled={busy}/><button disabled={disabled||!code.trim()}>Check invitation</button></div></form>
             {preview&&<div className="course-invitation-preview"><strong>{preview.value.name}</strong>
               {preview.value.state==="available"?<><p>Send a friend request? Their units appear after they accept and choose to share.</p>{data.profile?<button className="primary" disabled={disabled} onClick={async()=>{if(await mutate({action:"request-friend",code:preview.code})){clearInvitation();window.dispatchEvent(new Event(PROFILE_CHANGED));}}}>Send request to {preview.value.name}</button>:<button onClick={openProfileSettings}>Set up profile to continue</button>}</>
               :<p>{preview.value.state==="self"?"This is your own invitation. Share it with a friend.":preview.value.state==="accepted"?"You are already friends.":preview.value.state==="outgoing"?"Your request has already been sent.":"They already sent you a request. Accept it in the list above."}</p>}
               <button disabled={busy} onClick={clearInvitation}>Dismiss invitation</button>
-              <section className="course-panel"><h2>Invite a friend</h2><p className="muted">Share a link in your existing chat. You accept their request before sharing units.</p>
+            </div>}
+          </section>
+          <section className="course-panel"><h2>Invite a friend</h2><p className="muted">Share a link in your existing chat. You accept their request before sharing units.</p>
             {data.profile?<>
-              <div className="course-inline"><button disabled={disabled} onClick={async()=>{const r=await mutate({action:"create-invite"});if(r?.inviteCode&&r.expiresAt)setInvite({code:r.inviteCode,expiresAt:r.expiresAt});}}>{invite?"Replace invitation link":"Create invitation link"}</button><button disabled={disabled} onClick={async()=>{if(await mutate({action:"revoke-invite"}))setInvite(null);}}>Revoke invitation</button></div>
-              {invite&&origin&&<div className="course-invite"><label htmlFor="friend-invite">Your invitation link</label><div className="course-inline"><input id="friend-invite" value={invitationLink(origin,invite.code)} readOnly/><button onClick={()=>copy(invitationLink(origin,invite.code),"Invitation link copied.")}>Copy link</button></div><p className="muted">Expires {new Date(invite.expiresAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})}.</p><details><summary>Use a code instead</summary><div className="course-inline"><input aria-label="Your invitation code" value={invite.code} readOnly/><button onClick={()=>copy(invite.code,"Invitation code copied.")}>Copy code</button></div></details></div>}
+              <p className="course-invite-status" role="status">{data.invitation.state==="active"?`Invitation active · expires ${new Date(data.invitation.expiresAt!).toLocaleString("en-AU",{timeZone:"Australia/Sydney",dateStyle:"medium",timeStyle:"short"})} (Sydney)`:data.invitation.state==="expired"?"Your invitation has expired.":data.invitation.state==="revoked"?"Your invitation has been revoked.":"No active invitation."}</p>
+              {data.invitation.state==="active"&&!activeInvite&&<p className="muted">Your previously shared link still works. To copy a link here, create a replacement; the old link will stop working.</p>}
+              <div className="course-inline"><button disabled={disabled} onClick={async()=>{const r=await mutate({action:"create-invite"});if(r?.inviteCode&&r.expiresAt&&r.inviteRevision)setInvite({code:r.inviteCode,expiresAt:r.expiresAt,revision:r.inviteRevision});}}>{data.invitation.state==="active"?"Replace invitation link":"Create invitation link"}</button><button disabled={disabled||data.invitation.state!=="active"} onClick={async()=>{if(await mutate({action:"revoke-invite"}))setInvite(null);}}>Revoke invitation</button></div>
+              {activeInvite&&origin&&<div className="course-invite"><label htmlFor="friend-invite">Your invitation link</label><div className="course-inline"><input id="friend-invite" value={invitationLink(origin,activeInvite.code)} readOnly/><button onClick={()=>copy(invitationLink(origin,activeInvite.code),"Invitation link copied.")}>Copy link</button></div><p className="muted">Expires {new Date(activeInvite.expiresAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})}.</p><details><summary>Use a code instead</summary><div className="course-inline"><input aria-label="Your invitation code" value={activeInvite.code} readOnly/><button onClick={()=>copy(activeInvite.code,"Invitation code copied.")}>Copy code</button></div></details></div>}
               <p className="muted">New invitations replace earlier links and codes. Revoking one leaves existing requests unchanged.</p>
             </>:<button onClick={openProfileSettings}>Set up profile to invite</button>}
             <p className="course-access-note">This trial website is invite-only. If your friend cannot open it, ask the website owner to grant access first. A friend link does not grant website access.</p>
           </section>
         </div>}
-          </section>
-        </div>}
-        <section className="course-friend-plans"><div className="course-term-heading"><h2>Friends’ shared units · {year}</h2><label>Show <select value={friendFilter} onChange={e=>setFriendFilter(e.target.value)}><option value="all">All friends</option>{friends.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label></div>
-          {!sharedForYear.length?<p className="course-empty">{friends.length?"No shared course plans for this year yet. A friend may have no units planned or have sharing switched off.":"Connect with a friend to see their shared course plan."}</p>:sharedForYear.map(p=>{const mine=data.plans.find(m=>sameOffering(m,p));return <article className="course-shared-row" key={`${p.friendId}-${p.code}-${p.year}-${p.session}`}><div><strong>{p.code} · {p.name}</strong><span>{p.friendName} · {STATUS_LABEL[p.status]} · {period(p)}</span><small className="muted">Updated {new Date(p.updatedAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})} · self-reported</small></div>{mine?<span className="course-status">In your plan · {STATUS_LABEL[mine.status]}</span>:<button disabled={disabled} onClick={()=>openEditor(p)}>Add to my plan</button>}</article>;})}
+        <section className="course-friend-plans"><div className="course-term-heading"><h2>Friends’ shared units · {year}</h2><label>Semester <select value={sessionFilter} onChange={e=>setSessionFilter(e.target.value as ""|PlanSession)}><option value="">Both semesters</option><option value="S1C">Semester 1</option><option value="S2C">Semester 2</option></select></label><label>Show <select value={friendFilter} onChange={e=>setFriendFilter(e.target.value)}><option value="all">All friends</option>{friendFilter!=="all"&&!friends.some(f=>f.id===friendFilter)&&<option value={friendFilter}>Selected friend</option>}{friends.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label></div>
+          {!sharedForYear.length&&!loading?<p className="course-empty">{data.friendCount?"No shared course plans for this selection yet. A friend may have no units planned or have sharing switched off.":"Connect with a friend to see their shared course plan."}</p>:sharedForYear.map(p=>{const mine=data.plans.find(m=>sameOffering(m,p));return <article className="course-shared-row" key={`${p.friendId}-${p.code}-${p.year}-${p.session}`}><div><strong>{p.code} · {p.name}</strong><span>{p.friendName} · {STATUS_LABEL[p.status]} · {period(p)}</span><small className="muted">Updated {new Date(p.updatedAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})} · self-reported</small></div>{mine?<span className="course-status">In your plan · {STATUS_LABEL[mine.status]}</span>:<button disabled={disabled} onClick={()=>openEditor(p)}>Add to my plan</button>}</article>;})}
+          {data.sharedNext&&<button disabled={disabled||moreBusy} onClick={()=>loadMore("shared")}>{moreBusy?"Loading…":"Load more shared units"}</button>}
         </section>
       </>}
     </>}
@@ -200,7 +229,10 @@ export default function CoursePlan() {
     </SheetContent></Sheet>
     <Sheet open={!!selectedPlan} onOpenChange={open=>{if(!open)setSelected(null);}}><SheetContent className="detail-panel course-editor"><SheetHeader><SheetTitle>{selectedPlan?.code} · Friends</SheetTitle><SheetDescription>{selectedPlan&&period(selectedPlan)} · Same unit and semester</SheetDescription></SheetHeader>
       {selectedPlan&&<><p>{selectedPlan.name}</p>{!data?.profile?.sharing&&<p className="course-private-note"><LockKeyhole size={16}/> Your course plan is private. Friends cannot see that you’re taking this unit.</p>}
-        {matchesFor(selectedPlan,data?.sharedPlans??[]).length?matchesFor(selectedPlan,data?.sharedPlans??[]).map(p=><div className="course-match" key={p.friendId}><strong>{p.friendName}</strong><span>{STATUS_LABEL[p.status]}</span><small className="muted">Updated {new Date(p.updatedAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})} · self-reported</small></div>):<p className="course-empty">No shared friend plans match yet. A missing plan does not mean your friends aren’t taking this unit.</p>}
+        {matchPage.loading&&<p role="status">Loading friends in this unit…</p>}
+        {matchPage.error&&<p role="alert">{matchPage.error} <button onClick={matchPage.reload}>Retry</button></p>}
+        {matchesFor(selectedPlan,matchPage.plans).length?matchesFor(selectedPlan,matchPage.plans).map(p=><div className="course-match" key={p.friendId}><strong>{p.friendName}</strong><span>{STATUS_LABEL[p.status]}</span><small className="muted">Updated {new Date(p.updatedAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})} · self-reported</small></div>):!matchPage.loading&&!matchPage.error&&<p className="course-empty">No shared friend plans match yet. A missing plan does not mean your friends aren’t taking this unit.</p>}
+        {matchPage.next&&<button disabled={matchPage.loading} onClick={matchPage.more}>Load more matches</button>}
         {selectedPlan.status!=="completed"&&<><h3>Plan together</h3><p className="muted">Start a conversation in your group chat. Tutorial preferences and allocation tracking are coming later.</p>
         <textarea aria-label="Coordination message" readOnly value={`I'm ${selectedPlan.status==="considering"?"considering":"planning to take"} ${selectedPlan.code} (${selectedPlan.name}) in ${period(selectedPlan)} at USYD. Would you like to take it together and choose the same tutorial group when options are available?`}/>
         <button onClick={()=>copy(`I'm ${selectedPlan.status==="considering"?"considering":"planning to take"} ${selectedPlan.code} (${selectedPlan.name}) in ${period(selectedPlan)} at USYD. Would you like to take it together and choose the same tutorial group when options are available?`,"Coordination message copied. Nothing was sent.")}>Copy message</button></>}

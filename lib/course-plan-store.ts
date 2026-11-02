@@ -1,8 +1,8 @@
-import {PlanError, planDraft, type CoursePlanData, type PlanEntry, type SharedPlan} from "./course-plan";
+import {PlanError, planDraft, type CoursePlanData, type PlanEntry, type SharedPlan, type FriendsPage, type SharedPage, type SharedFilter} from "./course-plan";
 import {invitationCode,type InvitePreview} from "./friend-invitation";
 
 type PlanRow = Omit<PlanEntry,"updatedAt"|"finalMark"|"finalGrade"|"wamExcluded"> & {updated_at:string;final_mark:number|null;final_grade:string|null;wam_excluded:number};
-type SharedPlanRow = Pick<PlanRow,"university"|"code"|"name"|"year"|"session"|"status"|"credits"|"updated_at"> & {friend_id:string;friend_name:string};
+type SharedPlanRow = Pick<PlanRow,"university"|"code"|"name"|"year"|"session"|"status"|"credits"|"updated_at"> & {cursor:string;friend_id:string;friend_name:string};
 type ProfileRow = {owner:string;id:string;name:string;revision:number};
 type Relationship = {id:string;a:string;b:string;requester:string;status:string;blocked_by:string|null;revision:number};
 const pair = (a:string,b:string) => [a,b].sort();
@@ -22,21 +22,50 @@ async function hash(code:string) {
   const bytes = await crypto.subtle.digest("SHA-256",new TextEncoder().encode(code));
   return Array.from(new Uint8Array(bytes),n=>n.toString(16).padStart(2,"0")).join("");
 }
-export async function readCoursePlan(db:D1Database, owner:string):Promise<CoursePlanData> {
-  const [profile,plans,relations,shared] = await Promise.all([
+const FRIEND_PAGE_SIZE=50, SHARED_PAGE_SIZE=100;
+type RelationRow={id:string;connection_id:string;name:string;requester:string;status:string;blocked_by:string|null;revision:number;rank:number};
+const rankSql="CASE WHEN f.status='pending' AND f.requester!=? THEN 0 WHEN f.status='accepted' THEN 1 WHEN f.status='pending' THEN 2 ELSE 3 END";
+export async function readFriends(db:D1Database,owner:string,after=""):Promise<FriendsPage> {
+  if(after&&!/^[0-3]:[a-f0-9-]{36}$/.test(after))throw new PlanError("Invalid friends page. Refresh the list.");
+  const rank=after?Number(after[0]):-1,cursor=after.slice(2);
+  const rows=await db.prepare(`SELECT * FROM (SELECT p.id,p.name,f.id AS connection_id,f.requester,f.status,f.blocked_by,f.revision,${rankSql} AS rank FROM friendships f JOIN friend_profiles p ON p.owner=CASE WHEN f.a=? THEN f.b ELSE f.a END WHERE (f.a=? OR f.b=?) AND f.status!='blocked') WHERE rank>? OR (rank=? AND connection_id>?) ORDER BY rank,connection_id LIMIT ?`).bind(owner,owner,owner,owner,rank,rank,cursor,FRIEND_PAGE_SIZE+1).all<RelationRow>();
+  const page=rows.results.slice(0,FRIEND_PAGE_SIZE),last=page.at(-1);
+  return {friends:page.map(r=>({id:r.id,connectionId:r.connection_id,name:r.name,revision:r.revision,state:r.status==="pending"?(r.requester===owner?"outgoing":"incoming"):r.status as "accepted"|"blocked"})),friendsNext:rows.results.length>FRIEND_PAGE_SIZE&&last?`${last.rank}:${last.connection_id}`:null};
+}
+export async function readSharedPlans(db:D1Database,owner:string,filter:SharedFilter={},after=""):Promise<SharedPage> {
+  if(after&&!/^[a-f0-9-]{36}$/.test(after))throw new PlanError("Invalid units page. Refresh the list.");
+  const where:string[]=[],values:(string|number)[]=[];
+  if(filter.year!==undefined){where.push("c.year=?");values.push(filter.year);}
+  if(filter.session){where.push("c.session=?");values.push(filter.session);}
+  if(filter.friend){where.push("p.id=?");values.push(filter.friend);}
+  if(filter.code){where.push("c.code=? AND c.status!='completed'");values.push(filter.code);}
+  const rows=await db.prepare(`SELECT c.id AS cursor,c.university,c.code,c.name,c.year,c.session,c.status,c.credits,c.updated_at,p.id AS friend_id,p.name AS friend_name FROM friendships f JOIN course_plans c ON c.owner=CASE WHEN f.a=? THEN f.b ELSE f.a END JOIN friend_profiles p ON p.owner=c.owner WHERE (f.a=? OR f.b=?) AND f.status='accepted' AND p.sharing=1 AND c.id>? ${where.length?"AND "+where.join(" AND "):""} ORDER BY c.id LIMIT ?`).bind(owner,owner,owner,after,...values,SHARED_PAGE_SIZE+1).all<SharedPlanRow>();
+  const page=rows.results.slice(0,SHARED_PAGE_SIZE);
+  return {sharedPlans:page.map(r=>({university:r.university,code:r.code,name:r.name,year:r.year,session:r.session,status:r.status,credits:r.credits,updatedAt:r.updated_at,friendId:r.friend_id,friendName:r.friend_name} satisfies SharedPlan)),sharedNext:rows.results.length>SHARED_PAGE_SIZE?page.at(-1)!.cursor:null};
+}
+export async function readCoursePlan(db:D1Database, owner:string,filter:SharedFilter={}):Promise<CoursePlanData> {
+  const [profile,plans,relations,shared,invite,counts] = await Promise.all([
     db.prepare("SELECT id, name, sharing, revision FROM friend_profiles WHERE owner = ?").bind(owner).first<{id:string;name:string;sharing:number;revision:number}>(),
     db.prepare("SELECT * FROM course_plans WHERE owner = ? ORDER BY year, session, code").bind(owner).all<PlanRow>(),
-    db.prepare("SELECT p.id, p.name, f.id AS connection_id, f.requester, f.status, f.blocked_by, f.revision FROM friendships f JOIN friend_profiles p ON p.owner = CASE WHEN f.a = ? THEN f.b ELSE f.a END WHERE (f.a = ? OR f.b = ?) AND (f.status != 'blocked' OR f.blocked_by = ?)").bind(owner,owner,owner,owner).all<{id:string;connection_id:string;name:string;requester:string;status:string;blocked_by:string|null;revision:number}>(),
-    db.prepare("SELECT c.university, c.code, c.name, c.year, c.session, c.status, c.credits, c.updated_at, p.id AS friend_id, p.name AS friend_name FROM friendships f JOIN course_plans c ON c.owner = CASE WHEN f.a = ? THEN f.b ELSE f.a END JOIN friend_profiles p ON p.owner = c.owner WHERE (f.a = ? OR f.b = ?) AND f.status = 'accepted' AND p.sharing = 1 ORDER BY c.year, c.session, c.code, p.name").bind(owner,owner,owner).all<SharedPlanRow>(),
+    readFriends(db,owner),readSharedPlans(db,owner,filter),
+    db.prepare("SELECT expires_at,revoked_at,revision FROM friend_invites WHERE owner=?").bind(owner).first<{expires_at:string;revoked_at:string|null;revision:number}>(),
+    db.prepare("SELECT SUM(CASE WHEN status='pending' AND requester!=? THEN 1 ELSE 0 END) AS incoming,SUM(CASE WHEN status='accepted' THEN 1 ELSE 0 END) AS accepted FROM friendships WHERE a=? OR b=?").bind(owner,owner,owner).first<{incoming:number;accepted:number}>(),
   ]);
-  return {profile:profile?{...profile,sharing:!!profile.sharing}:null,plans:plans.results.map(entry),friends:relations.results.map(r=>({id:r.id,connectionId:r.connection_id,name:r.name,revision:r.revision,state:r.status==="pending"?(r.requester===owner?"outgoing":"incoming"):r.status as "accepted"|"blocked"})),sharedPlans:shared.results.map(r=>{
-    return {university:r.university,code:r.code,name:r.name,year:r.year,session:r.session,status:r.status,credits:r.credits,updatedAt:r.updated_at,friendId:r.friend_id,friendName:r.friend_name} satisfies SharedPlan;
-  })};
+  return {profile:profile?{...profile,sharing:!!profile.sharing}:null,plans:plans.results.map(entry),...relations,...shared,incomingCount:counts?.incoming??0,friendCount:counts?.accepted??0,invitation:invite?{state:invite.revoked_at?"revoked":invite.expires_at>new Date().toISOString()?"active":"expired",expiresAt:invite.expires_at,revision:invite.revision}:{state:"none",expiresAt:null,revision:0}};
+}
+async function rateLimit(db:D1Database,owner:string,action:string) {
+  const limits:Record<string,[number,number]>={"preview-invite":[30,600],"create-invite":[5,3600],"request-friend":[20,3600]};
+  if(!Object.hasOwn(limits,action))return;
+  const limit=limits[action];
+  const [max,seconds]=limit,now=Math.floor(Date.now()/1000),window=Math.floor(now/seconds)*seconds;
+  const row=await db.prepare("INSERT INTO friend_rate_limits (owner,action,window_start,count) VALUES (?,?,?,1) ON CONFLICT(owner,action) DO UPDATE SET window_start=excluded.window_start,count=CASE WHEN friend_rate_limits.window_start!=excluded.window_start THEN 1 ELSE friend_rate_limits.count+1 END WHERE friend_rate_limits.window_start!=excluded.window_start OR friend_rate_limits.count<? RETURNING count").bind(owner,action,window,max).first();
+  if(!row)throw new PlanError("Too many invitation attempts. Please try again later.",429,window+seconds-now);
 }
 
-export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown):Promise<{message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview}> {
+export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown):Promise<{message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview;inviteRevision?:number}> {
   if (!raw||typeof raw!=="object"||Array.isArray(raw)) throw new PlanError("Invalid request.");
   const body=raw as Record<string,unknown>, now=new Date().toISOString();
+  await rateLimit(db,owner,String(body.action));
   if (body.action==="save-plan") {
     const plan=planDraft(body.plan), expected=revision(body.revision);
     const planId=body.id===null?crypto.randomUUID():id(body.id);
@@ -80,7 +109,7 @@ export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown)
   if(body.action==="preview-invite") {
     const code=typeof body.code==="string"?invitationCode(body.code):null;
     if(!code)throw new PlanError("Enter a full invitation link or code.");
-    const invite=await db.prepare("SELECT i.owner,p.name FROM friend_invites i JOIN friend_profiles p ON p.owner=i.owner WHERE i.code_hash=? AND i.expires_at>?").bind(await hash(code),now).first<{owner:string;name:string}>();
+    const invite=await db.prepare("SELECT i.owner,p.name FROM friend_invites i JOIN friend_profiles p ON p.owner=i.owner WHERE i.code_hash=? AND i.expires_at>? AND i.revoked_at IS NULL").bind(await hash(code),now).first<{owner:string;name:string}>();
     if(!invite)throw new PlanError("This invitation has expired or been replaced. Ask your friend for a new link.");
     const [a,b]=pair(owner,invite.owner);
     const relation=await db.prepare("SELECT status,requester FROM friendships WHERE a=? AND b=?").bind(a,b).first<{status:string;requester:string}>();
@@ -93,22 +122,23 @@ export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown)
   if(body.action==="create-invite") {
     const code=crypto.randomUUID().replaceAll("-","").toUpperCase();
     const expiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
-    await db.prepare("INSERT INTO friend_invites (owner,code_hash,expires_at) VALUES (?,?,?) ON CONFLICT(owner) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at").bind(owner,await hash(code),expiresAt).run();
-    return {message:"Invitation created. Any previous code has expired.",inviteCode:code,expiresAt};
+    const invite=await db.prepare("INSERT INTO friend_invites (owner,code_hash,expires_at) VALUES (?,?,?) ON CONFLICT(owner) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, revoked_at=NULL, revision=friend_invites.revision+1 RETURNING revision").bind(owner,await hash(code),expiresAt).first<{revision:number}>();
+    return {message:"Invitation created. Any previous code has expired.",inviteCode:code,expiresAt,inviteRevision:invite!.revision};
   }
   if(body.action==="revoke-invite") {
-    await db.prepare("DELETE FROM friend_invites WHERE owner=?").bind(owner).run();
+    await db.prepare("UPDATE friend_invites SET revoked_at=?,revision=revision+1 WHERE owner=? AND revoked_at IS NULL").bind(now,owner).run();
     return {message:"Invitation code revoked. Existing requests are unchanged."};
   }
   if(body.action==="request-friend") {
     const code=typeof body.code==="string"?invitationCode(body.code):null;
     if(!code)throw new PlanError("Enter the full invitation link or code.");
     const codeHash=await hash(code);
-    const invite=await db.prepare("SELECT owner FROM friend_invites WHERE code_hash=? AND expires_at>?").bind(codeHash,now).first<{owner:string}>();
+    const invite=await db.prepare("SELECT owner FROM friend_invites WHERE code_hash=? AND expires_at>? AND revoked_at IS NULL").bind(codeHash,now).first<{owner:string}>();
     if(!invite||invite.owner===owner)throw new PlanError("This code is unavailable. Ask your friend for a new code.");
     const [a,b]=pair(owner,invite.owner);
     // Recheck expiration/revocation inside the write; a blocked pair cannot be recreated.
-    await db.prepare("INSERT INTO friendships (id,a,b,requester,status,revision) SELECT ?,?,?,?,'pending',1 WHERE EXISTS (SELECT 1 FROM friend_invites WHERE owner=? AND code_hash=? AND expires_at>?) ON CONFLICT(a,b) DO NOTHING").bind(crypto.randomUUID(),a,b,owner,invite.owner,codeHash,now).run();
+    const result=await db.prepare("INSERT INTO friendships (id,a,b,requester,status,revision) SELECT ?,?,?,?,'pending',1 WHERE EXISTS (SELECT 1 FROM friend_invites WHERE owner=? AND code_hash=? AND expires_at>? AND revoked_at IS NULL) AND (SELECT COUNT(*) FROM friendships WHERE requester=? AND status='pending')<20 AND (SELECT COUNT(*) FROM friendships WHERE (a=? OR b=?) AND requester!=? AND status='pending')<100 ON CONFLICT(a,b) DO NOTHING").bind(crypto.randomUUID(),a,b,owner,invite.owner,codeHash,now,owner,invite.owner,invite.owner,invite.owner).run();
+    if(!result.meta.changes&&!await db.prepare("SELECT 1 FROM friendships WHERE a=? AND b=?").bind(a,b).first())throw new PlanError("Request unavailable. You can have up to 20 sent requests; your friend can have up to 100 incoming requests. Clear pending requests or ask for a fresh invitation.",409);
     return {message:"Request submitted if available. Shared units appear after your friend accepts."};
   }
   if(body.action==="friend-action") {

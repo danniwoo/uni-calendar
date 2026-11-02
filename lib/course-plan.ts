@@ -18,11 +18,16 @@ export type PlanFriend = {
 };
 // Explicit allowlist: extending the owner's records must never expand friend access.
 export type SharedPlan = Pick<PlanEntry, "university" | "code" | "name" | "year" | "session" | "status" | "credits" | "updatedAt"> & {friendId: string; friendName: string};
-export type CoursePlanData = {
+export type InvitationStatus = {state:"none"|"active"|"expired"|"revoked";expiresAt:string|null;revision:number};
+export type FriendsPage = {friends:PlanFriend[];friendsNext:string|null};
+export type SharedPage = {sharedPlans:SharedPlan[];sharedNext:string|null};
+export type SharedFilter = {year?:number;session?:PlanSession;friend?:string;code?:string};
+export type CoursePlanData = FriendsPage & SharedPage & {
+  invitation:InvitationStatus; incomingCount:number; friendCount:number;
   profile: FriendProfile | null; plans: PlanEntry[]; friends: PlanFriend[]; sharedPlans: SharedPlan[];
 };
 export class PlanError extends Error {
-  constructor(message: string, public status = 400) { super(message); }
+  constructor(message: string, public status = 400, public retryAfter?:number) { super(message); }
 }
 export function planDraft(raw: unknown): PlanDraft {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new PlanError("Check the unit details.");
