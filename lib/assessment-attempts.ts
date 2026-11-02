@@ -3,6 +3,7 @@ import {saveGradePlan,seedGradePlan} from "./grades";
 import {subjectAssessments} from "./subject-view";
 import {availabilityError,validDate} from "./assessment-schedule";
 import {reminderError} from "./reminders";
+import {validAutomaticChoice} from "./automatic-reminders";
 import {taskTimingKeys} from "./task-timing";
 
 export type AttemptSchedule = {itemId:string; task?:Task; existingId?:string};
@@ -62,6 +63,7 @@ export function saveAttempts(s:Semester,id:string,plan:GradePlan,rows:AttemptSch
     for(const time of [row.task!.time,row.task!.endTime])if(time&&!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time))throw new Error("Check the attempt time.");
     if(row.task!.endTime&&(!row.task!.time||row.task!.endTime!<=row.task!.time))throw new Error("The end time must be after the start time.");
     const problem=availabilityError(row.task!)||reminderError(row.task!.reminders);if(problem)throw new Error(problem);
+    if(!validAutomaticChoice(row.task!.automaticReminder))throw new Error("Choose a valid automatic reminder setting.");
   }
   // Preserve the original scheduled item (including alerts/notes/completion),
   // even when the user schedules Attempt 2 first. Linking it is always explicit.
@@ -77,9 +79,9 @@ export function saveAttempts(s:Semester,id:string,plan:GradePlan,rows:AttemptSch
     if(row.existingId===id&&!existing)throw new Error("There is no original assessment time to link.");
     const draft=row.task;
     const schedule:Task={...(existing||draft),title:`${parent.title} · ${attemptLabel(item,index)}`,parentId:id,attemptId:item.id,unit:parent.unit,
-      ...Object.fromEntries(taskTimingKeys.map(k=>[k,draft[k]])),reminders:draft.reminders,
+      ...Object.fromEntries(taskTimingKeys.map(k=>[k,draft[k]])),reminders:draft.reminders,automaticReminder:draft.automaticReminder,
       weight:"",hurdle:false,manual:true,splitPart:existing?.splitPart||next.tasks.filter(t=>t.parentId===id).length+1,
-      overrides:[...new Set([...(existing?.overrides||[]),"title","attemptId",...taskTimingKeys,"reminders"])]};
+      overrides:[...new Set([...(existing?.overrides||[]),"title","attemptId",...taskTimingKeys,"reminders","automaticReminder"])]};
     if(existing)next.tasks=next.tasks.map(t=>t.id===existing.id?schedule:t);else next.tasks.push(schedule);
   }
   const children=next.tasks.filter(t=>t.parentId===id);

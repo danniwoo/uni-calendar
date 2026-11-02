@@ -19,7 +19,7 @@ export function reconcile(base: Semester | null, local: Semester, remote: Semest
     }
     // Keep grades/plans and activity timing atomic. Mixing independently valid
     // activity edits can invent a week + time or a multi-day range + time.
-    const atomic = [".grade", ".gradePlan", ".activity", ".schedule"].some(field=>path.endsWith(field));
+    const atomic = path==="automaticReminders" || [".grade", ".gradePlan", ".activity", ".schedule"].some(field=>path.endsWith(field));
     if (!atomic && object(l) && object(r) && (object(b) || b == null)) {
       const out: Record<string, unknown> = {};
       const task = typeof l.id === "string" && path === `tasks.${l.id}`;

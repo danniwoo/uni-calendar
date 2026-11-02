@@ -1,6 +1,14 @@
 # Engineering handoff
 
-Updated: 2026-11-01. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+
+### 2026-11-02 automatic reminders / Web 0.19.0
+
+- Isolated Sites checkout from published 0.18.0 / Sites 62 (`c6dbea1e6f78db99bae83fc87d2df8417b8211ad`). Original repository and real accounts remain untouched. User approved three automatic categories; board opt-in defaults off. Existing manual alerts replace automation, per-item opt-out persists, optional assessments require inclusion and only explicitly scheduled retakes are considered. No rule or grade inference. Available-until is not used as a deadline.
+- Deterministic `automaticAlerts` / `automaticBatches` share the existing Connect job protocol, delivered only from successful saved snapshots. No Connect update or permission expansion. Quiet hours adjust automatic schedule times earlier, not after deadlines; same-time automatic alerts combine, with a digest deep link back to relevant items. No raw grades/notes in the device schedule. Sleep catch-up and OS delivery limitations remain unchanged.
+- Missing-date prompts use known teaching weeks, Monday 9 am. A saved activation timestamp permits one current-week catch-up without rolling future jobs or same-revision conflicts. Newly added missing-date items after Monday are not given retroactive notifications; their existing Week/Month visibility remains. Unscheduled/unknown-week items are not assigned deadlines. Relative timed alerts are 24 hours before (including across DST), date-only alerts use explicit 9 am Sydney.
+- Shared backup/API validators cover global preferences and per-item overrides. Timetable refresh preserves choices, global settings merge atomically and sync v12 blocks older writers from erasing opt-outs. Attempt scheduling preserves reminder choices. No database migration; no settings enabled for the real user.
+- Synthetic actual-board UI exercised global Cancel without writes, Save, completion stop/reversal, failed save retaining the previous device queue and retry, per-item Cancel/discard, saved opt-out/reload, custom-alert precedence/removal, and grouped deep-link reload opening the correct item list and task. Real Connect controller with fake Chrome APIs covers completion/Undo, changed/deleted dates, same-revision repeat, grouped delivery and no replay. All 28 web check scripts, 66 extension tests, TypeScript and SQL backup/storage passed; final build/publication result is reported after terminal success. No real OS notification sent. Native Snooze/Complete actions and sound/closed-Chrome delivery are not claimed.
 
 ### 2026-11-01 shared attempt scheduling / Web 0.18.0
 

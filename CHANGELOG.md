@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.19.0 — 2026-11-02
+
+- Opt-in automatic reminders under the persistent top-bar Reminders button: upcoming deadlines (24 hours / 2 hours), scheduled quizzes and activities (24 hours / 30 minutes), and known-week dates to confirm. Date-only items use 9 am rather than an invented deadline. Availability windows are not deadlines.
+- Per-item off, custom-alert precedence, optional-item opt-in and scheduled-attempt safeguards. Completed/deleted items stop; date changes and Undo rebuild future alerts. Quiet hours move automatic alerts earlier; simultaneous alerts combine into a clickable item list.
+- Upcoming-notification preview and compact task summary. Settings apply only after a successful save and retain backup/refresh/conflict protections; sync v12 rejects older clients that would erase these preferences. Existing boards remain off until enabled.
+- Uses existing Connect 0.5.0 delivery; no new extension permissions, subscriptions or n8n. Chrome must run. Sleep/Focus/system settings may delay actual delivery; this release does not promise sound or push while Chrome is closed.
+
 ## 0.18.0 — 2026-11-01
 
 - One Attempts & schedule editor for retakes: each result has its own optional schedule, reminders and marks. Highest-attempt scoring must already be configured or explicitly chosen. Separate graded components keep their existing editor.

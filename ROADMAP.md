@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-本輪狀態（2026-11-01）：Web 0.18.0 shared-attempt editor 已完成假資料三 view、取消／Undo、27 項回歸與型別／儲存檢查，待發布收據。承接 0.17.0（Sites 61）的日期／時間、週次＋課堂表單。使用者驗收仍待完成；最新續接點見 FLOW-01、GRADE-01 與 PROGRESS。下列 0.15.x／Connect 記錄為先前試用背景，不是目前網站版本。
+本輪狀態（2026-11-02）：Web 0.19.0 自動提醒已實作，沿用已發布 0.18.0（Sites 62）的 shared-attempt editor；假資料驗證與發布狀態見 PROGRESS。自動提醒預設關閉，使用者自己開啟；原有實機與使用者驗收仍保留。下列 0.15.x／Connect 記錄為先前試用背景，不是目前網站版本。
 
 更新：2026-11-01 · Web **0.15.1** 已發布（Sites 59）；該網站發布來源包含 Connect **0.4.0**，未納入當時既有 extension 改動。29–30 日的 unit-limit／activity conflict 修正一併發布。
 
@@ -60,6 +60,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 ### REMIND-01
 
 **Apple Calendar 式多提醒 → Chrome 系統通知** · P1 · **待驗證** · 使用者明確批准的增量
+
+- 2026-11-02／0.19.0：使用者批准三類自動提醒：截止前、已排好的 quiz／activity、已知本週但日期待確認。上方 Reminders 一次開啟（預設 off），支援單筆關閉、自訂優先、完成停送、quiet hours 與同時刻合併；不猜 available-until 截止或可選 attempt。Synthetic 取消、儲存失敗／重試、單筆關閉／reload、自訂優先及 controller 完成／Undo 已測。下一步：使用者 refresh → Reminders 開啟並保存 → 核對 Upcoming notifications，再自行選測試項目實機驗收；本次未改真實資料。已知限制：新加入的週次待定項若已過週一提醒時間，不追補當週通知；仍會在 Week／Month 的待確認區出現。聲音、Chrome 關閉時送達、native Snooze 和跨裝置即時同步未承諾。
 
 - 2026-11-01／0.17.0：依 Apple／Google Calendar 參考，提醒改為 Alert · None 直接選、每筆緊湊列／移除／新增；裝置狀態常駐、說明預設收起。當日使用者已回報看到測試橫幅並提供通知中心截圖；**聲音及關分頁後的定時通知仍未驗證**。本次 synthetic 測過取消不寫入、兩種時間方式、預覽跟隨、增刪／自訂提醒與儲存重載；發布狀態見 PROGRESS。
 

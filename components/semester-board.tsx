@@ -56,6 +56,8 @@ import {TaskTimingEditor} from "./task-timing-editor";
 import {taskTimingKeys,timingEdited} from "@/lib/task-timing";
 import {reminderError,reminderLabel,reminderPreview} from "@/lib/reminders";
 import {ReminderDeliveryContext,ReminderDeliveryStatus,useReminderDelivery,type SavedReminders} from "./reminder-delivery";
+import {AutomaticReminderContext,AutomaticRemindersSheet,ReminderDigest} from "./automatic-reminders";
+import {automaticBatches,automaticTaskStatus,saveAutomaticReminders,type AutomaticBatch} from "@/lib/automatic-reminders";
 import { isPersonal,calendarOwns } from "@/lib/personal-items";
 import { MonthCalendar } from "@/components/month-calendar";
 import { WeekCalendar } from "@/components/week-calendar";
@@ -163,6 +165,8 @@ export default function SemesterBoard() {
   const focusReminders=useRef(false);
   const [savedReminders,setSavedReminders]=useState<SavedReminders|null>(null);
   const reminderOwner=useRef<string|undefined>(undefined);
+  const [reminderSettings,setReminderSettings]=useState(false);
+  const [reminderDigest,setReminderDigest]=useState<AutomaticBatch|null>(null);
   const reminderDelivery=useReminderDelivery(savedReminders,saveStatus==="Saving…"||!!saveError);
   useEffect(()=>{
     if(!loaded||!reminderOwner.current)return;
@@ -170,6 +174,11 @@ export default function SemesterBoard() {
     history.replaceState(null,"",location.pathname+location.search);
     const owner=value.slice(0,64),id=value.slice(65);
     if(owner!==reminderOwner.current){setNotice("This reminder belongs to another signed-in account.");return;}
+    if(id.startsWith("auto-digest:")){
+      const batch=automaticBatches(current.current,0).find(b=>b.job.taskId===id);
+      if(batch)setReminderDigest(batch);else{setReminderSettings(true);setNotice("This reminder group changed. Here are your current reminder settings.");}
+      return;
+    }
     const task=current.current?.tasks.find(t=>t.id===id);
     if(task)openTask(task);else setNotice("This reminder’s item is no longer on this board.");
   },[loaded]);
@@ -245,7 +254,7 @@ export default function SemesterBoard() {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            syncVersion: 11,
+            syncVersion: 12,
             semester: snapshot,
             revision: revision.current,
           }),
@@ -483,7 +492,7 @@ export default function SemesterBoard() {
     }
     const previous = semester.tasks.find(t=>t.id === draft.id) || semester.units.flatMap(u=>u.assessments).find(t=>t.id===draft.id);
     const edited = { ...draft, grade:previous?.grade, gradePlan:previous?.gradePlan, title: draft.title.trim(), week, dueWeek:preservedDueWeek, ...(draftGroup ? {splitCount:draftChildren.length||draft.splitCount,date:undefined,time:undefined,week:undefined,dueWeek:undefined} : {}) };
-    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime","splitCount","activity","reminders"];
+    const keys = ["title","unit","weight","week","date","time","startWeek","coverage","description","passed","dueWeek","availableFrom","availableFromTime","availableUntil","availableUntilTime","splitCount","activity","reminders","automaticReminder"];
     const legacyOverrides = previous?.manual && !previous.overrides ? [...keys,"timeBasis","timing","endTime"] : [];
     const overrides = [...new Set([...(previous?.overrides || legacyOverrides), ...keys.filter(k=>
       JSON.stringify((previous as unknown as Record<string,unknown> | undefined)?.[k]) !== JSON.stringify((edited as unknown as Record<string,unknown>)[k]))])];
@@ -676,7 +685,7 @@ export default function SemesterBoard() {
     </div>;
   }
   return (
-    <ReminderDeliveryContext.Provider value={reminderDelivery}><main className={`${focus ? "focus-layout" : "full-layout"}${calendarView||view==="assessments" ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
+    <ReminderDeliveryContext.Provider value={reminderDelivery}><AutomaticReminderContext.Provider value={{settings:semester?.automaticReminders,open:()=>setReminderSettings(true)}}><main className={`${focus ? "focus-layout" : "full-layout"}${calendarView||view==="assessments" ? " calendar-layout" : ""}${view==="week"&&semester&&!settings?" week-layout":""}`}>
       <header className={semester ? "board-header semester-header" : ""}>
         <div className="wordmark">
           <CalendarDays /> semester <small>USYD</small>
@@ -693,7 +702,7 @@ export default function SemesterBoard() {
             {saveStatus === "Saved" && <Check size={14} />} {saveStatus}
           </span>
           {semester && (
-            <button onClick={() => setSettings(!settings)}>Manage</button>
+            <><button className="header-reminders" onClick={()=>setReminderSettings(true)}>Reminders</button><button onClick={() => setSettings(!settings)}>Manage</button></>
           )}
         </div>
       </header>
@@ -1161,7 +1170,7 @@ export default function SemesterBoard() {
                 <strong>{weightLabel(draft)}</strong>
                 <AvailabilitySummary task={draft}/>
                 <ActivitySummary task={draft}/>
-                {!draftGroup&&<div className="reminder-summary"><strong>Reminders{!draft.reminders?.length?" · None":""}</strong>{draft.reminders?.map(r=><p key={r.id}>{reminderLabel(r)}<small>{reminderPreview(draft,r)}</small></p>)}<button onClick={()=>{focusReminders.current=true;setTaskFeedback("");setEditingTask(true);}}>{draft.reminders?.length?"Edit reminders":"Add reminders"}</button>{!!draft.reminders?.length&&<ReminderDeliveryStatus compact/>}</div>}
+                {!draftGroup&&<div className="reminder-summary"><strong>Reminders</strong>{!draft.reminders?.length&&<small>{automaticTaskStatus(draft,semester.automaticReminders)}</small>}{draft.reminders?.map(r=><p key={r.id}>{reminderLabel(r)}<small>{reminderPreview(draft,r)}</small></p>)}<button onClick={()=>{focusReminders.current=true;setTaskFeedback("");setEditingTask(true);}}>Edit reminders</button>{(!!draft.reminders?.length||semester.automaticReminders?.enabled)&&<ReminderDeliveryStatus compact/>}</div>}
                 {draft.rules?.threshold && <p>Hurdle: at least {draft.rules.threshold}%. {draft.rules.attempts ? `Highest result across ${draft.rules.attempts} attempts counts.` : ""}</p>}
                 {!!retryClasses(draft).length && <p>Possible reattempt tutorials: {retryClasses(draft).map(c=>`${shortDate(c.date)} · W${c.week}`).join("; ")}. Confirm eligibility and arrangements on Canvas.</p>}
                 {(draft.series || draft.kind === "recurring") && <p className="hint">{semester.tasks.filter(t=>(t.series || t.parentId) === (draft.series || draft.parentId || draft.id) && t.done).length} occurrences recorded complete. {draft.rules?.bestOf ? `Best ${draft.rules.bestOf} results count—not necessarily the first ${draft.rules.bestOf} completed.` : "Completion is not a mark or a guarantee of full credit."}</p>}
@@ -1359,6 +1368,8 @@ export default function SemesterBoard() {
         setAssessmentUndo({before,after,taskId:attemptEditing.id});commit(after);setAttemptEditing(null);
         const parent=after.tasks.find(t=>t.id===attemptEditing.id)!;openTask(parent);setTaskFeedback("Attempts updated. One schedule shared by Semester, Week and Month.");
       }}/>}
-    </main></ReminderDeliveryContext.Provider>
+      {reminderSettings&&semester&&<AutomaticRemindersSheet semester={semester} onClose={()=>setReminderSettings(false)} onSave={(p,expected)=>{const s=current.current;if(!s||busy||conflict||saveError)throw new Error("Resolve the current save or board warning first.");commit(saveAutomaticReminders(s,p,expected));setNotice("Reminder settings updated. Notifications change after Saved.");}}/>}
+      {reminderDigest&&<ReminderDigest batch={reminderDigest} onClose={()=>setReminderDigest(null)} onOpen={id=>{setReminderDigest(null);const t=current.current?.tasks.find(t=>t.id===id);if(t)openTask(t);else setNotice("This reminder’s item is no longer on this board.");}}/>}
+    </main></AutomaticReminderContext.Provider></ReminderDeliveryContext.Provider>
   );
 }

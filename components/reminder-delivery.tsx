@@ -1,14 +1,14 @@
 "use client";
 import {createContext,useContext,useEffect,useMemo,useState} from "react";
 import type {Semester} from "@/lib/semester";
-import {reminderJobs} from "@/lib/reminders";
+import {allReminderJobs} from "@/lib/automatic-reminders";
 export type SavedReminders={owner:string;revision:number;semester:Semester|null};
 type Device={available:boolean;enabled:boolean;count:number;error?:string;owner?:string;revision?:number};
 type Delivery=Device&{settings:()=>void;checking:boolean;pending:boolean};
 export const ReminderDeliveryContext=createContext<Delivery>({available:false,enabled:false,count:0,checking:true,pending:false,settings:()=>{}});
 export function useReminderDelivery(saved:SavedReminders|null,pending:boolean):Delivery {
   const [device,setDevice]=useState<Device>({available:false,enabled:false,count:0}),[checking,setChecking]=useState(true);
-  const snapshot=useMemo(()=>saved?{owner:saved.owner,revision:saved.revision,jobs:reminderJobs(saved.semester)}:null,[saved]);
+  const snapshot=useMemo(()=>saved?{owner:saved.owner,revision:saved.revision,jobs:allReminderJobs(saved.semester)}:null,[saved]);
   const send=(action:string)=>window.postMessage({type:"semester-reminders-v1",action,...(action==="sync"&&snapshot?{snapshot}:{})},location.origin);
   useEffect(()=>{
     const receive=(e:MessageEvent)=>{if(e.source!==window||e.origin!==location.origin||e.data?.type!=="semester-reminders-state-v1")return;const s=e.data.state;if(!s||typeof s.available!=="boolean")return;

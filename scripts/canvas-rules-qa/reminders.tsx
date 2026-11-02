@@ -4,12 +4,20 @@ import {createRoot} from "react-dom/client";
 import SemesterBoard from "../../components/semester-board";
 import {calendarFixture} from "../fixtures/calendar-visibility";
 import {reminderController} from "../../extensions/semester-connect/reminders.js";
+import {automaticBatches} from "../../lib/automatic-reminders";
 import "../../app/globals.css";
 import "../../app/board.css";
 let installed=false;
-export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test · no real account or OS notifications"),[fail,setFail]=useState(sessionStorage.getItem("qa-reminder-fail")==="true");if(!installed){installed=true;
- const owner="a".repeat(64),key="qa-reminders-board",native=window.fetch.bind(window);
+export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test · no real account or OS notifications"),[digest,setDigest]=useState(""),[fail,setFail]=useState(sessionStorage.getItem("qa-reminder-fail")==="true");if(!installed){installed=true;
+ const owner="a".repeat(64),automatic=new URLSearchParams(location.search).has("automatic"),key=automatic?"qa-automatic-board":"qa-reminders-board",native=window.fetch.bind(window);
  const fixture=structuredClone(calendarFixture);fixture.tasks=[{...fixture.tasks[0],id:"reminder-report",title:"Synthetic reminder report",date:"2026-11-10",time:"14:00",week:14},{...fixture.tasks[4],id:"unknown-date",title:"Synthetic week-only assignment",week:13}, {...fixture.tasks.at(-2)!,id:"personal-reminder",title:"Synthetic personal task",date:"2026-11-11",time:"15:00"}];
+ if(automatic){fixture.tasks=[
+  {...fixture.tasks[0],id:"report",title:"Research report",date:"2026-11-06",time:"14:00",week:13,timeBasis:"deadline"},
+  {...fixture.tasks[0],id:"project",title:"Project submission",date:"2026-11-06",time:"14:00",week:13,timeBasis:"deadline"},
+  {...fixture.tasks[0],id:"quiz",title:"Practice quiz · Attempt 2",kind:"quiz",date:"2026-11-04",time:"12:00",week:13,timeBasis:"class",timing:"In tutorial"},
+  {...fixture.tasks[1],title:"Presentation · date to confirm"},
+  {...fixture.tasks[2],reminders:[{id:"custom-only",kind:"before",minutes:10}]}
+ ];}
  fixture.classes.push(...[
   {id:"week13-tutorial",unit:"TEST1001",activity:"Tutorial",week:13,date:"2026-11-03",time:"12:00",end:"14:00",location:"Synthetic room"},
   {id:"week13-lecture",unit:"TEST1001",activity:"Lecture",week:13,date:"2026-11-04",time:"09:00",end:"10:00",location:"Synthetic theatre"},
@@ -38,10 +46,12 @@ export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test ·
   if(e.data.action==="sync"){await controller.sync(e.data.snapshot);sessionStorage.setItem("qa-reminder-jobs",JSON.stringify(e.data.snapshot.jobs));}
   else if(e.data.action==="settings"){await controller.enable(owner);}
   const state=await controller.state();
-  setDebug(`Synthetic test · saved revision ${sessionStorage.getItem("qa-reminder-revision")||1} · scheduled ${state.count||0} · ${state.enabled?"enabled":"off"}`);
+  const board=JSON.parse(sessionStorage.getItem(key)!);
+  const group=automaticBatches(board,0).find(b=>b.items.length>1);setDigest(group?`reminders.html?automatic#reminder=${encodeURIComponent(owner+":"+group.job.taskId)}`:"");
+  setDebug(`Synthetic only · saved revision ${sessionStorage.getItem("qa-reminder-revision")||1} · automatic ${board.automaticReminders?.enabled?"on":"off"} · queued ${state.count||0} · desktop ${state.enabled?"on":"off"}`);
   window.postMessage({type:"semester-reminders-state-v1",state},location.origin);
  });
  }
- return <><output aria-label="Synthetic reminder diagnostics" style={{display:"block",padding:8,fontSize:12}}>{debug}</output><label style={{display:"block",padding:8}}><input type="checkbox" checked={fail} onChange={e=>{setFail(e.target.checked);sessionStorage.setItem("qa-reminder-fail",String(e.target.checked));}}/> Simulate save failure (synthetic only)</label><SemesterBoard/></>;
+ return <><output aria-label="Synthetic reminder diagnostics" style={{display:"block",padding:8,fontSize:12}}>{debug}</output>{digest&&<a href={digest}>Open grouped notification (synthetic)</a>}<label style={{display:"block",padding:8}}><input type="checkbox" checked={fail} onChange={e=>{setFail(e.target.checked);sessionStorage.setItem("qa-reminder-fail",String(e.target.checked));}}/> Simulate save failure (synthetic only)</label><SemesterBoard/></>;
 }
 createRoot(document.getElementById("root")!).render(<RemindersQA/>);
