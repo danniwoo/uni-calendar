@@ -1,6 +1,10 @@
 # Semester iPhone experiment
 
-Home, Today, Assessments and the Deadline focus widget read the signed-in user's imported semester. Month uses sample data.
+Home, Today, Month, Assessments and the Deadline focus widget read the signed-in user's imported semester.
+
+## Imported Month · 0.3.10 (14)
+
+Month shows dated items from the signed-in semester, including completed historical work. Filter by unit, select a marked day and tap a task to open its exact occurrence. **← Month** returns to the selected date and filter. Deadline and activity indicators are separate. **日期待確認** opens the same unit's undated list in Assessments. **Jump to today** uses the Sydney date.
 
 ## Imported Today and the account plan · 0.3.9 (13)
 

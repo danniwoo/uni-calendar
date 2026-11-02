@@ -5,6 +5,7 @@ import { sydneyDate } from "../../../lib/semester.ts";
 import { importedAssessments } from "../../../lib/imported-assessments.ts";
 import { readImportedAssessments, selectImportedWork } from "../../../mobile/src/imported-work.ts";
 import { homeSummary } from "../../../mobile/src/imported-home.ts";
+import { importedMonth } from "../../../mobile/src/imported-month.ts";
 
 const labels = {
   units: "Units", weeks: "Weeks", classes: "Classes", outlineAssessments: "Unit outline assessments",
@@ -54,7 +55,13 @@ export function backupCheckPanel({ accountId, email, request, assessments }) {
         return `${code} ${ids.length}`;
       });
       const home = homeSummary(mobile, Date.now());
+      const monthKey=home.today.slice(0,7);
+      const month=importedMonth(mobile,monthKey,null);
+      const sourceIds=board.tasks.filter(task=>task.date?.startsWith(monthKey+"-")).map(task=>task.id).sort();
+      const monthIds=[...month.days.values()].flatMap(day=>day.items.map(row=>row.id)).sort();
+      if(JSON.stringify(monthIds)!==JSON.stringify(sourceIds)) throw new Error("The iPhone month differs from the saved semester.");
       saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries. iPhone API matches the restore point. All ${mobile.overview.length} website assessments match the iPhone grade list, including their weights and dates. Undated by unit: ${check.join(" · ")}. Home · ${home.today} · ${home.currentPeriod}. Due today: ${home.day.deadlines}. This week: ${home.week.deadlines} due, ${home.week.activities} scheduled. Next week: ${home.nextWeek.deadlines} due, ${home.nextWeek.activities} scheduled.`;
+      saved.textContent += ` Month · ${monthKey} · ${monthIds.length} work items across ${month.days.size} marked days; ${month.undated} without an exact date.`;
     } catch (error) { if (panel.isConnected) saved.textContent = error.message; }
     finally { view.disabled = false; }
   };

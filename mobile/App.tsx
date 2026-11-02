@@ -24,7 +24,6 @@ import {
 import {
   clockTime,
   dateKey,
-  longDate,
   makeSampleBoard,
   readStoredSample,
   resolveLink,
@@ -36,11 +35,8 @@ import {
 import {
   dueLabel,
   experienceBoard,
-  monthCells,
   sampleGrades,
   sampleWeek,
-  shiftMonth,
-  workload,
   workWidgetProps,
   workWidgetTimeline,
 } from "./src/experience";
@@ -52,6 +48,7 @@ import {
   type WidgetSettings,
 } from "./src/widget-settings";
 import ImportedToday from "./src/ImportedToday";
+import ImportedMonth from "./src/ImportedMonth";
 import ConnectionCheck from "./src/ConnectionCheck";
 import StagingConnection from "./src/StagingConnection";
 import CloudAssessments from "./src/CloudAssessments";
@@ -136,7 +133,7 @@ function Heading({
 function Prototype() {
   const cloudConnection = useStagingConnection();
   const imported = useImportedSemester(cloudConnection);
-  const [homeEntry, setHomeEntry] = useState<"item" | "todayItem" | "undated" | null>(null);
+  const [assessmentEntry, setAssessmentEntry] = useState<"item" | "todayItem" | "undated" | "monthItem" | "monthUndated" | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget|null>(null);
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
@@ -154,8 +151,11 @@ function Prototype() {
   const [assessmentView, setAssessmentView] = useState<"Work" | "Grades">(
     "Work",
   );
-  const [selectedDay, setSelectedDay] = useState(dateKey(Date.now()));
-  const [month, setMonth] = useState(dateKey(Date.now()).slice(0, 7));
+  const [calendarDay,setCalendarDay] = useState<string|null>(null);
+  const [calendarUnit,setCalendarUnit] = useState<string|null>(null);
+  useEffect(()=>{
+    setCalendarDay(null); setCalendarUnit(null);
+  },[cloudConnection.session?.user.id]);
   const [busy, setBusy] = useState(false),
     [loadError, setLoadError] = useState(false);
   const [saveState, setSaveState] = useState(
@@ -277,11 +277,14 @@ function Prototype() {
       if (url.split(/[?#]/)[0] === CONNECTION_RETURN_URL) return;
       if (url.split(/[?#]/)[0] === STAGING_AUTH_REDIRECT) return;
       const item = readFocusURL(url);
+      if (url === "semester-preview://month") {
+        setDetail(undefined); setFocusTarget(null); setAssessmentEntry(null); setSettings(false); setCalendarDay(null); setTab("Month"); return;
+      }
       if (url === "semester-preview://today-plan") {
-        setDetail(undefined); setFocusTarget(null); setHomeEntry(null); setSettings(false); setTab("Today"); return;
+        setDetail(undefined); setFocusTarget(null); setAssessmentEntry(null); setSettings(false); setTab("Today"); return;
       }
       if (item || url === IMPORTED_URL) {
-        setHomeEntry(null); setFocusTarget(item); setDetail(undefined); setSettings(false); setStagingConnection(false);
+        setAssessmentEntry(null); setFocusTarget(item); setDetail(undefined); setSettings(false); setStagingConnection(false);
         setConnectionCheck(false); setAssessmentSource("cloud"); setTab("Assessments");
         return;
       }
@@ -373,8 +376,6 @@ function Prototype() {
       setBoard(experienceBoard(fresh));
       setProgress({});
       setNow(Date.now());
-      setSelectedDay(dateKey(Date.now()));
-      setMonth(dateKey(Date.now()).slice(0, 7));
       setDetail(undefined);
       setSettings(false);
       setSaveState("New sample saved on this iPhone");
@@ -386,7 +387,7 @@ function Prototype() {
     }
   }
   const cloudTab = tab === "Assessments" && assessmentSource === "cloud";
-  const importedTab = tab === "Home" || tab === "Today" || cloudTab;
+  const importedTab = tab !== "Assessments" || cloudTab;
   if (!board && !importedTab)
     return (
       <SafeAreaView style={s.loading}>
@@ -403,7 +404,6 @@ function Prototype() {
     );
   const sample: SampleBoard = board ?? {version:1, createdAt:now, assessments:[], classes:[]};
   const today = dateKey(now),
-    work = workload(sample, now),
     week = sampleWeek(sample, now);
   const units = [...new Set(sample.assessments.map((a) => a.unit))];
   const sorted = [...sample.assessments].sort(
@@ -479,162 +479,36 @@ function Prototype() {
       <ScrollView key={focusTarget && tab === "Assessments" ? tab + focusTarget.id : tab} contentContainerStyle={s.content}>
         <View style={s.row}>
           <Text style={s.eyebrow}>
-            {tab === "Home" ? shortDate(now).toUpperCase() + " · SYDNEY" : cloudTab ? "CLOUD · IMPORTED SEMESTER" : tab === "Today"
+            {tab === "Home" ? shortDate(now).toUpperCase() + " · SYDNEY" : (cloudTab || tab === "Month") ? "CLOUD · IMPORTED SEMESTER" : tab === "Today"
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.9</Text>
+          <Text style={s.sample}>PREVIEW 0.3.10</Text>
         </View>
-        {tab !== "Home" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
+        {tab !== "Home" && tab !== "Month" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
         {tab === "Home" && <ImportedHome now={now} imported={imported} connection={cloudConnection}
           openItem={id=>{
             if (!imported.scope) return;
-            setHomeEntry("item"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
+            setAssessmentEntry("item"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
           }}
           openUndated={()=>{
-            setHomeEntry("undated"); setFocusTarget(null); setAssessmentSource("cloud"); setTab("Assessments");
+            setAssessmentEntry("undated"); setFocusTarget(null); setAssessmentSource("cloud"); setTab("Assessments");
           }}
         />}
         {tab === "Today" && <ImportedToday key={cloudConnection.session?.user.id ?? "guest"}
           now={now} imported={imported} connection={cloudConnection} openItem={id=>{
             if(!imported.scope)return;
-            setHomeEntry("todayItem"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
+            setAssessmentEntry("todayItem"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
           }}/>}
-        {tab === "Month" && (
-          <>
-            <Text style={s.subtitle}>Deadlines across units · Sydney time</Text>
-            <View style={s.monthHeader}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Previous month"
-                onPress={() => {
-                  const m = shiftMonth(month, -1);
-                  setMonth(m);
-                  setSelectedDay(`${m}-01`);
-                }}
-                style={s.arrow}
-              >
-                <Text style={s.h2}>‹</Text>
-              </Pressable>
-              <Text style={s.h2}>
-                {new Intl.DateTimeFormat("en-AU", {
-                  month: "long",
-                  year: "numeric",
-                  timeZone: "UTC",
-                }).format(new Date(`${month}-01T12:00:00Z`))}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Next month"
-                onPress={() => {
-                  const m = shiftMonth(month, 1);
-                  setMonth(m);
-                  setSelectedDay(`${m}-01`);
-                }}
-                style={s.arrow}
-              >
-                <Text style={s.h2}>›</Text>
-              </Pressable>
-            </View>
-            <View style={s.calendar}>
-              {["M", "T", "W", "T", "F", "S", "S"].map((d, i) => (
-                <View key={`h${i}`} style={s.calendarCell}>
-                  <Text style={s.meta}>{d}</Text>
-                </View>
-              ))}
-              {monthCells(month).map((day, i) =>
-                day ? (
-                  <Pressable
-                    key={day}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${longDate(Date.parse(`${day}T12:00:00Z`))}, ${sample.assessments.filter((a) => a.due !== undefined && dateKey(a.due) === day).length} deadlines`}
-                    accessibilityState={{ selected: day === selectedDay }}
-                    onPress={() => setSelectedDay(day)}
-                    style={s.calendarCell}
-                  >
-                    <View
-                      style={[
-                        s.dayCircle,
-                        day === today && s.todayCircle,
-                        day === selectedDay && s.selectedDay,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          s.dayText,
-                          day === selectedDay && { color: "#fff" },
-                        ]}
-                      >
-                        {Number(day.slice(-2))}
-                      </Text>
-                    </View>
-                    <View style={s.dots}>
-                      {sample.assessments
-                        .filter(
-                          (a) => a.due !== undefined && dateKey(a.due) === day,
-                        )
-                        .map((a) => (
-                          <View
-                            key={a.id}
-                            style={[
-                              s.dot,
-                              { backgroundColor: unitColor(a.unit) },
-                            ]}
-                          />
-                        ))}
-                    </View>
-                  </Pressable>
-                ) : (
-                  <View key={`blank${i}`} style={s.calendarCell} />
-                ),
-              )}
-            </View>
-            <View style={s.legend}>
-              {units.map((u) => (
-                <Tag key={u} unit={u} />
-              ))}
-            </View>
-            <Heading
-              title={
-                selectedDay === today
-                  ? "Today"
-                  : shortDate(Date.parse(`${selectedDay}T12:00:00Z`))
-              }
-              link="Jump to today"
-              onPress={() => {
-                setSelectedDay(today);
-                setMonth(today.slice(0, 7));
-              }}
-            />
-            <View style={s.panel}>
-              {sample.assessments.filter(
-                (a) => a.due !== undefined && dateKey(a.due) === selectedDay,
-              ).length
-                ? sample.assessments
-                    .filter(
-                      (a) =>
-                        a.due !== undefined && dateKey(a.due) === selectedDay,
-                    )
-                    .map(row)
-                : empty("No dated assessments on this day.")}
-            </View>
-            <Heading title="Dates to confirm" />
-            <View style={s.panel}>{work.unknown.map(row)}</View>
-            <Heading title="This month" />
-            <View style={s.panel}>
-              {sorted.filter(
-                (a) => a.due !== undefined && dateKey(a.due).startsWith(month),
-              ).length
-                ? sorted
-                    .filter(
-                      (a) =>
-                        a.due !== undefined && dateKey(a.due).startsWith(month),
-                    )
-                    .map(row)
-                : empty("No dated work in this sample month.")}
-            </View>
-          </>
-        )}
+        {tab === "Month" && <ImportedMonth now={now} imported={imported} connection={cloudConnection}
+          day={calendarDay ?? today} unit={calendarUnit} chooseDay={setCalendarDay} chooseUnit={setCalendarUnit}
+          openItem={id=>{
+            if(!imported.scope)return;
+            setAssessmentEntry("monthItem"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
+          }}
+          openUndated={()=>{
+            setAssessmentEntry("monthUndated"); setFocusTarget(null); setAssessmentSource("cloud"); setTab("Assessments");
+          }}/>}
         {tab === "Assessments" && (
           <>
             <View style={s.segments}>
@@ -646,9 +520,12 @@ function Prototype() {
               ))}
             </View>
             {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}
-              imported={imported} target={focusTarget} initialView={homeEntry==="undated" ? "日期待確認" : "Work"}
-              backLabel={homeEntry==="item" ? "← Home" : homeEntry==="todayItem" ? "← Today" : "← All assessments"}
-              closeDetail={()=>{setFocusTarget(null); if(homeEntry==="item" || homeEntry==="todayItem"){setTab(homeEntry==="item" ? "Home" : "Today");setHomeEntry(null);}}}/> : <>
+              imported={imported} target={focusTarget} initialView={assessmentEntry==="undated" || assessmentEntry==="monthUndated" ? "日期待確認" : "Work"}
+              initialUnit={assessmentEntry==="monthUndated" ? calendarUnit : null}
+              backToMonth={assessmentEntry==="monthUndated" ? ()=>{setAssessmentEntry(null);setTab("Month");} : undefined}
+              backLabel={assessmentEntry==="item" ? "← Home" : assessmentEntry==="todayItem" ? "← Today" : assessmentEntry==="monthItem" ? "← Month" : "← All assessments"}
+              closeDetail={()=>{setFocusTarget(null); if(assessmentEntry==="item" || assessmentEntry==="todayItem" || assessmentEntry==="monthItem"){
+                setTab(assessmentEntry==="item" ? "Home" : assessmentEntry==="todayItem" ? "Today" : "Month");setAssessmentEntry(null);}}}/> : <>
             <Text style={s.subtitle}>
               Requirements, preparation and results together.
             </Text>
@@ -743,7 +620,7 @@ function Prototype() {
               key={t}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t }}
-              onPress={() => { setHomeEntry(null); setFocusTarget(null); if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
+              onPress={() => { setAssessmentEntry(null); setFocusTarget(null); if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
               style={s.tab}
             >
               <Text style={[s.tabIcon, tab === t && { color: P.purple }]}>
@@ -868,7 +745,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.9 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.10 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -1088,7 +965,7 @@ function Prototype() {
                 <Text style={s.body}>
                   Home, Today, Assessments and Deadline focus use your imported staging semester.
                   Today saves new plan tasks to your account. Earlier device-only tasks are available in Today.
-                  Month and the sample widgets still use sample data.
+                  Month uses the same imported semester. The sample widgets use sample data.
                 </Text>
                 <Text style={s.caption}>
                   Sample generated {board ? shortDate(board.createdAt) : "—"}. Week 10 starts
@@ -1311,44 +1188,6 @@ const s = StyleSheet.create({
   tabIcon: { fontSize: 23, color: P.muted, height: 27 },
   tabLabel: { fontSize: 10, color: P.muted },
   tabIndicator: { height: 3, width: 16, borderRadius: 3, marginTop: 4 },
-  monthHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginTop: 8,
-  },
-  arrow: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  calendar: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    backgroundColor: "#fff",
-    borderRadius: 14,
-    paddingVertical: 8,
-  },
-  calendarCell: {
-    width: "14.285714%",
-    minHeight: 46,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  dayCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 11,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  todayCircle: { borderWidth: 1, borderColor: P.purple },
-  selectedDay: { backgroundColor: P.purple },
-  dayText: { fontSize: 13, color: P.ink, fontWeight: "500" },
-  dots: { flexDirection: "row", gap: 3, height: 8, alignItems: "center" },
-  dot: { width: 4, height: 4, borderRadius: 3 },
-  legend: { flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 12 },
   segments: {
     flexDirection: "row",
     backgroundColor: "#EDEAEF",

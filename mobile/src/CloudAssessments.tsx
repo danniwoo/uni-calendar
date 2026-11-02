@@ -49,13 +49,15 @@ type Props = {
   imported: ImportedSemesterState;
   target: FocusTarget | null;
   initialView: ImportedView;
+  initialUnit:string|null;
+  backToMonth?:()=>void;
   backLabel: string;
   closeDetail: () => void;
 };
-export default function CloudAssessments({connection, imported, target, initialView, backLabel, closeDetail}: Props) {
+export default function CloudAssessments({connection, imported, target, initialView, initialUnit, backToMonth, backLabel, closeDetail}: Props) {
   const {board, message, loading, refresh} = imported;
   const [trial,setTrial] = useState(false);
-  const [unit,setUnit] = useState<string|null>(null);
+  const [unit,setUnit] = useState<string|null>(initialUnit);
   const [view,setView] = useState<ImportedView>(initialView);
   const [past,setPast] = useState(false);
   const today = dateKey(Date.now());
@@ -83,6 +85,7 @@ export default function CloudAssessments({connection, imported, target, initialV
   }
   if (trial) return <View style={s.panel}><Chip label="Back to imported semester" onPress={()=>setTrial(false)}/><TrialAssessments connection={connection}/></View>;
   return <View style={s.panel}>
+    {backToMonth && <Chip label="← Month" onPress={backToMonth}/>}
     <View style={s.heading}><View style={s.grow}><Text style={s.title}>{board ? `${board.year} · ${board.session}` : "Your imported semester"}</Text>
       <Text style={s.note}>{board ? `${board.units.length} units · ${board.rows.length} work items · Sydney dates` : "Private staging import"}</Text></View>
       <Chip label={loading ? "Loading…" : "Refresh"} onPress={refresh}/></View>
