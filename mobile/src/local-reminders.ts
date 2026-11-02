@@ -92,12 +92,13 @@ export async function listLocalReminders() {
   return items
     .filter(item => String(item.identifier).startsWith(PREFIX) && item.identifier !== `${PREFIX}test`)
     .map(item => {
-      const trigger = item.trigger as { date?: Date | number } | null;
+      const trigger = item.trigger as { date?: Date | number; timestamp?: number } | null;
+      const rawDate = trigger?.date ?? (trigger?.timestamp ? trigger.timestamp * 1000 : null);
       return {
         id: item.identifier,
         title: item.content.title || "Semester reminder",
         body: item.content.body || "",
-        date: trigger?.date ? new Date(trigger.date).getTime() : null,
+        date: rawDate ? new Date(rawDate).getTime() : null,
       };
     })
     .sort((a, b) => (a.date ?? 0) - (b.date ?? 0));
