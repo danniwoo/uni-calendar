@@ -1,6 +1,6 @@
 # Independent migration setup
 
-Status: local preparation only, 2026-11-02. Daniel selected Cloudflare Workers + D1, Supabase Auth and Resend, starting on free plans. Cloud resources have not been provisioned by this setup. Daniel has a Supabase account; Cloudflare, Resend and sending-domain access are still needed.
+Status: independent staging implementation, 2026-11-02. Daniel selected Cloudflare Workers + D1 and Supabase Auth, starting on free plans. The first provider is now Google; Apple will follow during public-release preparation. Resend, SMTP and Email+Password are deferred. A new Supabase project and D1 database have been created; the old Sites app remains unchanged.
 
 ## Isolation
 
@@ -8,19 +8,28 @@ Status: local preparation only, 2026-11-02. Daniel selected Cloudflare Workers +
 - Worktree: `/Users/Daniel/USYD/Project/UNI_calendar/semester-migration`.
 - Original checkout: `/Users/Daniel/USYD/Project/UNI_calendar/semester`.
 - The existing Sites publication remains the live app. The inherited `.openai/hosting.json` identifies that production Site. Do not publish this worktree through Sites or reuse its database identity for the new environment.
-- This folder provides a database-management configuration template, an environment checklist and read-only measurement queries. It does not yet provide an authenticated Worker, deployable replacement website, or data migration.
+- `api/` contains an authenticated synthetic-data Worker and isolated `pilot_*` schema. `web/` contains a separate Google-login proof client. The iPhone proof is under `mobile/`. These are not yet the complete replacement website or a production data migration.
 - Git preserves source code, not live user data. Export/restore and account linking must be validated separately before cutover.
 
-Product decisions remain in [Semester's Notion notebook](https://app.notion.com/p/40bd6bfd790e81c1800cdf60f250174f).
+Product decisions remain in [Semester's Notion notebook](https://app.notion.com/p/40bd6bfd790e81c1800cdf60f250174f) and the [problem/decision log](https://app.notion.com/p/40cd6bfd790e81f6b844f3331ee4928a).
 
 ## Account setup order
 
 1. **Cloudflare Free:** create an account, sign in locally with Wrangler when ready, and confirm the account ID. Create a new D1 database named `semester-staging` with an Oceania location hint (`oc`). A hint is not a data-residency guarantee. Keep Workers on Free; do not enable a paid subscription automatically.
 2. **Supabase Free:** use Daniel's existing account. Check existing projects before creating a dedicated `semester-staging` project. Choose Sydney (`ap-southeast-2`) if available. Keep a generated database password in a password manager; do not put it in chat or source control. An account alone does not mean a project already exists. The Supabase plugin can manage the project once connected.
-3. **Resend Free:** create an account. For student-facing mail, verify a domain/subdomain whose DNS Daniel controls. The current `chatgpt.site` address is not a sending domain Daniel controls. No domain purchase is necessary for the local groundwork.
-4. Configure Resend in **Supabase Auth's SMTP settings**: host `smtp.resend.com`, port `465`, username `resend`, password the Resend API key, sender name `Semester`, sender address on the verified domain. Store the key there, not in the website/iPhone bundle. Add only Resend's required verification records; preserve existing website and mail records.
+3. **Google Cloud:** use Daniel's existing Google account and a separate OAuth testing project. Configure basic identity scopes, the Supabase callback, and Google provider settings. Do not request Calendar access for sign-in. Use the same Supabase project for web and iPhone.
+4. **Deferred: Resend Free.** Only needed when we add email sign-in or other application email. At that point verify a controlled sending domain, then configure Supabase SMTP (`smtp.resend.com`, port `465`, username `resend`, API key as password). Keep the API key in SMTP settings, not clients. The current `chatgpt.site` address is not a sending domain Daniel controls.
 
-Supabase implements verification/reset/login; Resend delivers those emails. Supabase's default SMTP is restricted to team addresses and is not the intended student-facing sender. Retain email confirmation. Set the exact web/iPhone auth redirect URLs after the staging origins and native callback are confirmed.
+Google-only sign-in does not depend on SMTP. This is not a workaround that disables email verification for password accounts. Web proof redirect: `http://localhost:4174/`; iPhone callback: `semester-preview://auth/callback`. Google itself redirects to the Supabase `/auth/v1/callback`; Supabase then redirects to the applicable client. Add exact allowed URLs, not broad wildcards.
+
+Resources provisioned for this proof:
+
+- Supabase: `semester-staging`, project `xpzlynkwgjxomkptvcpr`, Sydney, Dany's Org (Free). API URL: `https://xpzlynkwgjxomkptvcpr.supabase.co`.
+- D1: `semester-staging`, ID `4828c6ae-17a7-41fa-8d7e-edaf25880d6c`, Cloudflare account `3a439d79638e3207aa913fea43be6ab0`, Oceania hint. Empty new database initially reported 12.29 kB. This is not the old Sites database's size.
+- Supabase Site URL is `http://localhost:4174/`; exact allowed redirects are `http://localhost:4174/` and `semester-preview://auth/callback`.
+- Local verification passed: API 9 tests plus typecheck/dry-run bundle, web 10 tests plus production build, and mobile 8 new staging tests plus typecheck/iOS JavaScript export. Native 0.3.2 (6) has not been built or installed yet; widgets remain sample-only.
+- Cloud setup is incomplete: Google Cloud reports the account's project limit has been reached; a quota increase or a specifically designated existing project is needed. Wrangler OAuth is waiting for explicit approval of `account:read`, `user:read`, `workers_scripts:write` and `d1:write`, after automatic approval review rejected the persistent account-wide write scopes. No CLI token was granted and no Worker or remote pilot tables have been deployed.
+- Real Google sign-in, cross-device sync and cloud widget validation remain pending. No real semester data has been copied.
 
 `runtime.env.example` documents future application settings. It is not consumed by the current Sites application. `wrangler.d1.example.jsonc` is for independent D1 management only, not Worker deployment. Copy it to ignored `migration/wrangler.d1.local.jsonc` and replace both placeholders with the confirmed new account/database IDs before using it. Never put the Sites-managed database ID there.
 
@@ -49,14 +58,15 @@ Sites' live database overview returned one binding, `DB`, and seven user tables 
 
 There is no separate assessment database. Sites currently supplies login identity outside these tables. Its owner IDs cannot simply be treated as new Supabase account IDs.
 
-The intended replacement has two main databases: D1 for academic/app records and Supabase's Postgres for authentication users/sessions. During staging, the old Sites D1 remains as a third database alongside these two new resources. Resend is an email service, not another academic database. No new cloud database has been created in this preparation step.
+The intended replacement has two main databases: D1 for academic/app records and Supabase's Postgres for authentication users/sessions. During staging, the old Sites D1 remains as a third database alongside these two new resources. Resend is an optional email service, not another academic database. Existing unrelated Supabase projects are outside this count and have not been changed.
 
 ## Architecture to implement next
 
 ```text
 Web + iPhone -> Supabase Auth -> signed access token
 Web + iPhone -> Cloudflare API (validates token and ownership) -> D1
-Supabase Auth -> Resend SMTP -> verification/recovery mail
+Google (later Apple) -> Supabase Auth
+Supabase Auth -> optional future Resend SMTP -> application email
 iPhone -> minimal account-scoped local snapshot -> widgets
 ```
 
@@ -86,11 +96,11 @@ Provider allowances checked on 2026-11-02 (USD):
 
 1. Build/test the independent staging environment while the old website stays available.
 2. Validate a full data export and restore, including recovery, course plans, friends and account ownership. An ordinary board export alone is not a complete site backup.
-3. Link old and new identities through verified ownership of both accounts; never auto-merge solely because an email matches. Keep existing mobile personal tasks during the transition.
+3. For Daniel's first small pilot, test a user-owned Semester JSON export/import into the new signed-in account. This does not automatically transfer account ownership or all seven tables. If automatic/bulk migration is later required, link identities through verified ownership of both accounts; never auto-merge solely because an email matches. Current iPhone samples need no production migration; preserve local personal tasks until deliberately replaced.
 4. Reconcile intervening web changes from the original branch. Validate old and new records, all write paths, extension origins and device links.
 5. Schedule a short final write pause on the old app, transfer the final consistent data, verify, then point users at the new app. The old `chatgpt.site` URL cannot be moved by changing DNS on a domain we own. Exact redirect/access behaviour remains to be established.
 6. Retain a rollback checkpoint. If users have written to the new system, reconcile those writes before rolling back; restoring a stale pre-cutover copy would lose them.
 
-No cutover date or zero-downtime guarantee has been set. This setup does not modify the live app, DNS, authentication, mail delivery, subscriptions or cloud data.
+No cutover date or zero-downtime guarantee has been set. Only the new staging resources are being configured; the live Sites app, production data, DNS and paid subscriptions remain unchanged. See each proof component's README for implemented checks and outstanding integration tests.
 
 Sources: [D1 limits](https://developers.cloudflare.com/d1/platform/limits/), [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/), [D1 commands](https://developers.cloudflare.com/d1/wrangler-commands/), [Workers pricing](https://developers.cloudflare.com/workers/platform/pricing/), [Supabase pricing](https://supabase.com/pricing), [Supabase regions](https://supabase.com/docs/guides/platform/regions), [Supabase JWTs](https://supabase.com/docs/guides/auth/jwts), [Supabase SMTP](https://supabase.com/docs/guides/auth/auth-smtp), [Resend pricing](https://resend.com/pricing), [Resend SMTP integration](https://resend.com/docs/send-with-supabase-smtp).

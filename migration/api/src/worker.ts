@@ -1,0 +1,114 @@
+import { ApiError, authenticate } from "./auth.ts";
+import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
+import type { JWTVerifyGetKey } from "jose";
+
+export interface Env {
+  DB: SqlDatabase;
+  SUPABASE_URL: string;
+  ALLOWED_ORIGINS: string;
+}
+
+function origins(value: string): Set<string> {
+  const result = new Set<string>();
+  for (const item of value.split(",").map(value => value.trim()).filter(Boolean)) {
+    let url: URL;
+    try { url = new URL(item); } catch { throw new ApiError(503, "not_configured", "The test service is not configured yet."); }
+    if (url.origin !== item || (url.protocol !== "https:" && !(url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(url.hostname)))) {
+      throw new ApiError(503, "not_configured", "The test service is not configured yet.");
+    }
+    result.add(item);
+  }
+  return result;
+}
+
+async function boundedText(request: Request): Promise<string> {
+  // Bound streamed bytes as well as Content-Length; the header is untrusted.
+  let length = 0;
+  const chunks: Uint8Array[] = [];
+  const reader = request.body?.getReader();
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      length += value.byteLength;
+      if (length > 2048) { await reader.cancel(); throw new ApiError(413, "body_too_large", "This update is too large."); }
+      chunks.push(value);
+    }
+  }
+  const bytes = new Uint8Array(length);
+  let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  try { return new TextDecoder("utf-8", { fatal: true }).decode(bytes); }
+  catch { throw new ApiError(400, "invalid_json", "Send valid UTF-8 text."); }
+}
+
+async function jsonBody(request: Request): Promise<Record<string, unknown>> {
+  if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") {
+    throw new ApiError(415, "json_required", "Send an application/json request.");
+  }
+  const text = await boundedText(request);
+  let value: unknown;
+  try { value = JSON.parse(text); }
+  catch { throw new ApiError(400, "invalid_json", "Send a valid JSON object."); }
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new ApiError(400, "invalid_json", "Send a valid JSON object.");
+  return value as Record<string, unknown>;
+}
+
+// Key injection is available to local tests only through code, never an HTTP
+// input, env variable, test bypass header or production configuration setting.
+export function createApi(testKey?: JWTVerifyGetKey) {
+  return {
+    async fetch(request: Request, env: Env): Promise<Response> {
+      const headers = new Headers({ "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", "Vary": "Origin", "X-Content-Type-Options": "nosniff" });
+      const send = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers });
+      try {
+        const origin = request.headers.get("origin");
+        if (origin) {
+          if (!origins(env.ALLOWED_ORIGINS ?? "").has(origin)) throw new ApiError(403, "origin_not_allowed", "This website is not allowed to access the test service.");
+          headers.set("Access-Control-Allow-Origin", origin);
+        }
+        const path = new URL(request.url).pathname;
+        const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
+        const methods = path === "/health" || path === "/v1/session" || path === "/v1/semester" ? ["GET"]
+          : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
+        if (!methods.length) throw new ApiError(404, "not_found", "This endpoint does not exist.");
+        if (request.method === "OPTIONS") {
+          const wanted = request.headers.get("access-control-request-method") ?? "";
+          const requestedHeaders = (request.headers.get("access-control-request-headers") ?? "").toLowerCase().split(",").map(v => v.trim()).filter(Boolean);
+          if (!origin || !methods.includes(wanted) || requestedHeaders.some(h => !["authorization", "content-type"].includes(h))) {
+            throw new ApiError(403, "preflight_not_allowed", "This request is not allowed.");
+          }
+          headers.set("Access-Control-Allow-Methods", methods.join(", "));
+          headers.set("Access-Control-Allow-Headers", "Authorization, Content-Type");
+          return new Response(null, { status: 204, headers });
+        }
+        if (!methods.includes(request.method)) { headers.set("Allow", methods.join(", ")); throw new ApiError(405, "method_not_allowed", "This method is not supported."); }
+        if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
+        const identity = await authenticate(request, env.SUPABASE_URL, testKey);
+        const accountId = await resolveAccount(env.DB, identity);
+        if (path === "/v1/session") return send({ accountId });
+        if (path === "/v1/semester") return send(await getSemester(env.DB, accountId));
+        if (path === "/v1/semester/sample") {
+          const body = await boundedText(request);
+          if (body.trim() !== "" && body.trim() !== "{}") throw new ApiError(400, "invalid_request", "Sample creation does not accept data or an owner.");
+          return send(await createSample(env.DB, accountId));
+        }
+        const body = await jsonBody(request);
+        if (Object.keys(body).some(k => !["completed", "expectedRevision"].includes(k))
+            || typeof body.completed !== "boolean" || !Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1) {
+          throw new ApiError(400, "invalid_update", "Send completed and a positive integer expectedRevision.");
+        }
+        return send(await updateTask(env.DB, accountId, taskMatch![1], body.completed, Number(body.expectedRevision)));
+      } catch (error) {
+        if (error instanceof ApiError) {
+          if (error.status === 401) headers.set("WWW-Authenticate", "Bearer");
+          return send({ error: { code: error.code, message: error.message } }, error.status);
+        }
+        // Do not log tokens, SQL values or private records, nor expose internals.
+        return send({ error: { code: "service_unavailable", message: "The test service is temporarily unavailable. Try again." } }, 503);
+      }
+    },
+  };
+}
+
+export default createApi();

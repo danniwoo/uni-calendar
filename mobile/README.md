@@ -1,6 +1,26 @@
 # Semester iPhone experiment
 
-An Expo/React Native preview with an **invented sample semester and device-local personal tasks**. Version 0.3.1 retains compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. Its optional connection diagnostic opens the existing website in the system authentication browser and checks API response headers. No native account, live timetable, Canvas access, analytics, record sync or migration is implemented. The existing website remains the production app.
+An Expo/React Native preview with an **invented sample semester and device-local personal tasks**. Version 0.3.2 retains compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. A separate Google + D1 proof screen can authenticate and update synthetic cloud tasks once its staging environment is configured. The original Sites connection diagnostic is preserved. No production timetable, Canvas connection, analytics or production-data migration is implemented. The existing website remains the production app.
+
+## Independent Google + D1 proof — 0.3.2 (6)
+
+Open **Widgets → Test Google + D1 connection**. This screen is separate from the sample screens, personal tasks and sample widgets. If configuration is missing, it explicitly says **Setup needed**; it does not simulate a successful login.
+
+1. Copy `staging.env.example` to ignored `.env.local` and set the new Supabase URL, **publishable** key and independent staging Worker URL. Expo embeds these public values at build/export time. Never put a service-role key, Google client secret or database password in this file.
+2. Enable Google OAuth in the staging Supabase project. Google’s authorised callback is the Supabase project callback shown in its Google provider settings. Add the exact mobile return `semester-preview://auth/callback` to Supabase’s redirect allowlist. Web and mobile use the same staging Auth project.
+3. Install this worktree’s dependencies, then rebuild the native app: the new `expo-secure-store` and `expo-crypto` modules are not in the existing 0.3.1 binary. No build was installed as part of this source change.
+4. Use **Continue with Google**, then **Load / refresh test semester**. The app opens the system authentication browser, exchanges the returned code using a stored S256 PKCE verifier, and sends the resulting **Supabase access token** to the Worker. Opening a website alone is not treated as connected.
+5. If the API confirms that this account has no board, use **Create my sample semester**. Repeated creation is idempotent on the API; it must not replace an existing board.
+6. Toggle a preparation task. The request changes just that task’s `completed` value with `expectedRevision`; compare by refreshing the web proof. A 409 clears the stale board and requires refresh before retrying. No automatic overwrite/retry occurs.
+7. Sign out or switch accounts and confirm the previous board disappears. An account-generation guard aborts requests and rejects late results. Synthetic board data is held only in component memory; auth sessions/PKCE verifiers are stored in private, device-only Keychain chunks. There is no refresh token in AsyncStorage or widget storage.
+
+The API origin must use HTTPS on a physical iPhone. HTTP loopback is allowed for a local Simulator API only; it does not refer to the Mac when used on a physical device.
+
+**Current limits:** actual Google login/redirect, Keychain behaviour, token refresh and cross-device sync still need a configured cloud environment and rebuilt device trial. The JS export and automated tests are not evidence of successful cloud/device login. Cold launch partway through browser sign-in requires retrying login; sessions which already completed persist. Existing widgets remain sample-only. Connecting a separate widget to the cloud proof is still pending.
+
+Validation in the isolated worktree: TypeScript and eight new tests passed, covering configuration/callback validation, DTO validation, bearer and revision request shape, account-switch request invalidation, chunked Unicode storage/failed-write preservation, and a real pinned-SDK S256 exchange/session/sign-out lifecycle with a simulated Auth server. iOS Metro/Hermes export passed; no Simulator or device was opened or installed.
+
+Sources: [Supabase Expo social auth](https://supabase.com/docs/guides/auth/quickstarts/with-expo-react-native-social-sign-in), [Google provider setup](https://supabase.com/docs/guides/auth/social-sign-in/auth-google), [Expo SecureStore](https://docs.expo.dev/versions/v55.0.0/sdk/securestore/). Pinned SDK source was also inspected for PKCE flow IDs and session-coordination behaviour.
 
 Stage 2 investigation has started: see [hosting/authentication findings and the disposable API check](feasibility/README.md). The status-only connection test is not a native authentication implementation.
 

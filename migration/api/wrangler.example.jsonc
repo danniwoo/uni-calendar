@@ -1,0 +1,17 @@
+{
+  "name": "semester-staging-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-02",
+  "account_id": "REPLACE_WITH_YOUR_CLOUDFLARE_ACCOUNT_ID",
+  "workers_dev": true,
+  "vars": {
+    "SUPABASE_URL": "https://REPLACE_PROJECT_REF.supabase.co",
+    "ALLOWED_ORIGINS": "http://localhost:4174,http://127.0.0.1:4174"
+  },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "semester-staging",
+    "database_id": "REPLACE_WITH_NEW_STAGING_DATABASE_UUID",
+    "migrations_dir": "migrations"
+  }]
+}

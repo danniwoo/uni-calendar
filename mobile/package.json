@@ -1,19 +1,23 @@
 {
   "name": "semester-mobile-preview",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "main": "index.ts",
   "dependencies": {
     "@expo/ui": "~55.0.17",
     "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/supabase-js": "2.118.0",
     "expo": "~55.0.32",
+    "expo-crypto": "55.0.19",
     "expo-dev-client": "~55.0.41",
     "expo-linking": "~55.0.17",
+    "expo-secure-store": "55.0.18",
     "expo-status-bar": "~55.0.6",
     "expo-web-browser": "~55.0.20",
     "expo-widgets": "55.0.20",
     "react": "19.2.0",
     "react-native": "0.83.10",
-    "react-native-safe-area-context": "~5.6.2"
+    "react-native-safe-area-context": "~5.6.2",
+    "react-native-url-polyfill": "2.0.0"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -56,6 +56,8 @@ import {
 import TodayPlan from "./src/TodayPlan";
 import { usePersonalPlan } from "./src/usePersonalPlan";
 import ConnectionCheck from "./src/ConnectionCheck";
+import StagingConnection from "./src/StagingConnection";
+import { STAGING_AUTH_REDIRECT } from "./src/staging-core";
 import { CONNECTION_RETURN_URL } from "./src/connection-check";
 const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
 const STORAGE_KEY = "semester.preview.sample.v1";
@@ -137,6 +139,7 @@ function Prototype() {
   const [detail, setDetail] = useState<Detail>();
   const [settings, setSettings] = useState(false);
   const [connectionCheck, setConnectionCheck] = useState(false);
+  const [stagingConnection, setStagingConnection] = useState(false);
   const [widgetChoice, setWidgetChoice] = useState<
     "Single" | "Two" | "Overview"
   >("Single");
@@ -266,6 +269,7 @@ function Prototype() {
       // Authentication-browser diagnostics own this return; never treat it as
       // a widget link or as evidence that the app is signed in.
       if (url.split(/[?#]/)[0] === CONNECTION_RETURN_URL) return;
+      if (url.split(/[?#]/)[0] === STAGING_AUTH_REDIRECT) return;
       const destination = resolveLink(url, board);
       if (destination) {
         setSettings(false);
@@ -505,7 +509,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.1</Text>
+          <Text style={s.sample}>PREVIEW 0.3.2</Text>
         </View>
         <Text style={s.title}>{titles[tab]}</Text>
         {tab === "Home" && (
@@ -1032,12 +1036,13 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.1 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.2 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
                 setSettings(false);
                 setConnectionCheck(false);
+                setStagingConnection(false);
               }}
               style={s.smallButton}
             >
@@ -1045,7 +1050,12 @@ function Prototype() {
             </Pressable>
           </View>
           <ScrollView contentContainerStyle={s.content}>
-            {connectionCheck ? (
+            {stagingConnection ? (
+              <>
+                <Button label="← Back to widgets" secondary onPress={() => setStagingConnection(false)} />
+                <StagingConnection />
+              </>
+            ) : connectionCheck ? (
               <>
                 <Button
                   label="← Back to widgets"
@@ -1060,6 +1070,11 @@ function Prototype() {
                 <Text style={s.subtitle}>
                   Choose what your deadline widgets show.
                 </Text>
+                <Button
+                  label="Test Google + D1 connection →"
+                  secondary
+                  onPress={() => setStagingConnection(true)}
+                />
                 <Button
                   label="Test website connection →"
                   secondary

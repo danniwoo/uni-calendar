@@ -1,0 +1,7 @@
+node_modules/
+.wrangler/
+dist/
+wrangler.local.jsonc
+.dev.vars*
+!.dev.vars.example
+*.tsbuildinfo
