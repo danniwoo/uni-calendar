@@ -1,6 +1,10 @@
 # Semester iPhone experiment
 
-Assessments reads the signed-in user's imported semester. The connection sheet and cloud widget use the separate synthetic trial board. Home, Today and Month use sample data, and personal tasks are stored on the device.
+Home, Assessments and the Deadline focus widget read the signed-in user's imported semester. Today and Month use sample data, and personal tasks are stored on the device.
+
+## Imported Home · 0.3.8 (12)
+
+Home shows the current period from the imported semester, including study breaks and exams. Today lists unfinished dated work. This week and Next week show separate counts for deadlines and scheduled activities, using Monday–Sunday in Sydney. The next deadline uses the Lock Screen selection rule. Open an item for its detail, or choose **日期待確認** to open the full undated list in Assessments.
 
 ## Deadline focus · 0.3.7 (11)
 

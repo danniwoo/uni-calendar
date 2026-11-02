@@ -4,6 +4,7 @@ import { assessmentListWeight, assessmentOverviewSchedule, assessmentRows, defau
 import { sydneyDate } from "../../../lib/semester.ts";
 import { importedAssessments } from "../../../lib/imported-assessments.ts";
 import { readImportedAssessments, selectImportedWork } from "../../../mobile/src/imported-work.ts";
+import { homeSummary } from "../../../mobile/src/imported-home.ts";
 
 const labels = {
   units: "Units", weeks: "Weeks", classes: "Classes", outlineAssessments: "Unit outline assessments",
@@ -52,7 +53,8 @@ export function backupCheckPanel({ accountId, email, request, assessments }) {
         if (JSON.stringify(undated.map(row => row.id)) !== JSON.stringify(ids)) throw new Error("An undated item differs from the restore point.");
         return `${code} ${ids.length}`;
       });
-      saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries. iPhone API matches the restore point. All ${mobile.overview.length} website assessments match the iPhone grade list, including their weights and dates. Undated by unit: ${check.join(" · ")}.`;
+      const home = homeSummary(mobile, Date.now());
+      saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries. iPhone API matches the restore point. All ${mobile.overview.length} website assessments match the iPhone grade list, including their weights and dates. Undated by unit: ${check.join(" · ")}. Home · ${home.today} · ${home.currentPeriod}. Due today: ${home.day.deadlines}. This week: ${home.week.deadlines} due, ${home.week.activities} scheduled. Next week: ${home.nextWeek.deadlines} due, ${home.nextWeek.activities} scheduled.`;
     } catch (error) { if (panel.isConnected) saved.textContent = error.message; }
     finally { view.disabled = false; }
   };

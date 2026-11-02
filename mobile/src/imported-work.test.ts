@@ -3,13 +3,13 @@ import assert from "node:assert/strict";
 import { readImportedAssessments, selectImportedWork } from "./imported-work";
 
 test("filtering keeps completed, week-only and unscheduled work, including zero marks", () => {
-  const row = {id:"unknown",unit:"A",title:"Quiz",date:null,time:null,timing:"Week 4",weight:"",done:true,deadlineMode:null};
+  const row = {id:"unknown",unit:"A",title:"Quiz",date:null,time:null,timing:"Week 4",weight:"",done:true,deadlineMode:null,scheduledActivity:false};
   const units = ["A","B"].map(code=>({code,name:code,average:null,currentWeight:0,securedCompletionPoints:0}));
   const grades = ["A","B"].map(unit=>({id:unit,unit,title:"Quiz",weight:"",mark:{earned:0,possible:10},ratio:0,
     finished:true,recorded:1,total:1,error:null,source:"overall",score:"0 / 10",rule:null,progress:null,threshold:null,parts:[]}));
   const overview = [{id:"A",unit:"A",title:"Quiz",weight:"5%",schedule:"Earlier quiz"},
     {id:"Q3",unit:"A",title:"Quiz 3",weight:"5%",schedule:"28 Oct"}];
-  const data = readImportedAssessments({version:1,year:2026,session:"S2C",units,grades,overview,rows:[
+  const data = readImportedAssessments({version:1,year:2026,session:"S2C",weeks:[],units,grades,overview,rows:[
     row,{...row,id:"past",date:"2026-11-01"},{...row,id:"today",date:"2026-11-02",time:"16:00"},
     {...row,id:"also-unknown",unit:"B",timing:"",done:false}]});
   const all = selectImportedWork(data,null,"2026-11-02");

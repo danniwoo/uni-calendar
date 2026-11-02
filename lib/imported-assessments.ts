@@ -33,7 +33,7 @@ function gradeRow(task: Task) {
   };
 }
 
-// The immutable restore point stays in D1. Only fields displayed by Assessments leave the API.
+// Home and Assessments share a read-only projection of the immutable restore point.
 export function importedAssessments(board: Semester) {
   const unitNames = new Map(board.units.map(unit => [unit.code, unit.name]));
   const activeUnits = new Set(unitNames.keys());
@@ -43,11 +43,15 @@ export function importedAssessments(board: Semester) {
     const {average, currentWeight, securedCompletionPoints} = unitGrades(board, code);
     return {code, name, average, currentWeight, securedCompletionPoints};
   });
-  const rows = board.tasks.map(task => ({
-    id: task.id, unit: task.unit, title: task.title, date: task.date || null, time: task.allDay ? null : task.time || null,
-    timing: task.timing, weight: task.weight, done: !!task.done,
-    deadlineMode: deadlineMode(task, activeUnits.has(task.unit), parents.has(task.id)),
-  }));
+  const rows = board.tasks.map(task => {
+    const scheduled = activeUnits.has(task.unit) && !!task.date && !parents.has(task.id) && !task.splitCount;
+    const mode = scheduled ? deadlineMode(task) : null;
+    return {
+      id: task.id, unit: task.unit, title: task.title, date: task.date || null, time: task.allDay ? null : task.time || null,
+      timing: task.timing, weight: task.weight, done: !!task.done,
+      deadlineMode: mode, scheduledActivity: scheduled && mode === null,
+    };
+  });
   // The working copy overrides any outline entry with the same ID. Keep marked children too.
   const gradeSources = new Map(board.units.flatMap(unit => unit.assessments).map(task => [task.id, task]));
   for (const task of board.tasks) gradeSources.set(task.id, task);
@@ -61,14 +65,15 @@ export function importedAssessments(board: Semester) {
       weight: assessmentListWeight(task, row.grouped),
       schedule: [schedule.label, schedule.detail].filter(Boolean).join(" · ")};
   });
-  return {version: 1 as const, year: board.year, session: board.session, units, rows, grades, overview};
+  const weeks = board.weeks.map(({start,end,label}) => ({start,end,label}));
+  return {version: 1 as const, year: board.year, session: board.session, weeks, units, rows, grades, overview};
 }
 export type ImportedAssessments = ReturnType<typeof importedAssessments>;
 
 // A class time is a deadline when the work is due before class. "During
 // workshop", scheduled exams and personal calendar events are activities.
-function deadlineMode(task: Task, active: boolean, parent: boolean): "before" | "due" | null {
-  if (!active || !task.date || parent || task.splitCount || task.kind === "event" || task.kind === "exam") return null;
+function deadlineMode(task: Task): "before" | "due" | null {
+  if (task.kind === "event" || task.kind === "exam") return null;
   if (/^before\b/i.test(task.timing)) return "before";
   return task.timeBasis === "class" ? null : "due";
 }

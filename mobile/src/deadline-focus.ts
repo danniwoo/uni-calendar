@@ -48,6 +48,9 @@ function candidates(rows:Row[], now:number) {
   }
   return list.sort((a,b) => a.until - b.until || a.row.id.localeCompare(b.row.id));
 }
+export function nextFocusDeadline(rows:Row[], now:number) {
+  return candidates(rows,now)[0]?.row;
+}
 function focusProps(next:Candidate, scope:string, when:number, asOf:number): FocusProps {
   const {row,until,timed} = next;
   const today = dateKey(when);

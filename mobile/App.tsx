@@ -34,10 +34,8 @@ import {
   type SampleAssessment,
 } from "./src/model";
 import {
-  addDays,
   dueLabel,
   experienceBoard,
-  monday,
   monthCells,
   sampleGrades,
   sampleWeek,
@@ -58,6 +56,7 @@ import { usePersonalPlan } from "./src/usePersonalPlan";
 import ConnectionCheck from "./src/ConnectionCheck";
 import StagingConnection from "./src/StagingConnection";
 import CloudAssessments from "./src/CloudAssessments";
+import ImportedHome from "./src/ImportedHome";
 import { useStagingConnection } from "./src/useStagingConnection";
 import { useImportedSemester } from "./src/useImportedSemester";
 import { IMPORTED_URL, readFocusURL, type FocusTarget } from "./src/deadline-focus";
@@ -138,6 +137,7 @@ function Heading({
 function Prototype() {
   const cloudConnection = useStagingConnection();
   const imported = useImportedSemester(cloudConnection);
+  const [homeEntry, setHomeEntry] = useState<"item" | "undated" | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget|null>(null);
   const personalPlan = usePersonalPlan();
   const [board, setBoard] = useState<SampleBoard>();
@@ -280,7 +280,7 @@ function Prototype() {
       if (url.split(/[?#]/)[0] === STAGING_AUTH_REDIRECT) return;
       const item = readFocusURL(url);
       if (item || url === IMPORTED_URL) {
-        setFocusTarget(item); setDetail(undefined); setSettings(false); setStagingConnection(false);
+        setHomeEntry(null); setFocusTarget(item); setDetail(undefined); setSettings(false); setStagingConnection(false);
         setConnectionCheck(false); setAssessmentSource("cloud"); setTab("Assessments");
         return;
       }
@@ -314,7 +314,7 @@ function Prototype() {
           "Open Assessments to find the current sample work.",
         );
     };
-    if (board && !initialLinkHandled.current) {
+    if ((board || loadError) && !initialLinkHandled.current) {
       initialLinkHandled.current = true;
       void Linking.getInitialURL()
         .then((url) => {
@@ -327,7 +327,7 @@ function Prototype() {
       active = false;
       listener.remove();
     };
-  }, [board]);
+  }, [board, loadError]);
   async function togglePreparation(id: string) {
     if (!board || lock.current) return;
     lock.current = true;
@@ -384,41 +384,43 @@ function Prototype() {
       setBusy(false);
     }
   }
-  if (!board)
+  const cloudTab = tab === "Assessments" && assessmentSource === "cloud";
+  const importedTab = tab === "Home" || cloudTab;
+  if (!board && !importedTab)
     return (
       <SafeAreaView style={s.loading}>
         {loadError ? (
           <>
             <Text style={s.h2}>Couldn’t load the preview</Text>
             <Button label="Retry" onPress={() => void load()} />
+            <Button label="Back to Home" onPress={() => setTab("Home")} />
           </>
         ) : (
           <ActivityIndicator color={P.purple} />
         )}
       </SafeAreaView>
     );
-  const cloudTab = tab === "Assessments" && assessmentSource === "cloud";
+  const sample: SampleBoard = board ?? {version:1, createdAt:now, assessments:[], classes:[]};
   const today = dateKey(now),
-    work = workload(board, now),
-    week = sampleWeek(board, now);
-  const units = [...new Set(board.assessments.map((a) => a.unit))];
-  const sorted = [...board.assessments].sort(
+    work = workload(sample, now),
+    week = sampleWeek(sample, now);
+  const units = [...new Set(sample.assessments.map((a) => a.unit))];
+  const sorted = [...sample.assessments].sort(
     (a, b) => (a.due ?? Infinity) - (b.due ?? Infinity),
   );
   const assessment =
     detail?.kind === "assessment"
-      ? board.assessments.find((a) => a.id === detail.id)
+      ? sample.assessments.find((a) => a.id === detail.id)
       : undefined;
   const classItem =
     detail?.kind === "class"
-      ? board.classes.find((c) => c.id === detail.id)
+      ? sample.classes.find((c) => c.id === detail.id)
       : undefined;
-  const pending = sorted.filter((a) => !progress[a.id]);
-  const todayClasses = board.classes.filter((c) => dateKey(c.start) === today);
+  const todayClasses = sample.classes.filter((c) => dateKey(c.start) === today);
   const todayDeadlines = sorted.filter(
     (a) => a.due !== undefined && dateKey(a.due) === today,
   );
-  const widget = workWidgetProps(board, now, widgetDraft);
+  const widget = workWidgetProps(sample, now, widgetDraft);
   const widgetDirty =
     JSON.stringify(widgetDraft) !== JSON.stringify(widgetSettings);
   const openAssessment = (a: SampleAssessment) =>
@@ -527,150 +529,22 @@ function Prototype() {
       <ScrollView key={focusTarget && tab === "Assessments" ? tab + focusTarget.id : tab} contentContainerStyle={s.content}>
         <View style={s.row}>
           <Text style={s.eyebrow}>
-            {cloudTab ? "CLOUD · IMPORTED SEMESTER" : tab === "Today"
+            {tab === "Home" ? shortDate(now).toUpperCase() + " · SYDNEY" : cloudTab ? "CLOUD · IMPORTED SEMESTER" : tab === "Today"
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.7</Text>
+          <Text style={s.sample}>PREVIEW 0.3.8</Text>
         </View>
-        <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>
-        {tab === "Home" && (
-          <>
-            <Text style={s.subtitle}>{shortDate(now)} · Sydney time</Text>
-            <View style={s.summary}>
-              {[
-                {
-                  n: work.thisWeek.length,
-                  label: "This week",
-                  run: () => {
-                    setMonth(today.slice(0, 7));
-                    setSelectedDay(today);
-                    setTab("Month");
-                  },
-                },
-                {
-                  n: work.nextWeek.length,
-                  label: "Next week",
-                  run: () => {
-                    const key = addDays(monday(today), 7);
-                    setMonth(key.slice(0, 7));
-                    setSelectedDay(key);
-                    setTab("Month");
-                  },
-                },
-                {
-                  n: work.unknown.length + work.past.length,
-                  label: "To check",
-                  run: () => {
-                    setUnit("All units");
-                    setAssessmentView("Work");
-                    setAssessmentSource("sample");
-                    setTab("Assessments");
-                  },
-                },
-              ].map((x, i) => (
-                <Pressable
-                  key={x.label}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${x.n} ${x.label}`}
-                  onPress={x.run}
-                  style={[s.stat, i > 0 && s.statBorder]}
-                >
-                  <Text style={[s.statNumber, i === 2 && { color: P.amber }]}>
-                    {x.n}
-                  </Text>
-                  <Text style={s.statLabel}>{x.label}</Text>
-                </Pressable>
-              ))}
-            </View>
-            <Text style={s.caption}>
-              Dated deadlines · unknown dates stay separate
-            </Text>
-            <Heading
-              title="This week"
-              link="View month →"
-              onPress={() => setTab("Month")}
-            />
-            <View style={s.panel}>
-              {work.thisWeek.length
-                ? work.thisWeek.map(row)
-                : empty("No upcoming dated deadlines this week.")}
-            </View>
-            <Heading title="Next week" />
-            <View style={s.panel}>
-              {work.nextWeek.length
-                ? work.nextWeek.map(row)
-                : empty("No dated deadlines next week in this sample.")}
-            </View>
-            {(work.unknown.length > 0 || work.past.length > 0) && (
-              <>
-                <Heading title="Don’t lose sight of" />
-                <View style={s.attention}>
-                  {work.unknown.map((a) => (
-                    <Pressable
-                      key={a.id}
-                      accessibilityRole="button"
-                      onPress={() => openAssessment(a)}
-                      style={s.notice}
-                    >
-                      <Text style={s.noticeTitle}>
-                        ? {a.unit} · {a.title}
-                      </Text>
-                      <Text style={s.noticeText}>{a.timing} →</Text>
-                    </Pressable>
-                  ))}
-                  {work.past.map((a) => (
-                    <Pressable
-                      key={a.id}
-                      accessibilityRole="button"
-                      onPress={() => openAssessment(a)}
-                      style={s.notice}
-                    >
-                      <Text style={s.noticeTitle}>Past date · {a.title}</Text>
-                      <Text style={s.noticeText}>
-                        Check submission status · {shortDate(a.due!)} →
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
-              </>
-            )}
-            <Heading
-              title="One small next step"
-              link="Today →"
-              onPress={() => setTab("Today")}
-            />
-            <View style={s.panel}>
-              {pending[0]
-                ? prep(pending[0])
-                : empty(
-                    "All sample preparation recorded. Deadlines still need checking.",
-                  )}
-            </View>
-            <Heading title="Across your units" />
-            <View style={s.panel}>
-              {units.map((u) => (
-                <Pressable
-                  key={u}
-                  accessibilityRole="button"
-                  onPress={() => {
-                    setUnit(u);
-                    setAssessmentView("Work");
-                    setAssessmentSource("sample");
-                    setTab("Assessments");
-                  }}
-                  style={s.unitRow}
-                >
-                  <Tag unit={u} />
-                  <Text style={s.meta}>
-                    {board.assessments.filter((a) => a.unit === u).length}{" "}
-                    assessments ›
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </>
-        )}
+        {tab !== "Home" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
+        {tab === "Home" && <ImportedHome now={now} imported={imported} connection={cloudConnection}
+          openItem={id=>{
+            if (!imported.scope) return;
+            setHomeEntry("item"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
+          }}
+          openUndated={()=>{
+            setHomeEntry("undated"); setFocusTarget(null); setAssessmentSource("cloud"); setTab("Assessments");
+          }}
+        />}
         {tab === "Today" && (
           <>
             <Text style={s.subtitle}>
@@ -689,7 +563,7 @@ function Prototype() {
             )}
             <TodayPlan
               plan={personalPlan}
-              board={board}
+              board={sample}
               today={today}
               progress={progress}
             />
@@ -751,7 +625,7 @@ function Prototype() {
                   <Pressable
                     key={day}
                     accessibilityRole="button"
-                    accessibilityLabel={`${longDate(Date.parse(`${day}T12:00:00Z`))}, ${board.assessments.filter((a) => a.due !== undefined && dateKey(a.due) === day).length} deadlines`}
+                    accessibilityLabel={`${longDate(Date.parse(`${day}T12:00:00Z`))}, ${sample.assessments.filter((a) => a.due !== undefined && dateKey(a.due) === day).length} deadlines`}
                     accessibilityState={{ selected: day === selectedDay }}
                     onPress={() => setSelectedDay(day)}
                     style={s.calendarCell}
@@ -773,7 +647,7 @@ function Prototype() {
                       </Text>
                     </View>
                     <View style={s.dots}>
-                      {board.assessments
+                      {sample.assessments
                         .filter(
                           (a) => a.due !== undefined && dateKey(a.due) === day,
                         )
@@ -811,10 +685,10 @@ function Prototype() {
               }}
             />
             <View style={s.panel}>
-              {board.assessments.filter(
+              {sample.assessments.filter(
                 (a) => a.due !== undefined && dateKey(a.due) === selectedDay,
               ).length
-                ? board.assessments
+                ? sample.assessments
                     .filter(
                       (a) =>
                         a.due !== undefined && dateKey(a.due) === selectedDay,
@@ -850,7 +724,9 @@ function Prototype() {
               ))}
             </View>
             {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}
-              imported={imported} target={focusTarget} closeDetail={()=>setFocusTarget(null)}/> : <>
+              imported={imported} target={focusTarget} initialView={homeEntry==="undated" ? "日期待確認" : "Work"}
+              backLabel={homeEntry==="item" ? "← Home" : "← All assessments"}
+              closeDetail={()=>{setFocusTarget(null); if(homeEntry==="item"){setHomeEntry(null);setTab("Home");}}}/> : <>
             <Text style={s.subtitle}>
               Requirements, preparation and results together.
             </Text>
@@ -935,7 +811,7 @@ function Prototype() {
           </>
         )}
         <Text accessibilityLiveRegion="polite" style={s.footer}>
-          {cloudTab ? "Your imported staging semester · Sydney time" : `${saveState}\nSample semester · personal tasks stay on this iPhone`}
+          {importedTab ? "Your imported staging semester · Sydney time" : `${saveState}\nSample semester · personal tasks stay on this iPhone`}
         </Text>
       </ScrollView>
       <SafeAreaView edges={["bottom"]} style={s.tabBar}>
@@ -945,7 +821,7 @@ function Prototype() {
               key={t}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t }}
-              onPress={() => { setFocusTarget(null); if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
+              onPress={() => { setHomeEntry(null); setFocusTarget(null); if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
               style={s.tab}
             >
               <Text style={[s.tabIcon, tab === t && { color: P.purple }]}>
@@ -1070,7 +946,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.7 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.8 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -1258,7 +1134,7 @@ function Prototype() {
                   label="Try where this widget opens →"
                   onPress={() => {
                     setSettings(false);
-                    const destination = resolveLink(widget.url, board);
+                    const destination = resolveLink(widget.url, sample);
                     if (widgetChoice === "Single" && destination)
                       setDetail(destination);
                     else {
@@ -1293,7 +1169,7 @@ function Prototype() {
                   iPhone. No account, notifications or analytics are connected.
                 </Text>
                 <Text style={s.caption}>
-                  Sample generated {shortDate(board.createdAt)}. Week 10 starts
+                  Sample generated {board ? shortDate(board.createdAt) : "—"}. Week 10 starts
                   on the Monday of that sample week; this is not the USYD
                   academic calendar.
                 </Text>

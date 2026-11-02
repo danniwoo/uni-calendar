@@ -10,9 +10,10 @@ const maybeString = (v: unknown) => v === null || typeof v === "string";
 const mark = (v: unknown) => v === null || (record(v) && finite(v.earned) && finite(v.possible));
 export function readImportedAssessments(v: unknown): ImportedAssessments {
   if (!record(v) || v.version !== 1 || !finite(v.year) || typeof v.session !== "string"
+    || !Array.isArray(v.weeks) || !v.weeks.every(w => record(w) && strings(w, ["label","start","end"]))
     || !Array.isArray(v.units) || !v.units.every(u => record(u) && strings(u, ["code","name"]) && maybeNumber(u.average) && finite(u.currentWeight) && finite(u.securedCompletionPoints))
     || !Array.isArray(v.overview) || !v.overview.every(row => record(row) && strings(row, ["id","unit","title","weight","schedule"]))
-    || !Array.isArray(v.rows) || !v.rows.every(r => record(r) && strings(r, ["id","unit","title","timing","weight"]) && maybeString(r.date) && maybeString(r.time) && typeof r.done === "boolean" && (r.deadlineMode === null || r.deadlineMode === "before" || r.deadlineMode === "due"))
+    || !Array.isArray(v.rows) || !v.rows.every(r => record(r) && strings(r, ["id","unit","title","timing","weight"]) && maybeString(r.date) && maybeString(r.time) && typeof r.done === "boolean" && typeof r.scheduledActivity === "boolean" && (r.deadlineMode === null || r.deadlineMode === "before" || r.deadlineMode === "due"))
     || !Array.isArray(v.grades) || !v.grades.every(g => record(g) && strings(g, ["id","unit","title","weight","score"]) && mark(g.mark)
       && maybeString(g.progress) && maybeString(g.threshold)
       && maybeNumber(g.ratio) && typeof g.finished === "boolean" && finite(g.recorded) && finite(g.total) && maybeString(g.rule) && maybeString(g.error)

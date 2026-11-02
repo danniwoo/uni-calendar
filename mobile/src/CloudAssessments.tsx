@@ -48,13 +48,15 @@ type Props = {
   connection: StagingConnectionState;
   imported: ImportedSemesterState;
   target: FocusTarget | null;
+  initialView: ImportedView;
+  backLabel: string;
   closeDetail: () => void;
 };
-export default function CloudAssessments({connection, imported, target, closeDetail}: Props) {
+export default function CloudAssessments({connection, imported, target, initialView, backLabel, closeDetail}: Props) {
   const {board, message, loading, refresh} = imported;
   const [trial,setTrial] = useState(false);
   const [unit,setUnit] = useState<string|null>(null);
-  const [view,setView] = useState<ImportedView>("Work");
+  const [view,setView] = useState<ImportedView>(initialView);
   const [past,setPast] = useState(false);
   const today = dateKey(Date.now());
   const selected = useMemo(()=>board ? selectImportedWork(board,unit,today) : null,[board,unit,today]);
@@ -66,7 +68,7 @@ export default function CloudAssessments({connection, imported, target, closeDet
     const row = board && imported.scope ? findFocusRow(board, imported.scope, target) : undefined;
     const date = row?.date && sydneyInstant(row.date,"12:00");
     return <View style={s.panel}>
-      <Chip label="← All assessments" onPress={closeDetail}/>
+      <Chip label={backLabel} onPress={closeDetail}/>
       {row ? <>
         <Text style={s.unit}>{row.unit} · {board!.year} {board!.session}</Text>
         <Text accessibilityRole="header" style={s.detailTitle}>{row.title}</Text>
