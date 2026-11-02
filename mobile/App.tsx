@@ -484,7 +484,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.11</Text>
+          <Text style={s.sample}>PREVIEW 0.3.12</Text>
         </View>
         {tab !== "Home" && tab !== "Month" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
         {tab === "Home" && <ImportedHome now={now} imported={imported} connection={cloudConnection}
@@ -746,7 +746,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.11 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.12 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -781,7 +781,7 @@ function Prototype() {
                   Choose what your deadline widgets show.
                 </Text>
                 <Button
-                  label="Test Google + D1 connection →"
+                  label="Semester account →"
                   secondary
                   onPress={() => setStagingConnection(true)}
                 />

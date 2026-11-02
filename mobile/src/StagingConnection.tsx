@@ -8,13 +8,15 @@ export default function StagingConnection({connection}: {connection:StagingConne
   const button = (label: string, action: () => void, secondary = false) => <Pressable accessibilityRole="button" disabled={!!phase} onPress={action}
     style={({pressed})=>[s.button,secondary&&s.secondary,(pressed||!!phase)&&{opacity:.5}]}><Text style={[s.buttonText,secondary&&{color:"#584AA5"}]}>{label}</Text></Pressable>;
   return <View style={s.root}>
-    <Text style={s.title}>Connect the test semester.</Text>
-    <Text style={s.body}>Google sign-in → shared test data on Web and iPhone.</Text>
+    <Text accessibilityRole="header" style={s.title}>Semester account</Text>
     {!stagingSetup.config ? <View style={s.panel}><Text style={s.heading}>Setup needed</Text><Text style={s.body}>{stagingSetup.error}</Text>
       <Text style={s.caption}>The build needs the Supabase project URL, publishable key and independent staging API URL. Your current sample app still works.</Text></View> : <>
-      <Text style={s.caption}>STAGING · SYNTHETIC RECORDS</Text>
       {session ? <>
         <Text style={s.body}>Signed in as {session.user.email ?? "your test account"}</Text>
+        {button("Sign out of this device",()=>void signOut(),true)}
+        <Text style={s.caption}>Your imported semester and Today plan stay in this account when you sign out.</Text>
+        <Text accessibilityRole="header" style={s.heading}>Widget connection trial</Text>
+        <Text style={s.caption}>The trial below uses sample deadlines. Deadline focus shows work from your imported semester.</Text>
         {button("Load / refresh test semester",()=>void request("load"))}
         {noBoard && button("Create my sample semester",()=>void request("create"),true)}
         {accountId ? <Text style={s.caption}>API identity verified · {accountId.slice(0,8)}…</Text> : null}
@@ -37,15 +39,13 @@ export default function StagingConnection({connection}: {connection:StagingConne
           {board.semester.tasks.map(t=><Pressable key={t.id} accessibilityRole="checkbox" accessibilityState={{checked:t.completed,disabled:!!phase}} disabled={!!phase}
             onPress={()=>void request("toggle",t.id)} style={s.row}><Text style={s.body}>{t.completed?"☑":"☐"} {t.title}</Text><Text style={s.caption}>{t.unitCode}</Text></Pressable>)}
         </View>}
-        {button("Sign out of this device",()=>void signOut(),true)}
-      </> : <>{button("Continue with Google",()=>void login())}
+      </> : <><Text style={s.body}>Use the same Google account as Semester on the staging website to see your imported semester.</Text>
+        {button("Continue with Google",()=>void login())}
         {!!message && button("Clear saved session",()=>void signOut(),true)}</>}
     </>}
     {!!phase && <View style={s.progress}><ActivityIndicator color="#584AA5"/><Text style={s.body}>{phase}</Text></View>}
     {!!message && <Text accessibilityLiveRegion="polite" style={s.body}>{message}</Text>}
-    {!session && <Text style={s.caption}>Sign in and load the test semester to connect the cloud widget.</Text>}
     {!session && !!widgetState.error && <Text style={s.body}>{widgetState.error}</Text>}
-    <Text style={s.caption}>Cloud test work and its new widget are separate from the sample app screens, sample widgets and your device-local personal tasks. No old website data has been imported.</Text>
   </View>;
 }
 

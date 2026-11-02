@@ -2,6 +2,10 @@
 
 Home, Today, Month, Assessments and the Deadline focus widget read the signed-in user's imported semester.
 
+## Semester account · 0.3.12 (16)
+
+Open **Widgets → Semester account** to sign in or sign out of this device. The account control appears above the sample widget trial.
+
 ## Today and activity completion · 0.3.11 (15)
 
 In **Today → My plan**, tap a sourced task title to open that occurrence. **Edit** changes the personal task. **← Today** restores the expanded completed list and reads the saved plan again. The plan checkbox tracks preparation. **Mark complete** in the activity detail tracks that occurrence in the imported staging semester and can be undone with **Mark incomplete**.
