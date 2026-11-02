@@ -63,6 +63,18 @@
 .course-footnote {margin:20px 0;color:var(--muted-foreground);font-size:13px;max-width:880px;}
 .course-notice {padding:10px 14px;background:var(--secondary);color:var(--secondary-foreground);border-radius:7px;margin:12px 0;}
 .course-friend-setup {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:22px;}
+.course-friend-setup {margin-top:22px;}
+.course-friends-heading,.course-onboarding {display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;}
+.course-friends-heading h2 {font-size:22px;margin:0;}
+.course-friends-heading p {font-size:14px;margin:4px 0;}
+.course-onboarding {padding:18px;margin:20px 0;border:1px solid var(--border);border-radius:10px;background:white;}
+.course-onboarding p {font-size:14px;margin:4px 0;color:var(--muted-foreground);}
+.course-access-note {font-size:13px;border-top:1px solid var(--border);padding-top:14px;}
+.course-invitation-preview {display:grid;gap:12px;padding:16px;margin-top:18px;background:var(--secondary);border-radius:8px;}
+.course-invitation-preview p {font-size:14px;margin:0;}
+.course-invitation-preview button {justify-self:start;}
+.course-invite details {font-size:13px;}
+.course-invite details .course-inline {margin-top:10px;}
 .course-panel {background:white;border:1px solid var(--border);border-radius:10px;padding:20px;}
 .course-panel>p {font-size:14px;margin:8px 0 16px;}
 .course-inline {align-items:stretch;}

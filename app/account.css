@@ -1,0 +1,31 @@
+.account-menu{display:flex;align-items:center;flex-shrink:0}
+.account-trigger{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.account-avatar{width:28px;height:28px;border-radius:50%;background:#eaf0fc;color:#2855c8;display:inline-flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;flex-shrink:0}
+.account-badge{border-radius:20px;background:#2855c8;color:white;padding:1px 6px;font-size:11px}
+.account-nav{display:flex;gap:12px;flex-wrap:wrap;margin:20px 0}
+.account-nav a{display:inline-flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid var(--border);border-radius:7px;text-decoration:none;color:var(--foreground)}
+.account-identity{display:flex;align-items:center;gap:12px;margin:24px 0}
+.account-identity .account-avatar{width:42px;height:42px;font-size:16px}
+.account-identity>div{display:grid;gap:3px;min-width:0}
+.account-identity span:not(.account-avatar){font-size:13px;color:var(--muted-foreground);overflow-wrap:anywhere}
+.account-form fieldset{display:grid;gap:18px;border:0;margin:0;padding:0;min-width:0}
+.account-form label{display:grid;gap:6px;font-size:14px;font-weight:600}
+.account-form select{padding:10px;border:1px solid var(--input);border-radius:7px;background:white;color:inherit;width:100%}
+.account-form p,.account-section p{font-size:13px;color:var(--muted-foreground);margin:0;line-height:1.6}
+.account-form button{justify-self:start}
+.account-section{border-top:1px solid var(--border);padding-top:20px;margin-top:24px}
+.account-section h3{font-size:16px;margin:0 0 12px}
+.account-blocked{display:flex;justify-content:space-between;gap:10px;align-items:center;margin:10px 0}
+.account-exports{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.account-exports button,.account-signout{display:inline-flex;align-items:center;gap:7px;font-size:13px}
+.account-signout{margin:24px 0;color:var(--foreground)}
+.account-notice{background:var(--secondary);border-radius:7px;padding:10px 12px;font-size:14px}
+.account-panel .notice button,.account-panel .notice a{display:block;margin-top:8px}
+@media(max-width:760px){.semester-header .header-actions>.account-menu{grid-column:1/-1;justify-self:end}.account-trigger>span:not(.account-avatar):not(.account-badge){display:none}}
+@media(max-width:700px){
+  .board-header.semester-header .header-actions{display:flex;grid-area:4/1/5/-1;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
+  .board-header.semester-header .header-actions>.header-add-task{margin:0}
+  .board-header.semester-header .header-actions>.save-state{margin:0}
+  .board-header.semester-header .header-actions>.account-menu{margin-left:auto}
+  .board-header.semester-header .header-actions>a{font-size:12px;margin-right:auto}
+}

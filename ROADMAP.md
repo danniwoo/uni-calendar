@@ -63,6 +63,9 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 
 **Web course plan & friends** · P2 · **待驗證（Web 0.20.0 / Sites 64 已發布）** · 2026-11-02
 
+- 2026-11-02／Web 0.21.0 發布準備：Profile & settings 已放在兩個主要頁面；整合 display name／全朋友分享／blocked users／export／sign out。Friend links 保留 explicit request + acceptance、profile onboarding 後回原邀請，code fallback 仍在；網站 access 仍要由 owner 邀請，未擴大 audience。假帳戶 UI/API/privacy 驗證通過；正式發布憑據見 PROGRESS。
+- 本輪之後：兩位真實使用者完整走邀請／登入／profile／request／accept／分享 off／reload／block。擴大人數前再做按學期查詢／分頁／request throttling；接著才做精確 tutorial group、preferred 與 allocated 狀態。沒有把這些後續工作或 M1/M2 當作完成。
+
 - 使用者認可方向：跨年／學期規劃選課 → 看同學期同科朋友 → 之後協調同一 tutorial group。第一個 slice 為計畫、friend requests、同科比對與可複製的聯絡文字；不是重做現有 semester board。
 - 使用者明確修正 sharing：**整份 course plan 分享給所有 accepted friends，或完全不分享**。包含所有年份、學期與日後新增 units；沒有 per-unit／per-friend permission。預設 private；grades、assessments、私人行程／feed URL 不在共享資料內。
 - 已寫 `/plan`、獨立 D1 tables／append-only migration、Considering／Planned／Enrolled／Completed、移動學期／年份、手動 credits、計畫 JSON export。朋友流程含 display name、七日 invitation code、接受／拒絕／取消、remove／block／unblock；只比對同校、同 code、同年與學期，completed 不算一起將修課。

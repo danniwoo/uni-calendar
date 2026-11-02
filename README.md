@@ -2,7 +2,7 @@
 
 A desktop-first semester planner for USYD students: bring together classes, assessments, preparation and grades, then move from **“what happens when?”** to **“what should I do next?”**
 
-Current source versions: **Semester Web 0.20.0** · **Semester Connect 0.5.0**. Publication is a separate Sites release step; Git push alone does not deploy. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
+Current source versions: **Semester Web 0.21.0** · **Semester Connect 0.5.0**. Publication is a separate Sites release step; Git push alone does not deploy. Connect is a locally loaded Chrome extension, not a Chrome Web Store release. Implementation and automated checks do not mean every workflow has passed a real-user trial.
 
 ## Start here / 從哪裡繼續？
 
@@ -84,6 +84,8 @@ npm run dev
 For an existing database, apply only missing migrations; do not reset it or rerun initial SQL blindly. Preview normally runs at `http://127.0.0.1:5173`. Local sign-in uses the bundled test identity; hosted sign-in uses the platform. Local database files live under ignored `.wrangler/`.
 
 **Course plan & friends** opens `/plan`. Plan USYD units across years/S1/S2, record status and credits, and connect through invitation codes and accepted requests. Sharing applies to **all unit plans: all accepted friends or nobody**, including future entries. It starts private. Final marks, grade codes and the WAM estimate are **always private**, independently of this switch. Plan status is self-reported; catalogue availability, prerequisites, degree audits and tutorial coordination are not implemented. Course-plan JSON export includes your private final results and is separate from the semester-board backup; it currently has no restore UI. See [SOCIAL-01](ROADMAP.md#social-01).
+
+**Profile & settings** is available in the top bar on the semester board and course plan. It manages display name, global sharing, blocked users, saved-data exports and sign out. Friends → Add friend creates a seven-day invitation link (or code); opening it previews the inviter but never sends or accepts a request automatically. New users can save a profile and return to the invitation. Each friend still needs separate access to this invite-only website. The planning year is remembered on this browser; it is a view preference, not account data.
 
 Record final results in **Edit unit → Final result**. WAM uses numeric final marks weighted by positive credit points across all recorded years. Numerical failed attempts and repeats count separately; blank marks are not zero, and grade codes are not converted into marks. SR/FR/CN/DC/DF/IC/RI/UC/J2/WD/NE are excluded. Use **Exclude this result from WAM** for external credit, exchange, OLE units from 2025 or units outside the course. Missing credits and other excluded recorded results appear in calculation details. This is a standard estimate, without faculty-specific level weights or CWAM: [USYD WAM inclusions](https://www.sydney.edu.au/students/weighted-average-mark.html), [calculation](https://www.sydney.edu.au/students/weighted-average-mark/how-to-find-my-wam.html). Results do not change completion status or assessment grades. Tests: `node --import tsx scripts/check-course-plan-grades.ts`.
 

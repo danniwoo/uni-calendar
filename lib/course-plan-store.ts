@@ -1,4 +1,5 @@
 import {PlanError, planDraft, type CoursePlanData, type PlanEntry, type SharedPlan} from "./course-plan";
+import {invitationCode,type InvitePreview} from "./friend-invitation";
 
 type PlanRow = Omit<PlanEntry,"updatedAt"|"finalMark"|"finalGrade"|"wamExcluded"> & {updated_at:string;final_mark:number|null;final_grade:string|null;wam_excluded:number};
 type SharedPlanRow = Pick<PlanRow,"university"|"code"|"name"|"year"|"session"|"status"|"credits"|"updated_at"> & {friend_id:string;friend_name:string};
@@ -33,7 +34,7 @@ export async function readCoursePlan(db:D1Database, owner:string):Promise<Course
   })};
 }
 
-export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown):Promise<{message:string;inviteCode?:string;expiresAt?:string}> {
+export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown):Promise<{message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview}> {
   if (!raw||typeof raw!=="object"||Array.isArray(raw)) throw new PlanError("Invalid request.");
   const body=raw as Record<string,unknown>, now=new Date().toISOString();
   if (body.action==="save-plan") {
@@ -76,6 +77,17 @@ export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown)
     if(!result.meta.changes)throw stale();
     return {message:body.sharing?"Profile saved. Your unit plans are shared with all accepted friends.":"Profile saved. Your course plan is private."};
   }
+  if(body.action==="preview-invite") {
+    const code=typeof body.code==="string"?invitationCode(body.code):null;
+    if(!code)throw new PlanError("Enter a full invitation link or code.");
+    const invite=await db.prepare("SELECT i.owner,p.name FROM friend_invites i JOIN friend_profiles p ON p.owner=i.owner WHERE i.code_hash=? AND i.expires_at>?").bind(await hash(code),now).first<{owner:string;name:string}>();
+    if(!invite)throw new PlanError("This invitation has expired or been replaced. Ask your friend for a new link.");
+    const [a,b]=pair(owner,invite.owner);
+    const relation=await db.prepare("SELECT status,requester FROM friendships WHERE a=? AND b=?").bind(a,b).first<{status:string;requester:string}>();
+    if(relation?.status==="blocked")throw new PlanError("This invitation is unavailable.");
+    const state:InvitePreview["state"]=owner===invite.owner?"self":relation?.status==="accepted"?"accepted":relation?.status==="pending"?(relation.requester===owner?"outgoing":"incoming"):"available";
+    return {message:"Invitation checked.",invitePreview:{name:invite.name,state}};
+  }
   const profile=await db.prepare("SELECT owner,id,name,revision FROM friend_profiles WHERE owner=?").bind(owner).first<ProfileRow>();
   if(!profile)throw new PlanError("Save a display name before connecting with friends.");
   if(body.action==="create-invite") {
@@ -89,8 +101,8 @@ export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown)
     return {message:"Invitation code revoked. Existing requests are unchanged."};
   }
   if(body.action==="request-friend") {
-    const code=typeof body.code==="string"?body.code.replace(/[\s-]/g,"").toUpperCase():"";
-    if(!/^[A-F0-9]{32}$/.test(code))throw new PlanError("Enter the full invitation code.");
+    const code=typeof body.code==="string"?invitationCode(body.code):null;
+    if(!code)throw new PlanError("Enter the full invitation link or code.");
     const codeHash=await hash(code);
     const invite=await db.prepare("SELECT owner FROM friend_invites WHERE code_hash=? AND expires_at>?").bind(codeHash,now).first<{owner:string}>();
     if(!invite||invite.owner===owner)throw new PlanError("This code is unavailable. Ask your friend for a new code.");

@@ -1,4 +1,5 @@
 "use client";
+import AccountMenu from "./account-menu";
 import { useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
@@ -705,6 +706,7 @@ export default function SemesterBoard() {
           {semester && (
             <><button className="header-reminders" onClick={()=>setReminderSettings(true)}>Reminders</button><button onClick={() => setSettings(!settings)}>Manage</button></>
           )}
+          <AccountMenu/>
         </div>
       </header>
       {semester&&!loadError&&<CanvasInbox semester={semester} reviewOpen={canvasImport} onImportFile={()=>{setCanvasRaw(undefined);setCanvasImport(true);}} onReview={raw=>{setCanvasRaw(raw);setCanvasImport(true);}}/>}
