@@ -16,7 +16,9 @@ Open **Widgets → Test Google + D1 connection**. This screen is separate from t
 
 The API origin must use HTTPS on a physical iPhone. HTTP loopback is allowed for a local Simulator API only; it does not refer to the Mac when used on a physical device.
 
-**Current limits:** the cloud environment is configured and the rebuilt app is installed; actual phone Google login/redirect, Keychain behaviour, token refresh and cross-device sync still need a device trial. Web Google login, API identity, synthetic task saving and persistence after reload have passed. Those results do not prove native login. Cold launch partway through browser sign-in requires retrying login; sessions which already completed persist. Existing widgets remain sample-only. Connecting a separate widget to the cloud proof is still pending.
+**Live phone evidence, 2026-11-02:** Daniel supplied a 0.3.2 screenshot showing Google sign-in, verified API identity, revision 2 and the task previously checked on the web. He then checked the second task on the iPhone and reported revision 3. Refreshing the web independently returned revision 3 with both tasks checked. Native login, an authenticated read and a narrow task write visible on the other device have passed, in both directions using explicit refresh.
+
+**Current limits:** phone restart/session persistence, token refresh, real multi-account provider testing and cloud widgets remain unverified. The successful login is not a complete Keychain lifecycle test. Cold launch partway through browser sign-in requires retrying login. Existing widgets remain sample-only; connecting a separate widget to the cloud proof is still pending.
 
 Validation in the isolated worktree: TypeScript and eight new tests passed, covering configuration/callback validation, DTO validation, bearer and revision request shape, account-switch request invalidation, chunked Unicode storage/failed-write preservation, and a real pinned-SDK S256 exchange/session/sign-out lifecycle with a simulated Auth server. iOS Metro/Hermes export passed. The physical-device Release build and strict deep signature verification passed; app and widget are 0.3.2 (6), retaining the shared App Group with no push entitlement. The staging API URL is present in bundled JavaScript, and SecureStore/Crypto are in the native binary. Installation succeeded without uninstalling the prior app. No Simulator was opened. Build log: `/private/tmp/semester-ios-v032-device.log`.
 
@@ -55,6 +57,8 @@ The widget gallery is deliberately small. No favourite/winning design, retention
 ## Local development
 
 ### Preserved comparison version
+
+The independently authenticated preview with verified bidirectional synthetic task updates is preserved at **`ios-preview-v0.3.2`**. It uses the staging Google/Supabase/D1 environment; cloud widgets and production migration remain separate work.
 
 The status-only connection diagnostic is preserved at **`ios-preview-v0.3.1`**. Its sign-in trial is separate from the local preview's sample data and personal tasks.
 

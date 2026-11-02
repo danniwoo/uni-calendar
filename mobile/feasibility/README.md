@@ -1,6 +1,14 @@
 # Stage 2: hosting and native authentication investigation
 
-Investigated 2026-11-02. Local application source: `74bd034` (the preserved 0.3.0 preview). This is an engineering investigation and synthetic API check, not a connected app release. The phone remains on 0.3.0; Stage 1 usefulness and device-widget trials remain open.
+Initial investigation: 2026-11-02, source `74bd034` (the preserved 0.3.0 preview). The original findings below describe that historical audit. The independent 0.3.2 experiment has since verified native login and bidirectional synthetic-data updates; see the follow-up below. Stage 1 usefulness and cloud-widget trials remain open.
+
+## Independent 0.3.2 follow-up — 2026-11-02
+
+Daniel selected isolated Cloudflare Workers + D1 and Supabase Auth with Google first; setup and reproducible details are in [migration/README.md](../../migration/README.md). The old Sites website remains the production app. No production records have been imported.
+
+The web proof signed in with Google, obtained a verified API identity, created a synthetic board and saved a task at revision 2. Daniel's physical iPhone screenshot shows the same signed-in account, verified API identity, revision 2 and checked task. He then checked the second task on the phone and reported revision 3; a web refresh independently showed revision 3 with both tasks checked. This establishes native authentication and narrow task updates shared with the independent web proof, using explicit refresh. It does not establish sync with the existing Sites website.
+
+Remaining acceptance work includes phone restart/session renewal, real multi-account sign-in and isolation, live conflict/retry behaviour, and an account-scoped widget snapshot with sign-out clearing and freshness. Existing automated checks cover several of these failure paths, but device and live-service validation remain separate.
 
 ## Decision
 
