@@ -86,7 +86,19 @@ export function useImportedSemester({session,authReady}: StagingConnectionState)
     return ()=>listener.remove();
   },[]);
   const owned = loaded?.subject === subject ? loaded : undefined;
-  return {board:owned?.board, scope:owned?.scope, syncedAt:owned?.syncedAt,
+  async function markOccurrence(id:string,done:boolean,expectedRevision:number) {
+    if (!stagingSetup.config || !token || !owned) throw new StagingApiError(401);
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),15000);
+    try {
+      await stagingRequest(stagingSetup.config,token,"/v1/imported/completion",{
+        method:"PATCH",body:{id,done,expectedRevision},signal:controller.signal});
+    } finally {
+      clearTimeout(timeout);
+      setReload(n=>n+1);
+    }
+  }
+  return {board:owned?.board, scope:owned?.scope, syncedAt:owned?.syncedAt,markOccurrence,
     message, loading, widgetIssue, refresh:()=>setReload(n=>n+1)};
 }
 export type ImportedSemesterState = ReturnType<typeof useImportedSemester>;

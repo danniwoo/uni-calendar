@@ -15,7 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { addDays } from "./experience";
 import { dateKey, shortDate } from "./model";
-import type { PreparationSuggestion } from "./imported-today";
+import type { PreparationSuggestion, planSources } from "./imported-today";
 import {
   MAX_TASK_TITLE,
   planGroups,
@@ -38,15 +38,21 @@ export default function TodayPlan({
   today,
   suggestions,
   openSource,
+  sources,
+  completedView,
 }: {
   plan: PersonalPlanController;
   units: string[];
   today: string;
   suggestions?: PreparationSuggestion[];
   openSource?:(id:string)=>void;
+  sources?:ReturnType<typeof planSources>;
+  completedView?:{expanded:boolean; change:(expanded:boolean)=>void};
 }) {
   const [editor, setEditor] = useState<Editor>();
-  const [showCompleted, setShowCompleted] = useState(false);
+  const [deviceExpanded, setDeviceExpanded] = useState(false);
+  const showCompleted = completedView?.expanded ?? deviceExpanded;
+  const setShowCompleted = completedView?.change ?? setDeviceExpanded;
   const groups = planGroups(plan.tasks, today);
   const tomorrow = addDays(today, 1);
   function edit(task: PersonalTask) {
@@ -74,6 +80,7 @@ export default function TodayPlan({
   }
   function row(task: PersonalTask) {
     const done = task.completedAt !== undefined;
+    const source = task.sourceKey && sources?.get(task.sourceKey);
     const day =
       task.plannedFor === today
         ? "Today"
@@ -84,7 +91,7 @@ export default function TodayPlan({
       <View key={task.id} style={s.taskRow}>
         <Pressable
           accessibilityRole="checkbox"
-          accessibilityLabel={`Complete ${task.title}`}
+          accessibilityLabel={`${done ? "Reopen" : "Complete"} ${task.title}`}
           accessibilityState={{ checked: done, disabled: plan.busy }}
           disabled={plan.busy}
           onPress={() => void plan.toggle(task.id)}
@@ -96,8 +103,8 @@ export default function TodayPlan({
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={`Edit task: ${task.title}`}
-          onPress={() => edit(task)}
+          accessibilityLabel={source ? `Open ${source.unit} ${source.title} from ${task.title}` : `Edit task: ${task.title}`}
+          onPress={() => source && openSource ? openSource(source.id) : edit(task)}
           disabled={plan.busy}
           style={s.taskBody}
         >
@@ -105,10 +112,12 @@ export default function TodayPlan({
           <Text style={s.meta}>
             {task.unit ? `${task.unit} · ` : ""}
             {day}
-            {task.sourceKey ? " · From suggestion" : ""}
+            {source ? ` · Open ${source.title} ›` : task.sourceKey ? " · From suggestion" : ""}
           </Text>
         </Pressable>
-        <Text style={s.chevron}>›</Text>
+        {source ? <Pressable accessibilityRole="button" accessibilityLabel={`Edit task: ${task.title}`}
+          disabled={plan.busy} onPress={()=>edit(task)} style={s.editButton}><Text style={s.link}>Edit</Text></Pressable>
+          : <Text style={s.chevron}>›</Text>}
       </View>
     );
   }
@@ -495,6 +504,7 @@ const s = StyleSheet.create({
     borderBottomColor: P.line,
     paddingRight: 12,
   },
+  editButton: { minWidth:44, minHeight:44, alignItems:"center", justifyContent:"center" },
   taskBody: { flex: 1, paddingVertical: 13 },
   taskTitle: { fontSize: 14, lineHeight: 20, fontWeight: "600", color: P.ink },
   meta: { fontSize: 11, lineHeight: 17, color: P.muted, marginTop: 3 },

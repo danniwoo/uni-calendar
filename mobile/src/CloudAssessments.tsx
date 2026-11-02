@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { dateKey, shortDate } from "./model";
 import { sydneyInstant } from "../../lib/sydney-time";
 import { findFocusRow, type FocusTarget } from "./deadline-focus";
 import type { ImportedSemesterState } from "./useImportedSemester";
 import { selectImportedWork, type ImportedAssessments, type ImportedGrade, type ImportedView } from "./imported-work";
+import { StagingApiError } from "./staging-core";
 import { stagingSetup } from "./staging-auth";
 import type { StagingConnectionState } from "./useStagingConnection";
 import TrialAssessments from "./TrialAssessments";
@@ -44,6 +45,31 @@ function WorkRow({row}:{row:ImportedAssessments["rows"][number]}) {
     <Text style={s.note}>{row.date ? [row.date, row.time].filter(Boolean).join(" · ") : row.timing || "Exact date unconfirmed"}</Text></View>;
 }
 
+function OccurrenceCompletion({row,imported}:{row:ImportedAssessments["rows"][number]; imported:ImportedSemesterState}) {
+  const [saving,setSaving]=useState(false);
+  const [error,setError]=useState("");
+  const pending=useRef(false);
+  const disabled=saving || imported.loading;
+  async function toggle() {
+    if (pending.current || disabled || row.completionRevision===undefined) return;
+    pending.current=true; setSaving(true); setError("");
+    try {
+      await imported.markOccurrence(row.id,!row.done,row.completionRevision);
+    } catch(e) {
+      setError(e instanceof StagingApiError && e.status===409 ? "This activity changed on another device. Check its refreshed status."
+        : "Couldn’t confirm this change. Refresh and check the activity before trying again.");
+    } finally {pending.current=false; setSaving(false);}
+  }
+  return <View>
+    <Text accessibilityLiveRegion="polite" style={s.note}>{row.done ? "Marked complete" : "Not marked complete"}</Text>
+    {row.completionRevision!==undefined && <Pressable accessibilityRole="button" accessibilityState={{disabled}}
+      disabled={disabled} onPress={()=>void toggle()} style={s.chip}>
+      <Text style={s.chipText}>{saving ? "Saving…" : row.done ? "Mark incomplete" : "Mark complete"}</Text>
+    </Pressable>}
+    {!!(error || imported.message) && <Chip label="Refresh activity" onPress={imported.refresh}/>}
+    {!!error && <Text accessibilityLiveRegion="polite" style={s.note}>{error}</Text>}
+  </View>;
+}
 type Props = {
   connection: StagingConnectionState;
   imported: ImportedSemesterState;
@@ -77,7 +103,7 @@ export default function CloudAssessments({connection, imported, target, initialV
         <Text style={s.score}>{date ? shortDate(date) : "Date to confirm"}{row.time ? ` · ${row.deadlineMode==="before" ? "before " : ""}${row.time} Sydney` : " · time TBC"}</Text>
         {!!row.timing && <Text style={s.note}>{row.timing}</Text>}
         {!!row.weight && <Text style={s.note}>Weight · {row.weight}</Text>}
-        <Text style={s.note}>{row.done ? "Marked complete" : "Not marked complete"}</Text>
+        <OccurrenceCompletion key={row.id} row={row} imported={imported}/>
       </> : <Text accessibilityLiveRegion="polite" style={s.note}>{loading ? "Opening this assessment…" : message || "This item is unavailable in the signed-in semester."}</Text>}
       {!!message && row && <Text style={s.note}>{message}</Text>}
       {!loading && !row && <Chip label="Refresh" onPress={refresh}/>}

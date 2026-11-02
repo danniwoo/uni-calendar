@@ -5,6 +5,12 @@ import type { ImportedAssessments } from "./imported-work";
 import { MAX_TASK_TITLE } from "./personal-plan";
 
 export type PreparationSuggestion = {id:string; sourceKey:string; title:string; unit:string; context:string};
+const sourceKey = (board:ImportedAssessments,id:string) => JSON.stringify([board.year,board.session,id]);
+
+export function planSources(board:ImportedAssessments) {
+  return new Map(board.rows.map(row => [sourceKey(board,row.id),row]));
+}
+
 export function todaySuggestions(board:ImportedAssessments, now:number):PreparationSuggestion[] {
   const today=dateKey(now), end=addDays(today,6);
   const rows=board.rows.filter(row=>{
@@ -20,6 +26,6 @@ export function todaySuggestions(board:ImportedAssessments, now:number):Preparat
     const context=row.date ? [row.date,row.time ? (row.deadlineMode==="before" ? "before " : "")+row.time : "time TBC",
       row.deadlineMode ? "Deadline" : "Scheduled activity"].join(" · ") : "Exact date unconfirmed";
     return {id:row.id,unit:row.unit,title:`${verb} ${row.title}`.slice(0,MAX_TASK_TITLE),
-      sourceKey:JSON.stringify([board.year,board.session,row.id]),context};
+      sourceKey:sourceKey(board,row.id),context};
   });
 }

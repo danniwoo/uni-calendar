@@ -31,5 +31,30 @@ export async function exportBackup(db: SqlDatabase, owner: string): Promise<stri
 
 export async function getImportedAssessments(db: SqlDatabase, owner: string) {
   await requireMember(db, owner, owner);
-  return importedAssessments(readBackup(await exportBackup(db, owner)));
+  const board = importedAssessments(readBackup(await exportBackup(db, owner)));
+  const {results} = await db.prepare("SELECT task_id,done,revision FROM imported_completion WHERE account_id=?1")
+    .bind(owner).all<{task_id:string;done:number;revision:number}>();
+  const changes = new Map(results.map(row=>[row.task_id,row]));
+  return {...board,rows:board.rows.map(row=>{
+    const change = changes.get(row.id);
+    return {...row,done:change ? Boolean(change.done) : row.done,completionRevision:change?.revision ?? 0};
+  })};
+}
+
+export async function setImportedCompletion(db:SqlDatabase, owner:string, body:Record<string,unknown>) {
+  const {id,done,expectedRevision} = body;
+  if (typeof id !== "string" || !id || typeof done !== "boolean" || !Number.isSafeInteger(expectedRevision)
+      || Number(expectedRevision)<0 || Object.keys(body).some(key=>!["id","done","expectedRevision"].includes(key))) {
+    throw new ApiError(400,"invalid_completion","Send the occurrence, completion state and version you loaded.");
+  }
+  await requireMember(db,owner,owner);
+  const board = readBackup(await exportBackup(db,owner));
+  if (!board.tasks.some(task=>task.id===id)) throw new ApiError(404,"missing_occurrence","This occurrence is unavailable.");
+  const write = expectedRevision === 0
+    ? db.prepare("INSERT INTO imported_completion(account_id,task_id,done,revision) VALUES (?1,?2,?3,1) ON CONFLICT DO NOTHING")
+      .bind(owner,id,Number(done))
+    : db.prepare("UPDATE imported_completion SET done=?3,revision=revision+1 WHERE account_id=?1 AND task_id=?2 AND revision=?4")
+      .bind(owner,id,Number(done),Number(expectedRevision));
+  if ((await write.run()).meta.changes !== 1) throw new ApiError(409,"completion_conflict","This occurrence changed. Refresh before trying again.");
+  return {id,done,revision:Number(expectedRevision)+1};
 }

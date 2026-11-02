@@ -1,6 +1,6 @@
 {
   "name": "semester-mobile-preview",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "main": "index.ts",
   "dependencies": {
     "@expo/ui": "~55.0.17",

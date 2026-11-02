@@ -5,6 +5,7 @@ import { createSampleSemester, type PilotSemester, type SemesterResponse } from 
 export interface SqlStatement {
   bind(...values: (string | number | null)[]): SqlStatement;
   first<T>(): Promise<T | null>;
+  all<T>(): Promise<{ results:T[] }>;
   run(): Promise<{ meta: { changes: number } }>;
 }
 export interface SqlDatabase {

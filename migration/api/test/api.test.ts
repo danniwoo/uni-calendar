@@ -29,6 +29,7 @@ class SQLiteStatement implements SqlStatement {
   bind(...values: (string | number | null)[]) { return new SQLiteStatement(this.db, this.sql, values); }
   parameters() { return Object.fromEntries(this.values.map((value, i) => [String(i + 1), value])); }
   async first<T>() { return (this.db.prepare(this.sql).get(this.parameters()) ?? null) as T | null; }
+  async all<T>() { return {results:this.db.prepare(this.sql).all(this.parameters()) as T[]}; }
   async run() { return { meta: { changes: Number(this.db.prepare(this.sql).run(this.parameters()).changes) } }; }
 }
 class SQLiteDatabase implements SqlDatabase {
@@ -38,6 +39,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec(readFileSync(new URL("../migrations/0001_pilot.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0002_backup_trial.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0003_today_plans.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0004_imported_completion.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -269,4 +271,46 @@ test("Today plans isolate accounts, preserve the restore point and reject racing
   assert.equal((await write(1,[])).status,409);
   assert.deepEqual(await (await call(url,b)).json(),{revision:0,tasks:[]});
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM backup_trial_snapshots WHERE data='{}'").get()?.n,2);
+});
+
+test("occurrence completion is independent of preparation, scoped, reversible, and preserves the restore point", async t=>{
+  const {call,db}=setup(t);
+  const a=await token(), b=await token(bob);
+  const id="COMP3888:demo/1";
+  const board={year:2026,session:"S2C",feedUrl:"",importedAt:"test",classes:[],warnings:[],completed:{},
+    weeks:[{id:"13",label:"Week 13",start:"2026-11-02",end:"2026-11-08",kind:"teaching"}],
+    units:[{code:"COMP3888",name:"Test",session:"S2C",outline:"",status:"",summary:"",assessments:[],topics:[]}],
+    tasks:[{id,unit:"COMP3888",kind:"task",title:"Demo",date:"2026-11-03",time:"12:00",timing:"During workshop",weight:"",description:"",source:"",sourceText:""}]};
+  const api="/v1/imported/completion", plan="/v1/today/plan";
+  const write=(jwt:string,done:boolean,expectedRevision:number)=>call(api,jwt,"PATCH",{id,done,expectedRevision});
+  assert.equal((await write(b,true,0)).status,403);
+  const url=async (jwt:string)=>{
+    const {accountId}=await (await call("/v1/session",jwt)).json() as {accountId:string};
+    db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(accountId);
+    const path="/v1/backup-trial/"+accountId;
+    assert.equal((await call(path,jwt,"POST",board)).status,201);
+    return path;
+  };
+  const restore=await url(a);
+  await url(b);
+  const read=async (jwt:string)=>(await (await call("/v1/imported/assessments",jwt)).json() as {rows:{id:string;done:boolean;completionRevision:number}[]}).rows[0];
+  const preparation={id:"rehearsal",title:"Rehearse Demo",plannedFor:"2026-11-02",createdAt:1,completedAt:2,sourceKey:JSON.stringify([2026,"S2C",id])};
+  assert.equal((await call(plan,a,"PATCH",{expectedRevision:0,tasks:[preparation]})).status,200);
+  const originalPlan=await (await call(plan,a)).text();
+  assert.equal((await read(a)).done,false);
+  assert.equal((await call(api,a,"PATCH",{id:"missing",done:true,expectedRevision:0})).status,404);
+  assert.equal((await call(api,a,"PATCH",{id,done:true,expectedRevision:0,owner:"other"})).status,400);
+  assert.equal((await call(api,undefined,"PATCH",{id,done:true,expectedRevision:0})).status,401);
+  const attempts=await Promise.all([write(a,true,0),write(a,true,0)]);
+  assert.deepEqual(attempts.map(r=>r.status).sort(),[200,409]);
+  assert.equal((await read(a)).done,true);
+  assert.equal((await read(a)).completionRevision,1);
+  assert.equal((await read(b)).done,false);
+  assert.equal(await (await call(plan,a)).text(),originalPlan);
+  assert.equal((await write(a,false,0)).status,409);
+  assert.equal((await write(a,false,1)).status,200);
+  assert.equal((await read(a)).done,false);
+  assert.equal((await read(a)).completionRevision,2);
+  assert.equal(await (await call(plan,a)).text(),originalPlan);
+  assert.equal(await (await call(restore,a)).text(),JSON.stringify(board));
 });

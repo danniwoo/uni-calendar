@@ -151,10 +151,11 @@ function Prototype() {
   const [assessmentView, setAssessmentView] = useState<"Work" | "Grades">(
     "Work",
   );
+  const [todayCompletedExpanded,setTodayCompletedExpanded] = useState(false);
   const [calendarDay,setCalendarDay] = useState<string|null>(null);
   const [calendarUnit,setCalendarUnit] = useState<string|null>(null);
   useEffect(()=>{
-    setCalendarDay(null); setCalendarUnit(null);
+    setCalendarDay(null); setCalendarUnit(null); setTodayCompletedExpanded(false);
   },[cloudConnection.session?.user.id]);
   const [busy, setBusy] = useState(false),
     [loadError, setLoadError] = useState(false);
@@ -483,7 +484,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.10</Text>
+          <Text style={s.sample}>PREVIEW 0.3.11</Text>
         </View>
         {tab !== "Home" && tab !== "Month" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
         {tab === "Home" && <ImportedHome now={now} imported={imported} connection={cloudConnection}
@@ -496,7 +497,7 @@ function Prototype() {
           }}
         />}
         {tab === "Today" && <ImportedToday key={cloudConnection.session?.user.id ?? "guest"}
-          now={now} imported={imported} connection={cloudConnection} openItem={id=>{
+          now={now} imported={imported} connection={cloudConnection} completedView={{expanded:todayCompletedExpanded,change:setTodayCompletedExpanded}} openItem={id=>{
             if(!imported.scope)return;
             setAssessmentEntry("todayItem"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
           }}/>}
@@ -745,7 +746,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.10 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.11 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {

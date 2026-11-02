@@ -2,6 +2,10 @@
 
 Home, Today, Month, Assessments and the Deadline focus widget read the signed-in user's imported semester.
 
+## Today and activity completion · 0.3.11 (15)
+
+In **Today → My plan**, tap a sourced task title to open that occurrence. **Edit** changes the personal task. **← Today** restores the expanded completed list and reads the saved plan again. The plan checkbox tracks preparation. **Mark complete** in the activity detail tracks that occurrence in the imported staging semester and can be undone with **Mark incomplete**.
+
 ## Imported Month · 0.3.10 (14)
 
 Month shows dated items from the signed-in semester, including completed historical work. Filter by unit, select a marked day and tap a task to open its exact occurrence. **← Month** returns to the selected date and filter. Deadline and activity indicators are separate. **日期待確認** opens the same unit's undated list in Assessments. **Jump to today** uses the Sydney date.

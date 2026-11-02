@@ -1,7 +1,7 @@
 import React, {useMemo, useState} from "react";
 import {Pressable, StyleSheet, Text, View} from "react-native";
 import {homeSummary} from "./imported-home";
-import {todaySuggestions, type PreparationSuggestion} from "./imported-today";
+import {todaySuggestions, planSources} from "./imported-today";
 import {dateKey} from "./model";
 import {accountPlan, devicePlan, type PlanStorage} from "./plan-storage";
 import {usePersonalPlan} from "./usePersonalPlan";
@@ -12,12 +12,14 @@ import TodayPlan from "./TodayPlan";
 function Link({title,onPress}:{title:string;onPress:()=>void}) {
   return <Pressable accessibilityRole="button" onPress={onPress} style={s.link}><Text style={s.linkText}>{title}</Text></Pressable>;
 }
-function Plan({storage,units,today,suggestions,openSource}:{storage:PlanStorage;units:string[];today:string;suggestions?:PreparationSuggestion[];openSource?:(id:string)=>void}) {
+type PlanProps = Omit<React.ComponentProps<typeof TodayPlan>,"plan"> & {storage:PlanStorage};
+function Plan({storage,...props}:PlanProps) {
   const plan=usePersonalPlan(storage);
-  return <TodayPlan plan={plan} units={units} today={today} suggestions={suggestions} openSource={openSource}/>;
+  return <TodayPlan plan={plan} {...props}/>;
 }
-export default function ImportedToday({now,imported,connection,openItem}:{
+export default function ImportedToday({now,imported,connection,openItem,completedView}:{
   now:number; imported:ImportedSemesterState; connection:StagingConnectionState; openItem:(id:string)=>void;
+  completedView:NonNullable<PlanProps["completedView"]>;
 }) {
   const [legacy,setLegacy]=useState(false);
   const subject=connection.session?.user.id;
@@ -26,6 +28,7 @@ export default function ImportedToday({now,imported,connection,openItem}:{
   const {board,message,refresh}=imported;
   const week=useMemo(()=>board && homeSummary(board,now),[board,now]);
   const suggestions=useMemo(()=>board && todaySuggestions(board,now),[board,now]);
+  const sources=useMemo(()=>board && planSources(board),[board]);
   const units=board?.units.map(unit=>unit.code) ?? [];
   if(legacy) return <View style={s.area}>
     <Link title="← Today" onPress={()=>setLegacy(false)}/>
@@ -44,7 +47,7 @@ export default function ImportedToday({now,imported,connection,openItem}:{
       {week.day.activities>0 && <><Text style={s.header}>Scheduled today · {week.day.activities}</Text>
         {week.day.rows.filter(row=>row.scheduledActivity).map(row=><Link key={row.id} title={`${row.unit} · ${row.title} · ${row.time || "time TBC"} ›`} onPress={()=>openItem(row.id)}/>)}</>}
       {!!message && <Text style={s.note}>{message}</Text>}
-      <Plan key={subject} storage={storage} today={today} units={units} suggestions={suggestions} openSource={openItem}/>
+      <Plan key={subject} storage={storage} today={today} units={units} suggestions={suggestions} openSource={openItem} sources={sources} completedView={completedView}/>
     </> : <>
       <Text style={s.note}>{!connection.authReady ? "Loading your semester…" : !subject ? "Sign in to plan from your semester." : message || "Loading your imported semester…"}</Text>
       {!subject && connection.authReady && <Link title={connection.phase || "Continue with Google"} onPress={()=>void connection.login()}/>}

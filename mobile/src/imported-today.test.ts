@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { todaySuggestions } from "./imported-today";
+import { planSources, todaySuggestions } from "./imported-today";
 import type { ImportedAssessments } from "./imported-work";
 const now=Date.parse("2026-11-02T07:00:00Z");
 const row:ImportedAssessments["rows"][number]={id:"demo",unit:"TEST",title:"Demo",date:"2026-11-03",time:"12:00",timing:"During workshop",weight:"",done:false,deadlineMode:null,scheduledActivity:true};
@@ -20,4 +20,13 @@ test("with no upcoming work Today can suggest checking an unknown date without i
  const suggestions=todaySuggestions({...board,rows:[board.rows.at(-1)!]},now);
  assert.match(suggestions[0].title,/Check the date/);assert.equal(suggestions[0].context,"Exact date unconfirmed");
  assert.deepEqual(todaySuggestions({...board,rows:[]},now),[]);
+});
+
+test("a saved plan keeps its exact semester occurrence after it drops out of suggestions",()=>{
+ const saved=todaySuggestions(board,now)[0];
+ const updated={...board,rows:board.rows.map(r=>r.id===saved.id ? {...r,done:true} : r)};
+ assert.ok(!todaySuggestions(updated,now).some(s=>s.id===saved.id));
+ assert.equal(planSources(updated).get(saved.sourceKey)?.id,"demo");
+ assert.equal(planSources({...updated,year:2027}).get(saved.sourceKey),undefined);
+ assert.equal(planSources({...updated,rows:[]}).get(saved.sourceKey),undefined);
 });
