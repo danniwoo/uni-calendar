@@ -9,7 +9,7 @@ import "../../app/globals.css";
 import "../../app/board.css";
 let installed=false;
 export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test · no real account or OS notifications"),[digest,setDigest]=useState(""),[fail,setFail]=useState(sessionStorage.getItem("qa-reminder-fail")==="true");if(!installed){installed=true;
- const owner="a".repeat(64),automatic=new URLSearchParams(location.search).has("automatic"),key=automatic?"qa-automatic-board":"qa-reminders-board",native=window.fetch.bind(window);
+ const owner="a".repeat(64),automatic=new URLSearchParams(location.search).has("automatic"),timing=new URLSearchParams(location.search).has("timing"),key=automatic?(timing?"qa-timing-board":"qa-automatic-board"):"qa-reminders-board",native=window.fetch.bind(window);
  const fixture=structuredClone(calendarFixture);fixture.tasks=[{...fixture.tasks[0],id:"reminder-report",title:"Synthetic reminder report",date:"2026-11-10",time:"14:00",week:14},{...fixture.tasks[4],id:"unknown-date",title:"Synthetic week-only assignment",week:13}, {...fixture.tasks.at(-2)!,id:"personal-reminder",title:"Synthetic personal task",date:"2026-11-11",time:"15:00"}];
  if(automatic){fixture.tasks=[
   {...fixture.tasks[0],id:"report",title:"Research report",date:"2026-11-06",time:"14:00",week:13,timeBasis:"deadline"},
@@ -17,7 +17,7 @@ export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test ·
   {...fixture.tasks[0],id:"quiz",title:"Practice quiz · Attempt 2",kind:"quiz",date:"2026-11-04",time:"12:00",week:13,timeBasis:"class",timing:"In tutorial"},
   {...fixture.tasks[1],title:"Presentation · date to confirm"},
   {...fixture.tasks[2],reminders:[{id:"custom-only",kind:"before",minutes:10}]}
- ];}
+ ];if(timing)fixture.tasks=fixture.tasks.map(t=>["report","project"].includes(t.id)?{...t,time:"23:59"}:t);}
  fixture.classes.push(...[
   {id:"week13-tutorial",unit:"TEST1001",activity:"Tutorial",week:13,date:"2026-11-03",time:"12:00",end:"14:00",location:"Synthetic room"},
   {id:"week13-lecture",unit:"TEST1001",activity:"Lecture",week:13,date:"2026-11-04",time:"09:00",end:"10:00",location:"Synthetic theatre"},
@@ -47,7 +47,7 @@ export function RemindersQA(){const [debug,setDebug]=useState("Synthetic test ·
   else if(e.data.action==="settings"){await controller.enable(owner);}
   const state=await controller.state();
   const board=JSON.parse(sessionStorage.getItem(key)!);
-  const group=automaticBatches(board,0).find(b=>b.items.length>1);setDigest(group?`reminders.html?automatic#reminder=${encodeURIComponent(owner+":"+group.job.taskId)}`:"");
+  const group=automaticBatches(board,0).find(b=>b.items.length>1);setDigest(group?`reminders.html?automatic${timing?"&timing":""}#reminder=${encodeURIComponent(owner+":"+group.job.taskId)}`:"");
   setDebug(`Synthetic only · saved revision ${sessionStorage.getItem("qa-reminder-revision")||1} · automatic ${board.automaticReminders?.enabled?"on":"off"} · queued ${state.count||0} · desktop ${state.enabled?"on":"off"}`);
   window.postMessage({type:"semester-reminders-state-v1",state},location.origin);
  });

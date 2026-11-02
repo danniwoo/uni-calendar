@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import {automaticDefaults,automaticAlerts,automaticBatches,allReminderJobs,automaticReminderError,quietReminderTime,saveAutomaticReminders} from "../lib/automatic-reminders";
+import {automaticDefaults,automaticAlerts,automaticBatches,allReminderJobs,automaticReminderError,quietReminderTime,saveAutomaticReminders,automaticSettingsDraft,automaticTaskStatus,type AutomaticReminders} from "../lib/automatic-reminders";
 import {sydneyInstant,reminderJobs} from "../lib/reminders";
 import {calendarFixture} from "./fixtures/calendar-visibility";
 import {backupText,readBackup} from "../lib/backup";
@@ -7,7 +7,7 @@ import {mergeSemester,type Task} from "../lib/semester";
 import {reconcile} from "../lib/sync";
 import {validReminderSnapshot,reminderController} from "../extensions/semester-connect/reminders.js";
 const at=(day:string,time:string)=>sydneyInstant(day,time)!;
-const enabledAt=at("2026-11-01","10:00"),settings={...automaticDefaults,enabled:true,enabledAt};
+const enabledAt=at("2026-11-01","10:00"),settings={enabled:true,enabledAt,deadlines:true,activities:true,missingDates:true,quiet:true,quietStart:"22:00",quietEnd:"08:00"};
 const t:Task={...calendarFixture.tasks[0],id:"report",title:"Synthetic report",date:"2026-11-05",week:13,time:"14:00",timeBasis:"deadline"};
 const base={...structuredClone(calendarFixture),tasks:[t],automaticReminders:settings};
 const raw=JSON.stringify(base);
@@ -69,6 +69,42 @@ assert.throws(()=>saveAutomaticReminders(r,l.automaticReminders,base),/changed/)
 assert.equal(saveAutomaticReminders({...base,automaticReminders:undefined},{...automaticDefaults,enabled:true},{...base,automaticReminders:undefined},enabledAt).automaticReminders?.enabledAt,enabledAt);
 assert.equal(saveAutomaticReminders(base,{...settings,quiet:false},base,enabledAt+1000).automaticReminders?.enabledAt,enabledAt,"editing preferences does not restart first-week prompts");
 assert.equal(JSON.stringify(base),raw,"planning and preview never mutate user data");
+
+// Useful clock-time planning, explicit final lead time, and unchanged legacy jobs.
+const modern:AutomaticReminders={...automaticDefaults,enabled:true,enabledAt};
+const lateReport={...t,date:"2026-11-06",time:"23:59"};
+const chosen=(patch:Partial<AutomaticReminders>={},task:Task=lateReport)=>({...base,tasks:[task],automaticReminders:{...modern,...patch}});
+const times=(patch:Partial<AutomaticReminders>={},task:Task=lateReport)=>automaticAlerts(chosen(patch,task)).map(a=>a.when);
+assert.deepEqual(times(),[at("2026-11-05","18:00"),at("2026-11-06","21:59")]);
+assert.deepEqual(times({deadlinePreparation:"same-morning",deadlineLeadHours:3}),[at("2026-11-06","09:00"),at("2026-11-06","20:59")]);
+assert.deepEqual(times({deadlinePreparation:"off",deadlineLeadHours:6}),[at("2026-11-06","17:59")]);
+assert.deepEqual(times({deadlinePreparation:"off",deadlineLeadHours:0}),[]);
+assert.deepEqual(times({deadlinePreparation:"previous-evening",deadlineLeadHours:0}),[at("2026-11-05","18:00")]);
+assert.deepEqual(times({deadlinePreparation:"same-morning"},{...lateReport,time:"10:00"}),[at("2026-11-06","08:00")],"close morning/final reminders combine, keeping final slot");
+assert.deepEqual(times({deadlinePreparation:"same-morning",quiet:false},{...lateReport,time:"08:00"}),[at("2026-11-05","18:00"),at("2026-11-06","06:00")],"morning must not occur after an early deadline");
+assert.deepEqual(times({}, {...lateReport,time:undefined}),[at("2026-11-05","18:00"),at("2026-11-06","09:00")]);
+assert.deepEqual(times({deadlinePreparation:"same-morning"},{...lateReport,time:undefined}),[at("2026-11-06","09:00")],"date-only jobs deduplicate without an invented due time");
+assert.equal(times({deadlinePreparation:"off",deadlineLeadHours:0},{...lateReport,time:undefined}).length,0);
+assert.deepEqual(times({deadlinePreparation:"previous-evening",quiet:false,enabledAt:at("2026-09-01","09:00")},{...t,date:"2026-10-04",time:"12:00"}),[at("2026-10-03","18:00"),at("2026-10-04","10:00")],"clock preparation stays at 18:00 across Sydney DST");
+assert.deepEqual(times({quiet:false,enabledAt:at("2026-11-06","23:00")}),[at("2026-11-06","23:01")],"first enable after both slots gets one fixed catch-up");
+assert.equal(times({enabledAt:at("2026-11-06","23:00")}).length,0,"catch-up never breaks quiet hours to beat a late deadline");
+assert.equal(times({quiet:false,enabledAt:at("2026-11-07","00:00")}).length,0,"no catch-up after deadline");
+assert.equal(times({quiet:false,enabledAt:at("2026-11-06","23:58")})[0],undefined,"never schedule catch-up at deadline itself");
+const near=chosen({quiet:false,enabledAt:at("2026-11-06","23:00")});
+assert.deepEqual(allReminderJobs(near,at("2026-11-06","23:00")),allReminderJobs(near,at("2026-11-06","23:00")+1000),"catch-up job is stable across tabs, not now+1min on every read");
+assert.equal(times({enabledAt:at("2026-11-06","12:30")},{...t,date:"2026-11-06",time:"13:00",timeBasis:"class"})[0],at("2026-11-06","12:31"),"late enabling a scheduled activity also catches up once");
+assert.equal(allReminderJobs(base,enabledAt)[0].title,`Coming up · ${t.title}`,"unsaved old preference jobs keep exact notification copy");
+assert.equal(automaticSettingsDraft(settings).deadlinePreparation,"24h","opening settings preserves the old policy until explicit Save");
+assert.equal(automaticSettingsDraft().deadlinePreparation,"previous-evening");
+assert.match(automaticTaskStatus(lateReport,modern),/previous day at 6 pm.*2 hours before/);
+assert.match(automaticTaskStatus(lateReport,{...modern,deadlinePreparation:"off",deadlineLeadHours:0}),/off/);
+assert.equal(allReminderJobs(chosen(),enabledAt)[0].title,`Deadline · ${lateReport.title}`);
+for(const bad of [{deadlinePreparation:"guess"},{deadlinePreparation:null},{deadlineLeadHours:"2"},{deadlineLeadHours:4},{deadlineLeadHours:NaN}])assert.ok(automaticReminderError({...modern,...bad}));
+assert.deepEqual(readBackup(backupText(chosen())).automaticReminders,modern);
+assert.equal(mergeSemester(chosen(),{...structuredClone(base),automaticReminders:undefined}).automaticReminders?.deadlinePreparation,"previous-evening");
+const batchAtMorning=automaticBatches({...chosen({deadlinePreparation:"same-morning"}),tasks:[lateReport,{...lateReport,id:"second",time:"17:00"}]},enabledAt);
+assert.equal(batchAtMorning.find(b=>b.job.when===at("2026-11-06","09:00"))?.items.length,2,"different deadlines can share one morning notification");
+assert.ok(validReminderSnapshot({owner:"a".repeat(64),revision:2,jobs:allReminderJobs(chosen(),enabledAt)}));
 
 // Actual Connect scheduler with fake Chrome APIs. No OS notifications, accounts or network.
 let now=enabledAt,store:any={};const shown:any[]=[],alarms=new Map();

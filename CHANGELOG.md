@@ -1,11 +1,16 @@
 # Changelog
 
-## 0.21.0 — 2026-11-02
+## 0.22.0 — 2026-11-02
 
 - Add Profile & settings to the semester board and course plan: display name, all-friends/private sharing, blocked users, private exports and sign out. Friend requests appear as a profile badge. Saved sharing changes update the plan without a page reload.
 - Share invitation links with a code fallback. Recipients see the inviter before explicitly sending a request, can finish profile setup without losing the invitation, and still need acceptance. Self, pending, accepted, revoked, expired and blocked invitations are handled without exposing private account details.
 - Put friends and incoming requests ahead of setup controls; keep the website-access invitation requirement explicit. Remember the selected planning year in this browser and use the current year in the first half of the year instead of always jumping to next year.
 - Preserve private grades/WAM and existing account identity. No schema or hosting-audience change; synthetic account/API/browser checks precede the real two-person trial.
+
+## 0.21.0 — 2026-11-02
+
+- Add configurable deadline preparation reminders (previous evening, due-day morning, 24 hours before or off) and final lead times. Keep existing custom alerts and legacy schedules until settings are explicitly saved.
+- Separate notification time from task time in the preview, deduplicate close reminders and use a fixed late-enable catch-up before the target. Preserve settings through backup, refresh and sync v13 protection; Connect remains 0.5.0.
 
 ## 0.20.0 — 2026-11-02
 
