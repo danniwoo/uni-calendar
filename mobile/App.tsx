@@ -59,6 +59,7 @@ import { IMPORTED_URL, readFocusURL, type FocusTarget } from "./src/deadline-foc
 import { CLOUD_WIDGET_URL } from "./src/cloud-widget";
 import { STAGING_AUTH_REDIRECT } from "./src/staging-core";
 import { CONNECTION_RETURN_URL } from "./src/connection-check";
+import { scheduleTestReminder } from "./src/local-reminders";
 const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
 const STORAGE_KEY = "semester.preview.sample.v1";
 const P = {
@@ -747,7 +748,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.13 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.14 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -794,6 +795,11 @@ function Prototype() {
                   label="Test website connection →"
                   secondary
                   onPress={() => setConnectionCheck(true)}
+                />
+                <Button
+                  label="Send test reminder in 10 seconds"
+                  secondary
+                  onPress={() => void scheduleTestReminder()}
                 />
                 <Heading
                   title="Units to show"

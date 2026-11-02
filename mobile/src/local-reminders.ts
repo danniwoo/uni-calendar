@@ -68,3 +68,21 @@ export async function cancelLocalReminders() {
     .filter(item => String(item.identifier).startsWith(PREFIX))
     .map(item => Notifications.cancelScheduledNotificationAsync(item.identifier)));
 }
+
+export async function scheduleTestReminder() {
+  const permitted = await requestReminderPermission();
+  if (!permitted) return false;
+  await Notifications.scheduleNotificationAsync({
+    identifier: `${PREFIX}test`,
+    content: {
+      title: "Semester · test reminder",
+      body: "Local notifications are working on this iPhone.",
+      data: { url: "semester-preview://today" },
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DATE,
+      date: new Date(Date.now() + 10_000),
+    },
+  });
+  return true;
+}
