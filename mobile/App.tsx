@@ -59,7 +59,7 @@ import { IMPORTED_URL, readFocusURL, type FocusTarget } from "./src/deadline-foc
 import { CLOUD_WIDGET_URL } from "./src/cloud-widget";
 import { STAGING_AUTH_REDIRECT } from "./src/staging-core";
 import { CONNECTION_RETURN_URL } from "./src/connection-check";
-import { scheduleTestReminder } from "./src/local-reminders";
+import { listLocalReminders, scheduleTestReminder } from "./src/local-reminders";
 const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
 const STORAGE_KEY = "semester.preview.sample.v1";
 const P = {
@@ -171,6 +171,7 @@ function Prototype() {
   );
   const [widgetSaveState, setWidgetSaveState] = useState("");
   const [widgetError, setWidgetError] = useState(false);
+  const [localReminders, setLocalReminders] = useState<{id:string;title:string;body:string;date:number|null}[]>([]);
   const lock = useRef(false),
     initialLinkHandled = useRef(false);
   async function load() {
@@ -269,6 +270,9 @@ function Prototype() {
       lock.current = false;
       setBusy(false);
     }
+  }
+  async function refreshLocalReminders() {
+    setLocalReminders(await listLocalReminders());
   }
   useEffect(() => {
     let active = true;
@@ -799,8 +803,14 @@ function Prototype() {
                 <Button
                   label="Send test reminder in 10 seconds"
                   secondary
-                  onPress={() => void scheduleTestReminder()}
+                  onPress={async () => { await scheduleTestReminder(); await refreshLocalReminders(); }}
                 />
+                <Heading title="Local reminders" />
+                <Button label="Refresh scheduled reminders" secondary onPress={() => void refreshLocalReminders()} />
+                <Text style={s.caption}>{localReminders.length} deadline reminders currently scheduled on this iPhone.</Text>
+                {localReminders.map(item => <Text key={item.id} style={s.caption}>
+                  {item.date ? `${new Date(item.date).toLocaleString()} · ` : ""}{item.body}
+                </Text>)}
                 <Heading
                   title="Units to show"
                   link="All units"
