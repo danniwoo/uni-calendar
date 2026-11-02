@@ -1,3 +1,8 @@
+import {
+  DEFAULT_WIDGET_SETTINGS,
+  widgetBoard,
+  type WidgetSettings,
+} from "./widget-settings";
 import { sydneyInstant } from "../../lib/sydney-time";
 import {
   clockTime,
@@ -108,8 +113,9 @@ export type WorkWidgetProps = {
 export function workWidgetProps(
   board: SampleBoard,
   now: number,
+  settings: WidgetSettings = DEFAULT_WIDGET_SETTINGS,
 ): WorkWidgetProps {
-  const work = workload(board, now),
+  const work = workload(widgetBoard(board, settings), now),
     first = work.upcoming[0],
     second = work.upcoming[1];
   const context = [
@@ -120,18 +126,34 @@ export function workWidgetProps(
     .join(" · ");
   return {
     heading: "NEXT DEADLINE · SAMPLE",
-    unit: first?.unit ?? "Check your work",
-    title: first?.title ?? "No upcoming dated work",
-    when: first ? dueLabel(first, now) : "Open assessments",
-    second: second ? `${second.unit} · ${second.title}` : "No other dated work",
+    unit:
+      first?.unit ??
+      (settings.units?.length === 0 ? "Choose units" : "Check your work"),
+    title: first
+      ? settings.showTitles
+        ? first.title
+        : "Assessment due"
+      : "No upcoming dated work",
+    when: first ? dueLabel(first, now) : context || "Open Semester",
+    second: second
+      ? `${second.unit} · ${settings.showTitles ? second.title : "Assessment due"}`
+      : "No other dated work",
     secondWhen: second ? dueLabel(second, now) : "",
-    context: context || "Sample data · Sydney time",
+    context:
+      context ||
+      (settings.units === null
+        ? "Sample data · Sydney time"
+        : "Selected units · Sample data"),
     url: first
       ? `semester-preview://assessment/${first.id}`
       : "semester-preview://assessments",
   };
 }
-export function workWidgetTimeline(board: SampleBoard, now: number) {
+export function workWidgetTimeline(
+  board: SampleBoard,
+  now: number,
+  settings: WidgetSettings = DEFAULT_WIDGET_SETTINGS,
+) {
   const times = new Set([now]);
   // Date labels change at Sydney midnight, not after a fixed 24 hours (DST).
   for (let day = 1; day <= 21; day++) {
@@ -144,7 +166,7 @@ export function workWidgetTimeline(board: SampleBoard, now: number) {
     .sort((a, b) => a - b)
     .map((time) => ({
       date: new Date(time),
-      props: workWidgetProps(board, time),
+      props: workWidgetProps(board, time, settings),
     }));
 }
 export const sampleGrades = [

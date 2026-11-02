@@ -8,6 +8,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -46,6 +47,13 @@ import {
   workWidgetTimeline,
 } from "./src/experience";
 
+import {
+  DEFAULT_WIDGET_SETTINGS,
+  readWidgetSettings,
+  toggleWidgetUnit,
+  type WidgetSettings,
+} from "./src/widget-settings";
+const WIDGET_SETTINGS_KEY = "semester.preview.widgets.v1";
 const STORAGE_KEY = "semester.preview.sample.v1";
 const P = {
   paper: "#F7F6F2",
@@ -137,6 +145,13 @@ function Prototype() {
   const [saveState, setSaveState] = useState(
     "Sample data · saved on this iPhone",
   );
+  const [widgetSettings, setWidgetSettings] = useState<WidgetSettings>(
+    DEFAULT_WIDGET_SETTINGS,
+  );
+  const [widgetDraft, setWidgetDraft] = useState<WidgetSettings>(
+    DEFAULT_WIDGET_SETTINGS,
+  );
+  const [widgetSaveState, setWidgetSaveState] = useState("");
   const [widgetError, setWidgetError] = useState(false);
   const lock = useRef(false),
     initialLinkHandled = useRef(false);
@@ -164,6 +179,12 @@ function Prototype() {
             progress: {},
           }),
         );
+      const preferences = readWidgetSettings(
+        await AsyncStorage.getItem(WIDGET_SETTINGS_KEY),
+        expanded,
+      );
+      setWidgetSettings(preferences);
+      setWidgetDraft(preferences);
       setProgress(nextProgress);
       setBoard(expanded);
     } catch {
@@ -188,7 +209,7 @@ function Prototype() {
     const publish = () => {
       try {
         const time = Date.now(),
-          timeline = workWidgetTimeline(board, time);
+          timeline = workWidgetTimeline(board, time, widgetSettings);
         NextClassWidget.updateTimeline(widgetTimeline(board, time));
         DeadlineWidget.updateTimeline(timeline);
         DeadlinesWidget.updateTimeline(timeline);
@@ -203,7 +224,34 @@ function Prototype() {
       if (state === "active") publish();
     });
     return () => listener.remove();
-  }, [board]);
+  }, [board, widgetSettings]);
+  useEffect(() => {
+    if (!settings) {
+      setWidgetDraft(widgetSettings);
+      setWidgetSaveState("");
+    }
+  }, [settings, widgetSettings]);
+  async function saveWidgetSettings() {
+    if (lock.current || widgetDraft.units?.length === 0) return;
+    lock.current = true;
+    setBusy(true);
+    setWidgetSaveState("Saving…");
+    try {
+      await AsyncStorage.setItem(
+        WIDGET_SETTINGS_KEY,
+        JSON.stringify(widgetDraft),
+      );
+      setWidgetSettings(widgetDraft);
+      setWidgetSaveState("Saved on this iPhone · widget refresh requested");
+    } catch {
+      setWidgetSaveState(
+        "Could not save. Your widgets still use the previous settings.",
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
   useEffect(() => {
     if (!board) return;
     let active = true;
@@ -335,7 +383,9 @@ function Prototype() {
   const todayDeadlines = sorted.filter(
     (a) => a.due !== undefined && dateKey(a.due) === today,
   );
-  const widget = workWidgetProps(board, now);
+  const widget = workWidgetProps(board, now, widgetDraft);
+  const widgetDirty =
+    JSON.stringify(widgetDraft) !== JSON.stringify(widgetSettings);
   const openAssessment = (a: SampleAssessment) =>
     setDetail({ kind: "assessment", id: a.id });
   function row(a: SampleAssessment) {
@@ -446,7 +496,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.2</Text>
+          <Text style={s.sample}>PREVIEW 0.2.1</Text>
         </View>
         <Text style={s.title}>{titles[tab]}</Text>
         {tab === "Home" && (
@@ -973,7 +1023,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.2 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.2.1 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => setSettings(false)}
@@ -985,8 +1035,78 @@ function Prototype() {
           <ScrollView contentContainerStyle={s.content}>
             <Text style={s.title}>A useful glance.</Text>
             <Text style={s.subtitle}>
-              Try a focus. Keep the one that helps you.
+              Choose what your deadline widgets show.
             </Text>
+            <Heading
+              title="Units to show"
+              link="All units"
+              onPress={() => {
+                setWidgetDraft({ ...widgetDraft, units: null });
+                setWidgetSaveState("");
+              }}
+            />
+            <Text style={s.caption}>
+              Choose one or more. This only filters your widgets.
+            </Text>
+            <View style={s.panel}>
+              {units.map((u) => {
+                const selected =
+                  widgetDraft.units === null || widgetDraft.units.includes(u);
+                return (
+                  <Pressable
+                    key={u}
+                    accessibilityRole="checkbox"
+                    accessibilityLabel={`Show ${u} in widgets`}
+                    accessibilityState={{ checked: selected, disabled: busy }}
+                    disabled={busy}
+                    onPress={() => {
+                      setWidgetDraft(toggleWidgetUnit(widgetDraft, u, units));
+                      setWidgetSaveState("");
+                    }}
+                    style={s.unitRow}
+                  >
+                    <Tag unit={u} />
+                    <View style={[s.check, selected && s.checked]}>
+                      <Text style={s.checkMark}>{selected ? "✓" : ""}</Text>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <View style={s.preferenceRow}>
+              <View style={s.flex}>
+                <Text style={s.rowTitle}>Show assessment titles</Text>
+                <Text style={s.meta}>Turn off to show unit and due time.</Text>
+              </View>
+              <Switch
+                accessibilityLabel="Show assessment titles in widgets"
+                disabled={busy}
+                value={widgetDraft.showTitles}
+                onValueChange={(showTitles) => {
+                  setWidgetDraft({ ...widgetDraft, showTitles });
+                  setWidgetSaveState("");
+                }}
+                trackColor={{ true: P.purple }}
+              />
+            </View>
+            <Text style={s.caption}>
+              Applies to both Lock Screen deadline designs and Work overview on
+              this iPhone.
+            </Text>
+            <Button
+              label={busy ? "Saving…" : "Save widget content"}
+              disabled={busy || !widgetDirty || widgetDraft.units?.length === 0}
+              onPress={() => void saveWidgetSettings()}
+            />
+            <Text accessibilityLiveRegion="polite" style={s.caption}>
+              {widgetSaveState ||
+                (widgetDraft.units?.length === 0
+                  ? "Choose at least one unit to save."
+                  : widgetDirty
+                    ? "Previewing unsaved changes below."
+                    : "Saved settings · iOS controls refresh timing.")}
+            </Text>
+            <Heading title="Preview a layout" />
             <View style={s.segments}>
               {(["Single", "Two", "Overview"] as const).map((choice) => (
                 <Pressable
@@ -1039,16 +1159,16 @@ function Prototype() {
               )}
             </View>
             <Text style={s.caption}>
-              Illustrative preview. iOS controls the actual widget size and
-              appearance. Choosing here previews a design; add your choice using
-              the system gallery.
+              This previews your content choices. To change the layout on your
+              Lock Screen, choose the other Semester widget in the iOS gallery.
             </Text>
             <Button
               label="Try where this widget opens →"
               onPress={() => {
                 setSettings(false);
-                if (widgetChoice === "Single" && work.upcoming[0])
-                  openAssessment(work.upcoming[0]);
+                const destination = resolveLink(widget.url, board);
+                if (widgetChoice === "Single" && destination)
+                  setDetail(destination);
                 else {
                   setUnit("All units");
                   setAssessmentView("Work");
@@ -1398,6 +1518,13 @@ const s = StyleSheet.create({
   },
   secondary: { backgroundColor: P.lavender },
   buttonText: { fontSize: 14, fontWeight: "600", color: "#fff" },
+  preferenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 16,
+    marginBottom: 8,
+  },
   widgetPreview: {
     backgroundColor: "#36344A",
     borderRadius: 20,

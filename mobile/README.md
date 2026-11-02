@@ -1,6 +1,6 @@
 # Semester iPhone experiment
 
-Stage 1 only: an Expo/React Native app with **invented, device-local data**. Version 0.2.0 explores compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. No sign-in, live timetable, Canvas access, analytics, cloud writes or migration. The existing website remains the production app.
+Stage 1 only: an Expo/React Native app with **invented, device-local data**. Version 0.2.1 explores compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. No sign-in, live timetable, Canvas access, analytics, cloud writes or migration. The existing website remains the production app.
 
 ## Try the journey
 
@@ -9,7 +9,7 @@ Stage 1 only: an Expo/React Native app with **invented, device-local data**. Ver
 3. Open **Today**: due-today items, suggested preparation already populated from the sample, and a compact class list. A checked item remains visible and can be undone.
 4. Open **Month**. Move between months, select a marked day, inspect the named assessment, and return to the selected date. Unknown-date work remains in a separate section below the grid. Use **Jump to today** to return.
 5. Open **Assessments** and filter by unit. Switch to **Grades**: invented marks and an unreleased result, with no overall grade calculation.
-6. Open **Widgets** in the top bar. Compare **One deadline**, **Two deadlines** and **Overview**; use **Try where this widget opens** to inspect each destination. This selects an in-app preview, not a system widget preference.
+6. Open **Widgets** in the top bar. Select one or more units and turn **Show assessment titles** on/off. Tap **Save widget content** to persist these choices and request an update to both deadline widgets and Work overview. The sample board and original next-class widget are unaffected. Compare **One deadline**, **Two deadlines** and **Overview** below; changing this layout preview does not change the layout already added through iOS. **Try where this widget opens** uses the displayed filtered deadline.
 7. On the Lock Screen, touch and hold → **Customise → Lock Screen → Add Widgets → Semester Preview**. Add **Next deadline · Sample** or **Two deadlines · Sample**. The single widget opens its assessment; the two-item widget opens all assessments. Test readability and actual taps on the phone.
 8. On the Home Screen, touch and hold → **Edit → Add Widget → Semester Preview → Work overview · Sample**. The medium widget includes upcoming work plus unknown/past-date context. The original **Next class · Sample** remains available for comparison.
 9. Use **Widgets → Refresh sample week** only when you want new dates and reset preparation. Cancel leaves the stored sample unchanged.
@@ -25,6 +25,8 @@ The widget gallery is deliberately small. No favourite/winning design, retention
 ## Local development
 
 ### Preserved comparison version
+
+The 0.2.0 work-dashboard prototype is separately preserved at **`ios-preview-v0.2.0`**, commit **`cc69f40`**.
 
 The first physical-iPhone-tested preview is saved at Git tag **`ios-preview-v0.1.0`**, commit **`6f544ba`**. This is a local source checkpoint including the dependency lockfile and native generation configuration. It preserves the original UI for comparisons and rebuilding; it is not an App Store release or a backup of device data.
 
@@ -52,7 +54,7 @@ The separate `package-lock.json` fixes mobile dependencies. Generated `ios/`, Po
 
 ## Scope and validation
 
-The only persisted data is a synthetic fixture seed and per-assessment preparation booleans under `semester.preview.sample.v1`. Only known item IDs are restored. Storage failures retain previous visible progress and show an error. Refresh requires confirmation. Widget deep links accept only known local sample items.
+The app persists a synthetic fixture seed and per-assessment preparation booleans under `semester.preview.sample.v1`, plus widget unit/title preferences under `semester.preview.widgets.v1`. Widget choices are shared across all deadline/overview widget instances on this device. They are not per-instance iOS Edit Widget configuration. Draft changes affect the in-app preview; only a successful Save updates widget timelines. Closing the sheet discards unsaved choices. The app prevents saving an empty unit selection, and sample refresh retains saved widget preferences. Only known item IDs are restored. Storage failures retain previous visible progress and show an error. Refresh requires confirmation. Widget deep links accept only known local sample items.
 
 Run results and outstanding student/device trials are recorded in **../ROADMAP.md → IOS-01**, the single status tracker. Passing a simulator or automated check is not proof of student usefulness or physical-device behaviour.
 

@@ -2,6 +2,14 @@
 
 Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-02 widget content customisation / Semester Preview 0.2.1
+
+- User reports sample deadlines render on the phone, and clarified that they want to customise widget content. Added multi-unit selection and title visibility in Widgets, with explicit Save, unsaved preview feedback, an empty-selection guard and persisted local preferences. Applies to the single/two-deadline widgets and medium work overview on this iPhone; layout remains chosen in the iOS gallery. These are shared content preferences, not per-instance Edit Widget intents.
+- Preferences use `semester.preview.widgets.v1`; existing sample seed/preparation remains untouched. Widget projection filters before choosing deadlines/counting unknown/past dates and removes assessment titles from display props when disabled. Single-deadline preview links to the filtered assessment. A unit with only unknown dates shows that context instead of inventing a deadline. No live data, analytics or notifications added.
+- Passed TypeScript, 13 tests (including persistence validation, filtered future timelines, title hiding and unknown-only unit), production iOS JS export, native Simulator and device Release builds (0 errors / 4 warnings each). Simulator build/install succeeded; Expo's automatic development URL launch failed with code 115 while Lock Screen customization was open. Cancelled that edit and launched the installed bundled app normally; no Metro required.
+- Simulator UI verified DECO-only selection, titles off, Save feedback, disabled Save for zero units, and persisted DECO-only/title-hidden settings after full close/reopen with an unsaved empty selection discarded. Read the preview's App Group preference file to verify unsaved changes leave all three timelines unchanged, then saved changes update all 25 entries for each widget with filtered units, hidden titles and the matching assessment URL. UserDefaults disk flush was delayed briefly; reread confirmed the updated payloads. This validates native shared storage, not OS refresh latency.
+- Physical `devicectl` query confirms **0.2.1 (3)** installed. Device observation of changed content after Save and Lock Screen taps remains pending. Logs: `/private/tmp/semester-ios-v021-export.log`, `/private/tmp/semester-ios-v021-simulator.log`, `/private/tmp/semester-ios-v021-device.log`. Preserved 0.1.0 and 0.2.0 tags remain unchanged.
+
 ### 2026-11-02 iPhone Stage 1 / Semester Preview 0.2.0
 
 - User authorised the bounded next prototype. Implemented compact Home/Today/Month/Assessments, unit filters and explicitly invented grades, a widget preview/setup sheet, two accessoryRectangular Lock Screen designs and a medium work overview. The original next-class widget remains registered. No API, auth, live data, analytics, migration or website deployment.

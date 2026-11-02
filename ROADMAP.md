@@ -76,6 +76,7 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 2026-11-02 使用者批准下一個 sample prototype，已實作 **0.2.0 (2)**：Home 的 this/next week 與待確認資訊、Today preparation checklist、Month 日期選取／返回、Assessments unit filter／sample grades、widget preview/setup。新增兩個 rectangular Lock Screen widgets（single/two deadlines）與 medium work overview；保留原 next-class widget 與 0.1.0 tag。沒有選出 winning widget、沒有 analytics/live grade feed。
 - 0.2 驗證：TypeScript、9 個 model/timeline/month/DST checks、iOS JS export、Simulator／device Release builds 通過（各 0 errors／4 warnings）。Simulator 實際確認四個 tabs、month 日期→details→原選取日期、unknown-date quiz、unit filter／未發布 grade、widget preview 的列表目的地、prep full-close/reopen persistence 與 Undo。`devicectl` 已確認實機安裝 0.2.0 (2)。
 - 0.2 待驗收：Simulator 可進 Lock Screen Add Widgets，但 CUA scroll/coordinate 操作返回 `noWindowsAvailable`，尚未完成實際 widget render/tap 驗證；已請使用者在實機試加 single/two deadlines。原生 readability、tap destination、background refresh／跨日，以及無教學 glanceability 試用仍待實測。Stage 2 hosting/native auth/live sync 尚未開始。
+- 2026-11-02 widget follow-up：使用者確認 sample deadlines 有顯示，要求 customise widget content。**0.2.1 (3)** 已安裝；Widgets 可選多個 units、隱藏／顯示 titles、Save 後更新兩個 Lock Screen designs 與 Work overview，偏好共用於此 iPhone，非每個 widget 的 Edit Widget intent。TypeScript／13 tests／JS export／Simulator 與 device Release builds 通過；Simulator 驗證 save、空選取 guard、完整關閉重開 persistence，並讀取 App Group 確認三個 timeline 的 25 entries 都已套用 filter／title setting。仍待實機觀察 Save 後畫面 refresh 與 tap；Stage 2 未開始。
 
 ### REMIND-01
 
