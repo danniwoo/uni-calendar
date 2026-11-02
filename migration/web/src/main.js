@@ -3,6 +3,7 @@ import { readConfig, takeAuthCallback } from "./config.js";
 import { createApi } from "./api.js";
 import { createController } from "./controller.js";
 import { backupCheckPanel } from "./backup-check.js";
+import { todayPlanPanel } from "./today-plan.js";
 import "./style.css";
 
 const root = document.querySelector("#app");
@@ -106,19 +107,21 @@ function render() {
   }
   if (state.session && state.accountId && !state.rejected) {
     const {accountId, session} = state;
-    const signedRequest = async (path, text) => {
+    const signedRequest = async (path, text, method) => {
       const current = controller.getState();
       if (!current.session || current.session.user.id !== session.user.id || current.accountId !== accountId || current.rejected)
         throw new Error("The signed-in account changed. Select the file again.");
       const write = text !== undefined;
       const res = await fetch(`${config.apiUrl}${path}`, {
-        method: write ? "POST" : "GET", cache: "no-store", credentials: "omit", redirect: "error",
+        method: method ?? (write ? "POST" : "GET"), cache: "no-store", credentials: "omit", redirect: "error",
         headers: { Authorization: `Bearer ${current.session.access_token}`, ...(write ? {"Content-Type":"application/json"} : {}) },
         ...(write ? {body:text} : {}),
       });
       if (!res.ok) throw new Error((await res.json()).error?.message || "The backup request failed.");
       return res;
     };
+    main.append(todayPlanPanel(async body => (await signedRequest("/v1/today/plan",
+      body ? JSON.stringify(body) : undefined, body ? "PATCH" : "GET")).json()));
     main.append(backupCheckPanel({ accountId, email: session.user.email || "this account",
       request: async text => {
         const res = await signedRequest(`/v1/backup-trial/${encodeURIComponent(accountId)}`, text);

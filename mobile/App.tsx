@@ -51,8 +51,7 @@ import {
   toggleWidgetUnit,
   type WidgetSettings,
 } from "./src/widget-settings";
-import TodayPlan from "./src/TodayPlan";
-import { usePersonalPlan } from "./src/usePersonalPlan";
+import ImportedToday from "./src/ImportedToday";
 import ConnectionCheck from "./src/ConnectionCheck";
 import StagingConnection from "./src/StagingConnection";
 import CloudAssessments from "./src/CloudAssessments";
@@ -137,9 +136,8 @@ function Heading({
 function Prototype() {
   const cloudConnection = useStagingConnection();
   const imported = useImportedSemester(cloudConnection);
-  const [homeEntry, setHomeEntry] = useState<"item" | "undated" | null>(null);
+  const [homeEntry, setHomeEntry] = useState<"item" | "todayItem" | "undated" | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget|null>(null);
-  const personalPlan = usePersonalPlan();
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>("Home");
@@ -279,6 +277,9 @@ function Prototype() {
       if (url.split(/[?#]/)[0] === CONNECTION_RETURN_URL) return;
       if (url.split(/[?#]/)[0] === STAGING_AUTH_REDIRECT) return;
       const item = readFocusURL(url);
+      if (url === "semester-preview://today-plan") {
+        setDetail(undefined); setFocusTarget(null); setHomeEntry(null); setSettings(false); setTab("Today"); return;
+      }
       if (item || url === IMPORTED_URL) {
         setHomeEntry(null); setFocusTarget(item); setDetail(undefined); setSettings(false); setStagingConnection(false);
         setConnectionCheck(false); setAssessmentSource("cloud"); setTab("Assessments");
@@ -385,7 +386,7 @@ function Prototype() {
     }
   }
   const cloudTab = tab === "Assessments" && assessmentSource === "cloud";
-  const importedTab = tab === "Home" || cloudTab;
+  const importedTab = tab === "Home" || tab === "Today" || cloudTab;
   if (!board && !importedTab)
     return (
       <SafeAreaView style={s.loading}>
@@ -416,10 +417,6 @@ function Prototype() {
     detail?.kind === "class"
       ? sample.classes.find((c) => c.id === detail.id)
       : undefined;
-  const todayClasses = sample.classes.filter((c) => dateKey(c.start) === today);
-  const todayDeadlines = sorted.filter(
-    (a) => a.due !== undefined && dateKey(a.due) === today,
-  );
   const widget = workWidgetProps(sample, now, widgetDraft);
   const widgetDirty =
     JSON.stringify(widgetDraft) !== JSON.stringify(widgetSettings);
@@ -457,56 +454,9 @@ function Prototype() {
   function empty(text: string) {
     return <Text style={s.empty}>{text}</Text>;
   }
-  function prep(a: SampleAssessment) {
-    return (
-      <View key={a.id} style={s.prepRow}>
-        <Pressable
-          accessibilityRole="checkbox"
-          accessibilityLabel={a.preparation}
-          accessibilityState={{ checked: !!progress[a.id], disabled: busy }}
-          disabled={busy}
-          onPress={() => void togglePreparation(a.id)}
-          style={s.checkTarget}
-        >
-          <View style={[s.check, progress[a.id] && s.checked]}>
-            <Text style={s.checkMark}>{progress[a.id] ? "✓" : ""}</Text>
-          </View>
-        </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => openAssessment(a)}
-          style={s.flex}
-        >
-          <Text style={[s.rowTitle, progress[a.id] && s.completed]}>
-            {a.preparation}
-          </Text>
-          <Text style={s.meta}>{a.unit} · Suggested preparation</Text>
-        </Pressable>
-      </View>
-    );
-  }
-  function classRow(c: SampleBoard["classes"][number]) {
-    return (
-      <Pressable
-        key={c.id}
-        accessibilityRole="button"
-        onPress={() => setDetail({ kind: "class", id: c.id })}
-        style={s.classRow}
-      >
-        <Text style={s.time}>{clockTime(c.start)}</Text>
-        <View style={s.flex}>
-          <Text style={s.rowTitle}>{c.title}</Text>
-          <Text style={s.meta}>
-            {c.unit} · {c.location.replace("Sample room · ", "")}
-          </Text>
-        </View>
-        <Text style={s.chevron}>›</Text>
-      </Pressable>
-    );
-  }
   const titles: Record<Tab, string> = {
     Home: "Your semester.",
-    Today: "Make room for today.",
+    Today: "Today",
     Month: "See what’s ahead.",
     Assessments: "Keep work in view.",
   };
@@ -533,7 +483,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.8</Text>
+          <Text style={s.sample}>PREVIEW 0.3.9</Text>
         </View>
         {tab !== "Home" && <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>}
         {tab === "Home" && <ImportedHome now={now} imported={imported} connection={cloudConnection}
@@ -545,39 +495,11 @@ function Prototype() {
             setHomeEntry("undated"); setFocusTarget(null); setAssessmentSource("cloud"); setTab("Assessments");
           }}
         />}
-        {tab === "Today" && (
-          <>
-            <Text style={s.subtitle}>
-              Your plan · sample teaching week {week}
-            </Text>
-            {!!todayDeadlines.length && (
-              <>
-                <Heading title="Due today" />
-                <View style={s.panel}>{todayDeadlines.map(row)}</View>
-              </>
-            )}
-            {!todayDeadlines.length && (
-              <Text style={s.caption}>
-                No dated assessment deadlines today.
-              </Text>
-            )}
-            <TodayPlan
-              plan={personalPlan}
-              board={sample}
-              today={today}
-              progress={progress}
-            />
-            <Heading title="On campus" />
-            <View style={s.panel}>
-              {todayClasses.length
-                ? todayClasses.map(classRow)
-                : empty("No sample classes today.")}
-            </View>
-            <Text style={s.caption}>
-              Preparation is separate from submitting an assessment.
-            </Text>
-          </>
-        )}
+        {tab === "Today" && <ImportedToday key={cloudConnection.session?.user.id ?? "guest"}
+          now={now} imported={imported} connection={cloudConnection} openItem={id=>{
+            if(!imported.scope)return;
+            setHomeEntry("todayItem"); setFocusTarget({scope:imported.scope,id}); setAssessmentSource("cloud"); setTab("Assessments");
+          }}/>}
         {tab === "Month" && (
           <>
             <Text style={s.subtitle}>Deadlines across units · Sydney time</Text>
@@ -725,8 +647,8 @@ function Prototype() {
             </View>
             {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}
               imported={imported} target={focusTarget} initialView={homeEntry==="undated" ? "日期待確認" : "Work"}
-              backLabel={homeEntry==="item" ? "← Home" : "← All assessments"}
-              closeDetail={()=>{setFocusTarget(null); if(homeEntry==="item"){setHomeEntry(null);setTab("Home");}}}/> : <>
+              backLabel={homeEntry==="item" ? "← Home" : homeEntry==="todayItem" ? "← Today" : "← All assessments"}
+              closeDetail={()=>{setFocusTarget(null); if(homeEntry==="item" || homeEntry==="todayItem"){setTab(homeEntry==="item" ? "Home" : "Today");setHomeEntry(null);}}}/> : <>
             <Text style={s.subtitle}>
               Requirements, preparation and results together.
             </Text>
@@ -811,7 +733,7 @@ function Prototype() {
           </>
         )}
         <Text accessibilityLiveRegion="polite" style={s.footer}>
-          {importedTab ? "Your imported staging semester · Sydney time" : `${saveState}\nSample semester · personal tasks stay on this iPhone`}
+          {importedTab ? "Your imported staging semester · Sydney time" : `${saveState}\nLocal sample semester`}
         </Text>
       </ScrollView>
       <SafeAreaView edges={["bottom"]} style={s.tabBar}>
@@ -946,7 +868,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.8 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.9 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -1164,9 +1086,9 @@ function Prototype() {
                 </Text>
                 <Heading title="About this preview" />
                 <Text style={s.body}>
-                  Semester dates, teaching weeks, requirements and marks are
-                  sample data. Your personal tasks and preparation stay on this
-                  iPhone. No account, notifications or analytics are connected.
+                  Home, Today, Assessments and Deadline focus use your imported staging semester.
+                  Today saves new plan tasks to your account. Earlier device-only tasks are available in Today.
+                  Month and the sample widgets still use sample data.
                 </Text>
                 <Text style={s.caption}>
                   Sample generated {board ? shortDate(board.createdAt) : "—"}. Week 10 starts

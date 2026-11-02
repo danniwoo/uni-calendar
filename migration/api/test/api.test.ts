@@ -37,6 +37,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec("PRAGMA foreign_keys=ON");
     this.sqlite.exec(readFileSync(new URL("../migrations/0001_pilot.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0002_backup_trial.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0003_today_plans.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -243,4 +244,29 @@ test("account first-request races do not duplicate identities or create orphan a
   assert.equal(new Set(ids).size, 1);
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM pilot_accounts").get()?.n, 1);
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM pilot_identities").get()?.n, 1);
+});
+
+test("Today plans isolate accounts, preserve the restore point and reject racing or invalid writes", async t => {
+  const {db,call} = setup(t);
+  const a=await token(), b=await token(bob);
+  const url="/v1/today/plan";
+  assert.equal((await call(url)).status,401);
+  assert.equal((await call(url,b)).status,403);
+  for(const jwt of [a,b]) {
+    const owner=(await (await call("/v1/session",jwt)).json() as {accountId:string}).accountId;
+    db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(owner);
+    assert.equal((await call(url,jwt)).status,404);
+    db.sqlite.prepare("INSERT INTO backup_trial_snapshots VALUES (?,?,?,?)").run(owner,"a".repeat(64),"{}", "example");
+  }
+  const task={id:"mine",title:"Review material",plannedFor:"2026-11-02",createdAt:1};
+  const write=(expectedRevision:number,tasks:unknown[])=>call(url,a,"PATCH",{expectedRevision,tasks});
+  assert.deepEqual(await (await call(url,a)).json(),{revision:0,tasks:[]});
+  const races=await Promise.all([write(0,[task]),write(0,[task])]);
+  assert.deepEqual(races.map(x=>x.status).sort(),[200,409]);
+  assert.equal((await write(1,[{...task,plannedFor:"2026-02-30"}])).status,400);
+  assert.equal((await write(1,[task,task])).status,400);
+  assert.deepEqual(await (await write(1,[{...task,completedAt:2}])).json(),{revision:2,tasks:[{...task,completedAt:2}]});
+  assert.equal((await write(1,[])).status,409);
+  assert.deepEqual(await (await call(url,b)).json(),{revision:0,tasks:[]});
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM backup_trial_snapshots WHERE data='{}'").get()?.n,2);
 });

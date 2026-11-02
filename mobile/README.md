@@ -1,6 +1,12 @@
 # Semester iPhone experiment
 
-Home, Assessments and the Deadline focus widget read the signed-in user's imported semester. Today and Month use sample data, and personal tasks are stored on the device.
+Home, Today, Assessments and the Deadline focus widget read the signed-in user's imported semester. Month uses sample data.
+
+## Imported Today and the account plan · 0.3.9 (13)
+
+Open **Today** for unfinished deadlines and scheduled work on the Sydney date. Up to three preparation suggestions use upcoming work in the next seven calendar days, or undated items to check when there is no upcoming work. Tap a suggestion to open its source occurrence, tap **＋ Today** to add it to the plan, or use **Add task** for a personal action.
+
+The plan is stored separately from the immutable semester in staging D1. Refresh the plan on either client to see changes. Conflicting writes require a refresh and a new choice. **Earlier device-only tasks** opens the previous local store without uploading those tasks. The signed-in staging web client's **Today · personal plan** panel can load, add and check tasks from the same plan.
 
 ## Imported Home · 0.3.8 (12)
 

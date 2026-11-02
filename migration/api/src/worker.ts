@@ -1,4 +1,5 @@
 import { ApiError, authenticate } from "./auth.ts";
+import { readTodayPlan, saveTodayPlan } from "./today-plan.ts";
 import { exportBackup, getImportedAssessments, maxBackupBytes, requireMember, storeBackup } from "./backup.ts";
 import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
 import type { JWTVerifyGetKey } from "jose";
@@ -43,11 +44,11 @@ async function boundedText(request: Request, limit = 2048): Promise<string> {
   catch { throw new ApiError(400, "invalid_json", "Send valid UTF-8 text."); }
 }
 
-async function jsonBody(request: Request): Promise<Record<string, unknown>> {
+async function jsonBody(request: Request, limit = 2048): Promise<Record<string, unknown>> {
   if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json") {
     throw new ApiError(415, "json_required", "Send an application/json request.");
   }
-  const text = await boundedText(request);
+  const text = await boundedText(request,limit);
   let value: unknown;
   try { value = JSON.parse(text); }
   catch { throw new ApiError(400, "invalid_json", "Send a valid JSON object."); }
@@ -72,7 +73,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         const backup = path.match(/^\/v1\/backup-trial\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
         const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments"].includes(path) ? ["GET"]
-          : backup ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
+          : path === "/v1/today/plan" ? ["GET", "PATCH"] : backup ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
         if (!methods.length) throw new ApiError(404, "not_found", "This endpoint does not exist.");
         if (request.method === "OPTIONS") {
           const wanted = request.headers.get("access-control-request-method") ?? "";
@@ -88,6 +89,8 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
         const identity = await authenticate(request, env.SUPABASE_URL, testKey);
         const accountId = await resolveAccount(env.DB, identity);
+        if (path === "/v1/today/plan") return send(request.method === "GET"
+          ? await readTodayPlan(env.DB,accountId) : await saveTodayPlan(env.DB,accountId,await jsonBody(request,256_000)));
         if (path === "/v1/imported/assessments") return send(await getImportedAssessments(env.DB, accountId));
         if (backup) {
           await requireMember(env.DB, accountId, backup[1]);

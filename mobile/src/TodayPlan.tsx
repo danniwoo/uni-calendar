@@ -14,9 +14,9 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { addDays } from "./experience";
-import { dateKey, shortDate, type SampleBoard } from "./model";
+import { dateKey, shortDate } from "./model";
+import type { PreparationSuggestion } from "./imported-today";
 import {
-  matchingSuggestion,
   MAX_TASK_TITLE,
   planGroups,
   type PersonalTask,
@@ -34,20 +34,20 @@ const P = {
 type Editor = { id?: string; draft: TaskDraft };
 export default function TodayPlan({
   plan,
-  board,
+  units,
   today,
-  progress,
+  suggestions,
+  openSource,
 }: {
   plan: PersonalPlanController;
-  board: SampleBoard;
+  units: string[];
   today: string;
-  progress: Record<string, boolean>;
+  suggestions?: PreparationSuggestion[];
+  openSource?:(id:string)=>void;
 }) {
   const [editor, setEditor] = useState<Editor>();
   const [showCompleted, setShowCompleted] = useState(false);
-  const groups = planGroups(plan.tasks, today),
-    units = [...new Set(board.assessments.map((a) => a.unit))];
-  const suggestions = board.assessments.filter((a) => !progress[a.id]);
+  const groups = planGroups(plan.tasks, today);
   const tomorrow = addDays(today, 1);
   function edit(task: PersonalTask) {
     setEditor({
@@ -133,6 +133,7 @@ export default function TodayPlan({
           </Text>
         </Pressable>
       </View>
+      {plan.ready && <Pressable accessibilityRole="button" onPress={()=>void plan.load()} disabled={plan.busy} style={s.smallButton}><Text style={s.link}>Refresh plan</Text></Pressable>}
       {!plan.ready ? (
         plan.error ? (
           <View style={s.panel}>
@@ -219,18 +220,18 @@ export default function TodayPlan({
               {plan.error}
             </Text>
           )}
-          <Text style={s.caption}>Personal tasks · saved on this iPhone</Text>
+          <Text style={s.caption}>Personal tasks · saved {plan.storageLabel}</Text>
         </>
       )}
+      {suggestions && <>
       <View style={s.heading}>
         <Text style={s.h2}>Suggested steps</Text>
-        <Text style={s.meta}>From sample assessments</Text>
+        <Text style={s.meta}>From your semester</Text>
       </View>
       <View style={s.panel}>
         {suggestions.length ? (
           suggestions.map((a) => {
-            const sourceKey = `${board.createdAt}:${a.id}`,
-              existing = matchingSuggestion(plan.tasks, sourceKey, today);
+            const sourceKey = a.sourceKey, existing = plan.tasks.find(t=>t.sourceKey===sourceKey);
             const label = existing
               ? existing.completedAt !== undefined
                 ? "Done"
@@ -240,23 +241,24 @@ export default function TodayPlan({
               : "＋ Today";
             return (
               <View key={a.id} style={s.suggestionRow}>
-                <View style={s.flex}>
-                  <Text style={s.taskTitle}>{a.preparation}</Text>
-                  <Text style={s.meta}>{a.unit} · Suggested preparation</Text>
-                </View>
+                <Pressable style={s.flex} accessibilityRole="button" accessibilityLabel={`Open source assessment: ${a.title}`}
+                  onPress={()=>openSource?.(a.id)}>
+                  <Text style={s.taskTitle}>{a.title}</Text>
+                  <Text style={s.meta}>{a.unit} · {a.context} ›</Text>
+                </Pressable>
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={
                     existing
-                      ? `Edit planned task: ${a.preparation}`
-                      : `Add to today: ${a.preparation}`
+                      ? `Edit planned task: ${a.title}`
+                      : `Add to today: ${a.title}`
                   }
                   disabled={!plan.ready || plan.busy}
                   onPress={() =>
                     existing
                       ? edit(existing)
                       : void plan.save({
-                          title: a.preparation,
+                          title: a.title,
                           unit: a.unit,
                           plannedFor: dateKey(Date.now()),
                           sourceKey,
@@ -271,8 +273,7 @@ export default function TodayPlan({
           })
         ) : (
           <Text style={s.empty}>
-            All sample preparation is recorded. You can still add your own
-            tasks.
+            No upcoming preparation suggestions. You can add your own task.
           </Text>
         )}
       </View>
@@ -280,6 +281,7 @@ export default function TodayPlan({
         Choose what fits your day. Tasks in your plan are personal actions,
         separate from assessment submission and grades.
       </Text>
+      </>}
       <Modal
         visible={!!editor}
         animationType="slide"
@@ -425,8 +427,7 @@ export default function TodayPlan({
                   </Text>
                 )}
                 <Text style={s.caption}>
-                  This is a personal plan, not a new assessment deadline. Your
-                  tasks stay here when the sample week is refreshed.
+                  This step belongs to your personal plan. Checking it off records your preparation.
                 </Text>
                 {!!editor.id && (
                   <Pressable
