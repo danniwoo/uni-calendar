@@ -57,6 +57,7 @@ import TodayPlan from "./src/TodayPlan";
 import { usePersonalPlan } from "./src/usePersonalPlan";
 import ConnectionCheck from "./src/ConnectionCheck";
 import StagingConnection from "./src/StagingConnection";
+import CloudAssessments from "./src/CloudAssessments";
 import { useStagingConnection } from "./src/useStagingConnection";
 import { CLOUD_WIDGET_URL } from "./src/cloud-widget";
 import { STAGING_AUTH_REDIRECT } from "./src/staging-core";
@@ -138,6 +139,7 @@ function Prototype() {
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
   const [tab, setTab] = useState<Tab>("Home");
+  const [assessmentSource, setAssessmentSource] = useState<"cloud" | "sample">("cloud");
   const [now, setNow] = useState(Date.now());
   const [detail, setDetail] = useState<Detail>();
   const [settings, setSettings] = useState(false);
@@ -281,6 +283,7 @@ function Prototype() {
       if (destination) {
         setSettings(false);
         setDetail(destination);
+        if (destination.kind === "assessment") setAssessmentSource("sample");
         setTab(destination.kind === "assessment" ? "Assessments" : "Today");
         return;
       }
@@ -289,6 +292,7 @@ function Prototype() {
         setDetail(undefined);
         setUnit("All units");
         setAssessmentView("Work");
+        setAssessmentSource("sample");
         setTab("Assessments");
       } else if (url === "semester-preview://schedule") {
         setSettings(false);
@@ -383,6 +387,7 @@ function Prototype() {
         )}
       </SafeAreaView>
     );
+  const cloudTab = tab === "Assessments" && assessmentSource === "cloud";
   const today = dateKey(now),
     work = workload(board, now),
     week = sampleWeek(board, now);
@@ -512,13 +517,13 @@ function Prototype() {
       <ScrollView key={tab} contentContainerStyle={s.content}>
         <View style={s.row}>
           <Text style={s.eyebrow}>
-            {tab === "Today"
+            {cloudTab ? "CLOUD · TEST SEMESTER" : tab === "Today"
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.3</Text>
+          <Text style={s.sample}>PREVIEW 0.3.4</Text>
         </View>
-        <Text style={s.title}>{titles[tab]}</Text>
+        <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>
         {tab === "Home" && (
           <>
             <Text style={s.subtitle}>{shortDate(now)} · Sydney time</Text>
@@ -549,6 +554,7 @@ function Prototype() {
                   run: () => {
                     setUnit("All units");
                     setAssessmentView("Work");
+                    setAssessmentSource("sample");
                     setTab("Assessments");
                   },
                 },
@@ -640,6 +646,7 @@ function Prototype() {
                   onPress={() => {
                     setUnit(u);
                     setAssessmentView("Work");
+                    setAssessmentSource("sample");
                     setTab("Assessments");
                   }}
                   style={s.unitRow}
@@ -824,6 +831,15 @@ function Prototype() {
         )}
         {tab === "Assessments" && (
           <>
+            <View style={s.segments}>
+              {(["cloud", "sample"] as const).map(source => (
+                <Pressable key={source} accessibilityRole="tab" accessibilityState={{selected: source === assessmentSource}}
+                  onPress={() => setAssessmentSource(source)} style={[s.segment, source === assessmentSource && s.segmentActive]}>
+                  <Text style={s.segmentText}>{source === "cloud" ? "Cloud semester" : "Local sample"}</Text>
+                </Pressable>
+              ))}
+            </View>
+            {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}/> : <>
             <Text style={s.subtitle}>
               Requirements, preparation and results together.
             </Text>
@@ -904,11 +920,11 @@ function Prototype() {
                 </Text>
               </>
             )}
+            </>}
           </>
         )}
         <Text accessibilityLiveRegion="polite" style={s.footer}>
-          {saveState}
-          {"\n"}Sample semester · personal tasks stay on this iPhone
+          {cloudTab ? "Shared with the staging website and Cloud deadline widget." : `${saveState}\nSample semester · personal tasks stay on this iPhone`}
         </Text>
       </ScrollView>
       <SafeAreaView edges={["bottom"]} style={s.tabBar}>
@@ -918,7 +934,7 @@ function Prototype() {
               key={t}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t }}
-              onPress={() => setTab(t)}
+              onPress={() => { if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
               style={s.tab}
             >
               <Text style={[s.tabIcon, tab === t && { color: P.purple }]}>
@@ -1043,7 +1059,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.3 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.4 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -1234,6 +1250,7 @@ function Prototype() {
                     else {
                       setUnit("All units");
                       setAssessmentView("Work");
+                      setAssessmentSource("sample");
                       setTab("Assessments");
                     }
                   }}

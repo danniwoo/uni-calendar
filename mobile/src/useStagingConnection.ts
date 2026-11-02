@@ -124,7 +124,7 @@ export function useStagingConnection() {
       } else value = await call(action === "create" ? "/v1/semester/sample" : "/v1/semester",action === "create" ? "POST" : "GET");
       const next = readStagingSemester(value);
       if (!scope.current()) return;
-      setBoard(next); setNoBoard(false); setMessage(action === "toggle" ? "Saved to D1. Refresh the web proof to compare." : "Authenticated API access confirmed. This is synthetic test data.");
+      setBoard(next); setNoBoard(false); setMessage(action === "toggle" ? "Preparation updated." : "Cloud semester is up to date.");
       await widgetWork(bridge.current!.accept(expectedUser,identity.accountId,next));
     } catch (error) {
       if (!scope.current()) return;

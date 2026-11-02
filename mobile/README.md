@@ -1,6 +1,12 @@
 # Semester iPhone experiment
 
-An Expo/React Native preview with an **invented sample semester and device-local personal tasks**. Version 0.3.3 retains compact Home, Today, Month and Assessments views and all sample widgets. The separate Google + D1 connection screen now publishes a **Cloud deadline · Trial** widget in Lock Screen and medium Home Screen sizes. The original Sites diagnostic is preserved. Main tabs still use local samples, personal tasks remain device-local, and no existing website records have been imported. The existing website remains the production app.
+Semester Preview has a connection sheet, an Assessments tab and a deadline widget that read the authenticated staging semester. Home, Today and Month use sample data, and personal tasks are stored on the device. The existing website serves the production semester.
+
+## Cloud Assessments — 0.3.4 (8)
+
+The **0.3.4 (8)** preview also exposes the signed-in board in the main **Assessments → Cloud semester** tab. It shows dated work, weight, Sydney due times and a unit filter. **Local sample** retains the sample assessments and grade views. Links from sample screens open the corresponding sample view. Home, Today and Month still use their existing local models. The staging web client's backup preview and local SQLite rehearsal are described in [migration setup](../migration/README.md#cutover-sequence).
+
+The mobile typecheck and 40 tests passed. The signed Release app and extension both report 0.3.4 (8). The app was installed and launched on the paired iPhone. Select **ISYS2120** in Cloud semester to check that the quiz appears by itself, then **All units** to see both staging deadlines. The comparison source is tagged `ios-preview-v0.3.4`.
 
 ## Independent Google + D1 proof — 0.3.2 (6)
 

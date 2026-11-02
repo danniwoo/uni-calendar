@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { readConfig, takeAuthCallback } from "./config.js";
 import { createApi } from "./api.js";
 import { createController } from "./controller.js";
+import { backupCheckPanel } from "./backup-check.js";
 import "./style.css";
 
 const root = document.querySelector("#app");
@@ -103,7 +104,8 @@ function render() {
     }
     main.append(section);
   }
-  main.append(element("footer", "A successful trial means an API read and a saved update appear on both devices. Opening a sign-in page alone is not a successful connection."));
+  if (state.session && state.accountId && !state.rejected) main.append(backupCheckPanel());
+  main.append(element("footer", "Changes to test tasks are saved under your signed-in account."));
   root.replaceChildren(main);
 }
 

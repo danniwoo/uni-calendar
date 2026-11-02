@@ -101,6 +101,18 @@ Provider allowances checked on 2026-11-02 (USD):
 
 ## Cutover sequence
 
+The personal import rehearsal starts before production cutover. Export **Profile & settings → Export saved semester** from the current site. **Export course plan** is a separate file. The semester file contains the active board, including its weeks, units, classes, work items, completion map, recorded grade fields and reviewed Canvas metadata. The exporter clears the timetable subscription URL. A previous board and friend/profile records have separate storage. Device reminder permissions and iPhone personal tasks have their own lifecycles.
+
+Sign into the local staging web client and use **Check a website backup** to run the current web restore validator and inspect counts on this device. The file picker only previews the file. For a read and write rehearsal in an in-memory SQLite database, run the following from the worktree root with the mobile dependencies installed and Node 24 available:
+
+```sh
+./mobile/node_modules/.bin/tsx migration/check-backup.ts /path/to/semester-saved-backup.json
+```
+
+On 2 November 2026 the fresh saved-semester export passed this rehearsal and matched field for field after readback. The current pilot API exposes a smaller set of fields for rendering dated assessments and preparation tasks. A cloud importer needs to preserve the entire validated board under the authenticated owner and derive display views from it. Week-only and unconfirmed work must remain visible without an invented date.
+
+The next acceptance gate is a previewed, confirmed import into an isolated staging board with revision protection and a recoverable previous snapshot. Re-export after writing to D1 and compare the complete data, allowing only documented server-generated metadata changes. Check two-account isolation and stale writes. Exercise Home, Today, Month, Assessments and widgets against that restored board, including sign-out and reopening. Use this result to decide when to schedule the live cutover.
+
 1. Build/test the independent staging environment while the old website stays available.
 2. Validate a full data export and restore, including recovery, course plans, friends and account ownership. An ordinary board export alone is not a complete site backup.
 3. For Daniel's first small pilot, test a user-owned Semester JSON export/import into the new signed-in account. This does not automatically transfer account ownership or all seven tables. If automatic/bulk migration is later required, link identities through verified ownership of both accounts; never auto-merge solely because an email matches. Current iPhone samples need no production migration; preserve local personal tasks until deliberately replaced.
