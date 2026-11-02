@@ -2,6 +2,12 @@
 
 Assessments reads the signed-in user's imported semester. The connection sheet and cloud widget use the separate synthetic trial board. Home, Today and Month use sample data, and personal tasks are stored on the device.
 
+## Deadline focus · 0.3.7 (11)
+
+Open Semester once, then choose **Deadline focus** from Semester Preview in the rectangular widget area below the Lock Screen clock. The imported semester refreshes on launch and foreground, and **Assessments → Refresh** also updates the widget. It shows the next unfinished submission or pre-class deadline. A date-only item displays “time TBC” and remains eligible through that Sydney day. Calendar events, in-class activities, undated rows, completed work and past deadlines are skipped.
+
+Tap the widget to open the exact dated occurrence. The app resolves its ID inside the signed-in semester. If the item or account has changed, the detail explains that it is unavailable. WidgetKit receives a timeline covering Sydney midnight changes, deadline transitions and a seven-day refresh prompt; iOS controls the actual redraw. A previous account's link cannot resolve a same-ID item in the current account.
+
 ## Grade list parity · 0.3.6 (10)
 
 **Grades** uses the website's whole-assessment list, including unmarked assessments. Recurring groups show their total weight, schedule range, scoring rule and confirmed or graded count. Completion-based results use secured points; unfinished completion work is shown separately from a unit's current average. Stored results outside the grouped list remain available under **Other recorded results**. The **日期待確認** view continues to use each work item's explicit date.

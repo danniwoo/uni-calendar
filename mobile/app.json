@@ -2,7 +2,7 @@
   "expo": {
     "name": "Semester Preview",
     "slug": "semester-preview",
-    "version": "0.3.6",
+    "version": "0.3.7",
     "scheme": "semester-preview",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -13,7 +13,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "10"
+      "buildNumber": "11"
     },
     "plugins": [
       "expo-dev-client",
@@ -23,6 +23,14 @@
         {
           "enablePushNotifications": false,
           "widgets": [
+            {
+              "name": "SemesterDeadlineFocus",
+              "displayName": "Deadline focus",
+              "description": "Your next unfinished deadline from your imported semester. Tap to open that item.",
+              "supportedFamilies": [
+                "accessoryRectangular"
+              ]
+            },
             {
               "name": "SemesterNextClass",
               "displayName": "Next class \u00b7 Sample",

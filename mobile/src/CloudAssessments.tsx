@@ -1,9 +1,11 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
-import { dateKey } from "./model";
-import { readImportedAssessments, selectImportedWork, type ImportedAssessments, type ImportedGrade, type ImportedView } from "./imported-work";
+import React, { useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { dateKey, shortDate } from "./model";
+import { sydneyInstant } from "../../lib/sydney-time";
+import { findFocusRow, type FocusTarget } from "./deadline-focus";
+import type { ImportedSemesterState } from "./useImportedSemester";
+import { selectImportedWork, type ImportedAssessments, type ImportedGrade, type ImportedView } from "./imported-work";
 import { stagingSetup } from "./staging-auth";
-import { stagingRequest, StagingApiError } from "./staging-core";
 import type { StagingConnectionState } from "./useStagingConnection";
 import TrialAssessments from "./TrialAssessments";
 
@@ -42,51 +44,46 @@ function WorkRow({row}:{row:ImportedAssessments["rows"][number]}) {
     <Text style={s.note}>{row.date ? [row.date, row.time].filter(Boolean).join(" · ") : row.timing || "Exact date unconfirmed"}</Text></View>;
 }
 
-export default function CloudAssessments({connection}: {connection: StagingConnectionState}) {
-  const [board,setBoard] = useState<ImportedAssessments>();
-  const [message,setMessage] = useState("");
-  const [loading,setLoading] = useState(true);
-  const [reload,setReload] = useState(0);
+type Props = {
+  connection: StagingConnectionState;
+  imported: ImportedSemesterState;
+  target: FocusTarget | null;
+  closeDetail: () => void;
+};
+export default function CloudAssessments({connection, imported, target, closeDetail}: Props) {
+  const {board, message, loading, refresh} = imported;
   const [trial,setTrial] = useState(false);
   const [unit,setUnit] = useState<string|null>(null);
   const [view,setView] = useState<ImportedView>("Work");
   const [past,setPast] = useState(false);
-  const token = connection.session?.access_token;
-  useEffect(() => {
-    const config = stagingSetup.config;
-    if (!config || !token) return;
-    let active = true;
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(),15000);
-    setLoading(true); setMessage("");
-    void stagingRequest(config,token,"/v1/imported/assessments",{signal:controller.signal})
-      .then(readImportedAssessments).then(data => {if(active) setBoard(data);})
-      .catch(error => {
-        if (!active) return;
-        setBoard(undefined);
-        const status = error instanceof StagingApiError ? error.status : 0;
-        setMessage(status === 404 ? "No imported semester yet. Import your saved semester on the staging website."
-          : status === 403 ? "This account is not enrolled in the private import trial."
-          : status === 401 ? "Your session expired. Sign in again from Widgets."
-          : "Could not read your imported semester. Check your connection and retry.");
-      }).finally(()=>{clearTimeout(timeout); if(active) setLoading(false);});
-    return ()=>{active=false; controller.abort(); clearTimeout(timeout);};
-  },[token,reload]);
-  useEffect(()=>{
-    const listener=AppState.addEventListener("change",state=>{if(state==="active")setReload(n=>n+1);});
-    return ()=>listener.remove();
-  },[]);
   const today = dateKey(Date.now());
   const selected = useMemo(()=>board ? selectImportedWork(board,unit,today) : null,[board,unit,today]);
   if (!connection.session || !stagingSetup.config) return <View style={s.panel}>
     <Text style={s.title}>Your imported semester</Text><Text style={s.note}>{stagingSetup.config ? "Use the Google account that owns your staging semester." : "Staging is not configured in this build."}</Text>
     {stagingSetup.config && <Chip label={connection.phase || "Continue with Google"} onPress={()=>void connection.login()}/>}
     {!!connection.message && <Text style={s.note}>{connection.message}</Text>}</View>;
+  if (target) {
+    const row = board && imported.scope ? findFocusRow(board, imported.scope, target) : undefined;
+    const date = row?.date && sydneyInstant(row.date,"12:00");
+    return <View style={s.panel}>
+      <Chip label="← All assessments" onPress={closeDetail}/>
+      {row ? <>
+        <Text style={s.unit}>{row.unit} · {board!.year} {board!.session}</Text>
+        <Text accessibilityRole="header" style={s.detailTitle}>{row.title}</Text>
+        <Text style={s.score}>{date ? shortDate(date) : "Date to confirm"}{row.time ? ` · ${row.deadlineMode==="before" ? "before " : ""}${row.time} Sydney` : " · time TBC"}</Text>
+        {!!row.timing && <Text style={s.note}>{row.timing}</Text>}
+        {!!row.weight && <Text style={s.note}>Weight · {row.weight}</Text>}
+        <Text style={s.note}>{row.done ? "Marked complete" : "Not marked complete"}</Text>
+      </> : <Text accessibilityLiveRegion="polite" style={s.note}>{loading ? "Opening this assessment…" : message || "This item is unavailable in the signed-in semester."}</Text>}
+      {!!message && row && <Text style={s.note}>{message}</Text>}
+      {!loading && !row && <Chip label="Refresh" onPress={refresh}/>}
+    </View>;
+  }
   if (trial) return <View style={s.panel}><Chip label="Back to imported semester" onPress={()=>setTrial(false)}/><TrialAssessments connection={connection}/></View>;
   return <View style={s.panel}>
     <View style={s.heading}><View style={s.grow}><Text style={s.title}>{board ? `${board.year} · ${board.session}` : "Your imported semester"}</Text>
       <Text style={s.note}>{board ? `${board.units.length} units · ${board.rows.length} work items · Sydney dates` : "Private staging import"}</Text></View>
-      <Chip label={loading ? "Loading…" : "Refresh"} onPress={()=>setReload(n=>n+1)}/></View>
+      <Chip label={loading ? "Loading…" : "Refresh"} onPress={refresh}/></View>
     {message && <Text accessibilityLiveRegion="polite" style={s.note}>{message}</Text>}
     {board && selected && <>
       <View style={s.wrap}>{[null,...board.units.map(u=>u.code)].map(code=>
@@ -130,6 +127,7 @@ const s = StyleSheet.create({
   wrap:{flexDirection:"row",flexWrap:"wrap",gap:5}, chip:{minHeight:44,justifyContent:"center",paddingHorizontal:10,borderRadius:10,backgroundColor:"#EFEBFA"},
   selected:{backgroundColor:"#584AA5"}, chipText:{color:"#51449B",fontSize:13,fontWeight:"600"},selectedText:{color:"white"},
   row:{gap:3,paddingVertical:8,borderBottomWidth:StyleSheet.hairlineWidth,borderColor:"#D8D5DF"},
+  detailTitle:{fontSize:24,fontWeight:"700",color:"#252438"},
   score:{fontSize:17,fontWeight:"700",color:"#403680"},unit:{fontSize:12,fontWeight:"700",color:"#584AA5"},
   summary:{gap:3,paddingVertical:6},details:{minHeight:44,justifyContent:"center"}, link:{color:"#51449B",fontWeight:"600"},
   part:{paddingLeft:12,paddingBottom:5,gap:2},

@@ -59,6 +59,8 @@ import ConnectionCheck from "./src/ConnectionCheck";
 import StagingConnection from "./src/StagingConnection";
 import CloudAssessments from "./src/CloudAssessments";
 import { useStagingConnection } from "./src/useStagingConnection";
+import { useImportedSemester } from "./src/useImportedSemester";
+import { IMPORTED_URL, readFocusURL, type FocusTarget } from "./src/deadline-focus";
 import { CLOUD_WIDGET_URL } from "./src/cloud-widget";
 import { STAGING_AUTH_REDIRECT } from "./src/staging-core";
 import { CONNECTION_RETURN_URL } from "./src/connection-check";
@@ -135,6 +137,8 @@ function Heading({
 }
 function Prototype() {
   const cloudConnection = useStagingConnection();
+  const imported = useImportedSemester(cloudConnection);
+  const [focusTarget, setFocusTarget] = useState<FocusTarget|null>(null);
   const personalPlan = usePersonalPlan();
   const [board, setBoard] = useState<SampleBoard>();
   const [progress, setProgress] = useState<Record<string, boolean>>({});
@@ -267,7 +271,6 @@ function Prototype() {
     }
   }
   useEffect(() => {
-    if (!board) return;
     let active = true;
     const open = (url: string) => {
       if (!active) return;
@@ -275,14 +278,17 @@ function Prototype() {
       // a widget link or as evidence that the app is signed in.
       if (url.split(/[?#]/)[0] === CONNECTION_RETURN_URL) return;
       if (url.split(/[?#]/)[0] === STAGING_AUTH_REDIRECT) return;
+      const item = readFocusURL(url);
+      if (item || url === IMPORTED_URL) {
+        setFocusTarget(item); setDetail(undefined); setSettings(false); setStagingConnection(false);
+        setConnectionCheck(false); setAssessmentSource("cloud"); setTab("Assessments");
+        return;
+      }
       if (url === CLOUD_WIDGET_URL) {
         setDetail(undefined); setConnectionCheck(false); setStagingConnection(true); setSettings(true);
         return;
       }
-      if (url === "semester-preview://imported-assessments") {
-        setDetail(undefined); setSettings(false); setAssessmentSource("cloud"); setTab("Assessments");
-        return;
-      }
+      if (!board) return;
       const destination = resolveLink(url, board);
       if (destination) {
         setSettings(false);
@@ -308,7 +314,7 @@ function Prototype() {
           "Open Assessments to find the current sample work.",
         );
     };
-    if (!initialLinkHandled.current) {
+    if (board && !initialLinkHandled.current) {
       initialLinkHandled.current = true;
       void Linking.getInitialURL()
         .then((url) => {
@@ -518,14 +524,14 @@ function Prototype() {
           <Text style={s.link}>Widgets ⚙</Text>
         </Pressable>
       </View>
-      <ScrollView key={tab} contentContainerStyle={s.content}>
+      <ScrollView key={focusTarget && tab === "Assessments" ? tab + focusTarget.id : tab} contentContainerStyle={s.content}>
         <View style={s.row}>
           <Text style={s.eyebrow}>
             {cloudTab ? "CLOUD · IMPORTED SEMESTER" : tab === "Today"
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.6</Text>
+          <Text style={s.sample}>PREVIEW 0.3.7</Text>
         </View>
         <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>
         {tab === "Home" && (
@@ -843,7 +849,8 @@ function Prototype() {
                 </Pressable>
               ))}
             </View>
-            {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}/> : <>
+            {cloudTab ? <CloudAssessments key={cloudConnection.session?.user.id ?? "guest"} connection={cloudConnection}
+              imported={imported} target={focusTarget} closeDetail={()=>setFocusTarget(null)}/> : <>
             <Text style={s.subtitle}>
               Requirements, preparation and results together.
             </Text>
@@ -928,7 +935,7 @@ function Prototype() {
           </>
         )}
         <Text accessibilityLiveRegion="polite" style={s.footer}>
-          {cloudTab ? "Shared with the staging website and Cloud deadline widget." : `${saveState}\nSample semester · personal tasks stay on this iPhone`}
+          {cloudTab ? "Your imported staging semester · Sydney time" : `${saveState}\nSample semester · personal tasks stay on this iPhone`}
         </Text>
       </ScrollView>
       <SafeAreaView edges={["bottom"]} style={s.tabBar}>
@@ -938,7 +945,7 @@ function Prototype() {
               key={t}
               accessibilityRole="tab"
               accessibilityState={{ selected: tab === t }}
-              onPress={() => { if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
+              onPress={() => { setFocusTarget(null); if (t === "Assessments" && tab !== t) setAssessmentSource("cloud"); setTab(t); }}
               style={s.tab}
             >
               <Text style={[s.tabIcon, tab === t && { color: P.purple }]}>
@@ -1063,7 +1070,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.6 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.7 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {
@@ -1102,7 +1109,10 @@ function Prototype() {
                   secondary
                   onPress={() => setStagingConnection(true)}
                 />
-                <Text style={s.caption}>Cloud deadline · Trial uses your signed-in test semester. Open the connection above to sync and see setup instructions. The controls below customise sample widgets only.</Text>
+                <Heading title="Deadline focus"/>
+                <Text style={s.caption}>Add Deadline focus below the Lock Screen clock. It shows one unfinished deadline from your imported semester. Tap it to open that item.</Text>
+                <Text style={s.caption}>{imported.widgetIssue || imported.message || (imported.syncedAt ? `Synced ${shortDate(imported.syncedAt)} · ${clockTime(imported.syncedAt)} Sydney` : "Open your imported semester to sync.")}</Text>
+                <Text style={s.caption}>Cloud deadline · Trial uses the sample cloud semester. The controls below customise sample widgets only.</Text>
                 <Button
                   label="Test website connection →"
                   secondary

@@ -11,6 +11,7 @@ import CloudDeadlineWidget from "./widgets/CloudDeadline";
 // clearing or foreground refresh for a widget that remains on the Lock Screen.
 export function useStagingConnection() {
   const [session, setSession] = useState<Session | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [board, setBoard] = useState<StagingSemester>();
   const [accountId, setAccountId] = useState("");
   const [phase, setPhase] = useState("");
@@ -44,6 +45,7 @@ export function useStagingConnection() {
       const { data: { subscription } } = client.auth.onAuthStateChange((event, next) => {
         if (!mounted.current) return;
         if(signOutRequested.current && next) return;
+        setAuthReady(true);
         const nextId = next?.user.id ?? null;
         const identityChanged=nextId !== user.current;
         if (identityChanged) {
@@ -59,8 +61,8 @@ export function useStagingConnection() {
         }
       });
       void client.auth.getSession().then(({error}) => {
-        if (error && mounted.current) {setMessage("Your saved session could not be restored. Sign in again.");void widgetWork(bridge.current!.clear("Sign in again"));}
-      }).catch(() => { if (mounted.current) {setMessage("Secure session storage is unavailable. Rebuild the app or try again.");void widgetWork(bridge.current!.clear("Sign in again"));} });
+        if (error && mounted.current) {setAuthReady(true);setMessage("Your saved session could not be restored. Sign in again.");void widgetWork(bridge.current!.clear("Sign in again"));}
+      }).catch(() => { if (mounted.current) {setAuthReady(true);setMessage("Secure session storage is unavailable. Rebuild the app or try again.");void widgetWork(bridge.current!.clear("Sign in again"));} });
       const active = (state: string) => {
         if (state === "active") {client.auth.startAutoRefresh();bridge.current!.refreshDisplay();refresh.current();}
         else client.auth.stopAutoRefresh();
@@ -70,6 +72,7 @@ export function useStagingConnection() {
       const clock=setInterval(()=>{if(AppState.currentState==="active")bridge.current!.refreshDisplay();},60000);
       return () => { mounted.current = false; authRun.current++; gate.current.invalidate(); subscription.unsubscribe(); listener.remove();clearInterval(clock);client.auth.stopAutoRefresh(); };
     } catch {
+      setAuthReady(true);
       setMessage("The native staging dependencies are not available. Rebuild the iPhone app before testing.");
       void widgetWork(bridge.current!.clear("Open Semester to reconnect"));
       return () => { mounted.current = false; };
@@ -140,6 +143,6 @@ export function useStagingConnection() {
     } finally {clearTimeout(timeout);scope.finish();finishOperation();}
   }
 
-  return {session,board,accountId,phase,message,noBoard,login,signOut,request,widgetState};
+  return {session,authReady,board,accountId,phase,message,noBoard,login,signOut,request,widgetState};
 }
 export type StagingConnectionState = ReturnType<typeof useStagingConnection>;
