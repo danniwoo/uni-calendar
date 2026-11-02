@@ -1,5 +1,7 @@
 import { previewBackup } from "../../backup-preview.ts";
 import { readBackup } from "../../../lib/backup.ts";
+import { assessmentListWeight, assessmentOverviewSchedule, assessmentRows, defaultAssessmentFilters } from "../../../lib/assessment-list.ts";
+import { sydneyDate } from "../../../lib/semester.ts";
 import { importedAssessments } from "../../../lib/imported-assessments.ts";
 import { readImportedAssessments, selectImportedWork } from "../../../mobile/src/imported-work.ts";
 
@@ -37,12 +39,20 @@ export function backupCheckPanel({ accountId, email, request, assessments }) {
       const mobile = readImportedAssessments(projection);
       if (JSON.stringify(mobile) !== JSON.stringify(importedAssessments(board))) throw new Error("The iPhone response differs from the restore point.");
       const check = mobile.units.map(({code}) => {
-        const {undated} = selectImportedWork(mobile, code, "");
+        const today = sydneyDate();
+        const {undated, assessmentRows: phoneRows} = selectImportedWork(mobile, code, today);
+        const webRows = assessmentRows(board, {...defaultAssessmentFilters, unit:code}, today, "overview");
+        if (webRows.length !== phoneRows.length || webRows.some((row,i) => {
+          const schedule = assessmentOverviewSchedule(board,row);
+          const phone = phoneRows[i];
+          return row.task.id !== phone.id || assessmentListWeight(row.task,row.grouped) !== phone.weight
+            || [schedule.label,schedule.detail].filter(Boolean).join(" · ") !== phone.schedule;
+        })) throw new Error("The iPhone grade list differs from the website.");
         const ids = board.tasks.filter(t => t.unit === code && !t.date).map(t => t.id);
         if (JSON.stringify(undated.map(row => row.id)) !== JSON.stringify(ids)) throw new Error("An undated item differs from the restore point.");
         return `${code} ${ids.length}`;
       });
-      saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries. iPhone API matches the restore point. Undated by unit: ${check.join(" · ")}.`;
+      saved.textContent = `Saved in D1 · ${summary.term} · ${summary.workItems} work items, ${summary.withoutDate} without an exact date, ${summary.withGradesOrPlans} with grades or plans, ${summary.completionEntries} completion entries. iPhone API matches the restore point. All ${mobile.overview.length} website assessments match the iPhone grade list, including their weights and dates. Undated by unit: ${check.join(" · ")}.`;
     } catch (error) { if (panel.isConnected) saved.textContent = error.message; }
     finally { view.disabled = false; }
   };

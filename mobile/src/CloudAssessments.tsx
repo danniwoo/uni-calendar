@@ -13,20 +13,21 @@ function Chip({label, selected, onPress}: {label:string; selected?:boolean; onPr
   </Pressable>;
 }
 const number = (n:number) => Number(n.toFixed(1)).toString();
-function GradeRow({grade}: {grade:ImportedGrade}) {
+type GradeHeading = Pick<ImportedGrade, "id" | "unit" | "title" | "weight"> & {schedule?:string};
+function GradeRow({row, grade}: {row:GradeHeading; grade?:ImportedGrade}) {
   const [expanded,setExpanded] = useState(false);
-  const score = grade.source === "parts"
-    ? grade.ratio === null ? "No calculated result" : `${number(grade.ratio*100)}%${grade.finished ? "" : " so far"}`
-    : grade.mark ? `${grade.mark.earned} / ${grade.mark.possible}` : "No recorded mark";
   return <View style={s.row}>
-    <Text style={s.unit}>{grade.unit}{grade.weight ? ` · ${grade.weight}` : ""}</Text>
-    <Text style={s.title}>{grade.title}</Text>
-    <Text style={s.score}>{score}</Text>
-    {grade.source === "parts" && grade.mark && <Text style={s.note}>Recorded overall mark · {grade.mark.earned} / {grade.mark.possible}</Text>}
-    {!!grade.error && <Text style={s.note}>{grade.error}</Text>}
-    {grade.parts.length > 0 && <>
+    <Text style={s.unit}>{row.unit}{row.weight ? ` · ${row.weight}` : ""}</Text>
+    <Text style={s.title}>{row.title}</Text>
+    <Text style={grade ? s.score : s.note}>{grade?.score ?? "No recorded mark"}</Text>
+    {!!grade?.progress && <Text style={s.note}>{grade.progress}</Text>}
+    {!!row.schedule && <Text style={s.note}>{row.schedule}</Text>}
+    {!!grade?.threshold && <Text style={s.note}>{grade.threshold}</Text>}
+    {grade?.source === "parts" && grade.mark && <Text style={s.note}>Recorded overall mark · {grade.mark.earned} / {grade.mark.possible}</Text>}
+    {!!grade?.error && <Text style={s.note}>{grade.error}</Text>}
+    {grade && grade.parts.length > 0 && <>
       <Pressable accessibilityRole="button" accessibilityState={{expanded}} style={s.details} onPress={()=>setExpanded(!expanded)}>
-        <Text style={s.link}>{expanded ? "Hide" : "Show"} {grade.parts.length} parts · {grade.rule}</Text>
+        <Text style={s.link}>{expanded ? "Hide" : "Show"} {grade.parts.length} parts</Text>
       </Pressable>
       {expanded && grade.parts.map(part => <View key={part.id} style={s.part}>
         <Text style={s.note}>{part.name}</Text>
@@ -101,10 +102,15 @@ export default function CloudAssessments({connection}: {connection: StagingConne
       {view === "Grades" && <>
         {board.units.filter(u=>unit===null || u.code===unit).map(u=><View key={u.code} style={s.summary}>
           <Text style={s.unit}>{u.code} · Current average</Text><Text style={s.score}>{u.average===null ? "No weighted marks yet" : `${number(u.average)}%`}</Text>
-          {u.average!==null && <Text style={s.note}>Based on {number(u.currentWeight)}% of unit weight</Text>}</View>)}
-        <Text style={s.title}>Marks &amp; grade plans · {selected.grades.length}</Text>
-        {selected.grades.map(g=><GradeRow key={g.id} grade={g}/>)}
-        {!selected.grades.length && <Text style={s.note}>No marks or grade plans recorded for this selection.</Text>}
+          {u.average!==null && <Text style={s.note}>Based on {number(u.currentWeight)}% of unit weight</Text>}
+          {u.securedCompletionPoints > 0 && <Text style={s.note}>Separately secured from unfinished completion work: {number(u.securedCompletionPoints)} unit points</Text>}</View>)}
+        <Text style={s.title}>Assessment grades · {selected.assessmentRows.length}</Text>
+        {selected.assessmentRows.map(row=><GradeRow key={row.id} row={row} grade={row.grade}/>)}
+        {!selected.assessmentRows.length && <Text style={s.note}>No assessments in this selection.</Text>}
+        {selected.additionalMarks.length > 0 && <>
+          <Text style={s.title}>Other recorded results</Text>
+          {selected.additionalMarks.map(grade=><GradeRow key={grade.id} row={grade} grade={grade}/>)}
+        </>}
       </>}
       {view === "Work" && <>
         <Text style={s.title}>Today &amp; upcoming · {selected.upcoming.length}</Text>

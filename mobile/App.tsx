@@ -525,7 +525,7 @@ function Prototype() {
               ? shortDate(now).toUpperCase()
               : `SAMPLE WEEK ${week} · ${units.length} UNITS`}
           </Text>
-          <Text style={s.sample}>PREVIEW 0.3.5</Text>
+          <Text style={s.sample}>PREVIEW 0.3.6</Text>
         </View>
         <Text style={s.title}>{tab === "Assessments" ? "Assessments" : titles[tab]}</Text>
         {tab === "Home" && (
@@ -1063,7 +1063,7 @@ function Prototype() {
       >
         <SafeAreaView style={s.root} edges={["bottom"]}>
           <View style={s.sheetHeader}>
-            <Text style={s.eyebrow}>PREVIEW 0.3.5 · ON THIS IPHONE</Text>
+            <Text style={s.eyebrow}>PREVIEW 0.3.6 · ON THIS IPHONE</Text>
             <Pressable
               accessibilityRole="button"
               onPress={() => {

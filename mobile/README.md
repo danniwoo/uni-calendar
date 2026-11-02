@@ -2,6 +2,10 @@
 
 Assessments reads the signed-in user's imported semester. The connection sheet and cloud widget use the separate synthetic trial board. Home, Today and Month use sample data, and personal tasks are stored on the device.
 
+## Grade list parity · 0.3.6 (10)
+
+**Grades** uses the website's whole-assessment list, including unmarked assessments. Recurring groups show their total weight, schedule range, scoring rule and confirmed or graded count. Completion-based results use secured points; unfinished completion work is shown separately from a unit's current average. Stored results outside the grouped list remain available under **Other recorded results**. The **日期待確認** view continues to use each work item's explicit date.
+
 ## Imported Assessments · 0.3.5 (9)
 
 Open **Assessments → Cloud semester**, select **All units** or a unit, then **Grades** or **日期待確認**. Grades uses the website's rules for weighted averages and individual results. Tap a parts row to see its grades and outcomes. The date check includes all work items without an exact date, including items with a known week or a completion flag. **Work** shows today and upcoming dated items, with a separate control for earlier work.
