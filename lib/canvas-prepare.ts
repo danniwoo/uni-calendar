@@ -1,6 +1,7 @@
 import type {Semester,Task} from "./semester";
 import {canvasGrade,canvasKey,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasChoice} from "./canvas-import";
 import {simpleCanvasDestination} from "./canvas-match-view";
+import {blankAttempt,localHighestRule} from "./canvas-rule-import";
 
 const words=(s:string)=>s.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 const label=(s:string)=>words(s).match(/\b(?:assignment|a)\s*(\d+)\b/)?.[1];
@@ -11,8 +12,26 @@ export const canvasDay=(s:string|null)=>s?new Intl.DateTimeFormat("en-CA",{timeZ
 // Suggest placement only. A matching quiz number never chooses a calculation rule.
 export function canvasAttemptTargets(s:Semester,unit:string,a:CanvasAssignment){
   if(!isCanvasRetake(a))return [];
-  const number=a.name.match(/\bquiz\s*(\d+)\b/i)?.[1];
-  return number?canvasTargets(s,unit).filter(t=>t.title.match(/\bquiz\s*(\d+)\b/i)?.[1]===number):[];
+  const quizNumber=(title:string)=>{
+    const hits=[...title.matchAll(/\bquiz\s*(\d+)\b(?!\.\d)/gi)];
+    return hits.length===1?hits[0][1]:undefined;
+  };
+  const number=quizNumber(a.name);
+  return number?canvasTargets(s,unit).filter(t=>quizNumber(t.title)===number):[];
+}
+function attemptNumber(name:string){
+  const numbers=[...name.matchAll(/\battempt\s*(?:#|no\.?\s*)?\s*(\d+)\b/gi)];
+  return numbers.length===1?Number(numbers[0][1]):null;
+}
+export function attemptSlotOptions(s:Semester,t:Task,a:CanvasAssignment){
+  if(!localHighestRule(t)||!canvasGrade(a))return [];
+  return t.gradePlan!.items.filter(i=>blankAttempt(i,a.pointsPossible)&&!s.canvasImports?.some(r=>r.targetId===t.id&&r.lastItem?.id===i.id));
+}
+export function matchingAttemptSlot(s:Semester,t:Task,a:CanvasAssignment){
+  const n=attemptNumber(a.name);
+  if(n===null)return;
+  const sameNumber=t.gradePlan?.items.filter(i=>attemptNumber(i.name)===n);
+  return sameNumber?.length===1?attemptSlotOptions(s,t,a).find(i=>i.id===sameNumber[0].id):undefined;
 }
 // Only an explicit percentage in the item title is evidence. Points possible
 // and a category's weight are NOT the assessment's weight.
@@ -48,6 +67,7 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
   if(s.canvasAccountId&&s.canvasAccountId!==b.accountId)return {units,choices,reasons,issues};
   const saved=new Map((s.canvasImports||[]).map(r=>[r.key,r]));
   const proposals:{key:string;choice:CanvasChoice;score:number;reason:string}[]=[];
+  const attempts:{key:string;choice:CanvasChoice;name:string}[]=[];
   for(const c of b.courses){
     const codes=[...new Set(c.course.code.toUpperCase().match(/[A-Z]{4}\d{4}/g)||[])];
     if(!units[c.course.id]&&codes.length===1)units[c.course.id]=codes[0];
@@ -64,7 +84,13 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
       if(choices[key])continue;
       if(!canvasGrade(a))continue; // No 50-item ungraded onboarding backlog.
       if(!unit){issues[key]="Choose the Semester unit for this shared Canvas course.";continue;}
-      if(isCanvasRetake(a)){issues[key]="Result found · not yet included in your total. Confirm which assessment and calculation to use.";continue;}
+      if(isCanvasRetake(a)){
+        const matches=canvasAttemptTargets(s,unit,a),target=matches.length===1?matches[0]:undefined;
+        const slot=target&&matchingAttemptSlot(s,target,a),rule=target&&localHighestRule(target);
+        if(term&&slot&&rule&&target)attempts.push({key,name:slot.name,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:target.id,mode:"part",attemptItemId:slot.id,rule}});
+        else issues[key]="Choose an existing attempt or review its calculation.";
+        continue;
+      }
       const allCandidates=preparedCandidates(s,unit,a);
       const candidates=allCandidates.filter(v=>!s.canvasImports?.some(r=>r.targetId===v.target.id));
       if(allCandidates.length&&!candidates.length){issues[key]="The similar assessment already has another Canvas connection. Review it before creating a duplicate.";continue;}
@@ -79,6 +105,17 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
         proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:"new",mode:"overall"},score:0,reason:"New assessment · weight stays unknown"});
       }
     }
+  }
+  for(const p of attempts){
+    if(attempts.some(q=>q!==p&&q.choice.targetId===p.choice.targetId&&(q.choice.attemptItemId===p.choice.attemptItemId||q.choice.courseId!==p.choice.courseId))){
+      issues[p.key]="Multiple Canvas items match this attempt. Choose the correct result.";continue;
+    }
+    try{
+      const plan=planCanvasImport(s,b,[p.choice]);
+      if(plan.actions.some(a=>a.changed&&a.kind==="grade")){
+        choices[p.key]=p.choice;reasons[p.key]=`Suggested · Same quiz and attempt number · ${p.name}`;
+      }else issues[p.key]="Existing result or connection protected. Review placement.";
+    }catch(e){issues[p.key]=(e as Error).message;}
   }
   // Resolve the entire batch, not greedily by source order. Two equally plausible
   // sources never grab the same overall grade or silently become two duplicates.

@@ -1,6 +1,6 @@
-import type {CanvasRule,GradePlan,Semester} from "./semester";
+import type {CanvasRule,GradePlan,Semester,Task} from "./semester";
 import {validGrade,validGradePlan} from "./grade-value";
-import {canvasGrade,canvasKey,canvasTargets,type CanvasBundle,type CanvasChoice,type CanvasImportRecord} from "./canvas-import";
+import {canvasGrade,canvasKey,canvasTargets,isCanvasRetake,type CanvasBundle,type CanvasChoice,type CanvasImportRecord} from "./canvas-import";
 import {partGrade} from "./grades";
 import {canvasSourceRules,canvasSourceRuleReview} from "./canvas-source-rules";
 
@@ -19,6 +19,23 @@ export function validRuleRecord(r:Record<string,unknown>) {
     &&!!r.lastItem&&validGradePlan({mode:"parts",method:"points",items:[r.lastItem]})
     &&(r.attemptItemId===undefined?(r.lastItem as {id:string}).id===`canvas:${r.key}`:
       r.rule.method==="highest"&&typeof r.attemptItemId==="string"&&!r.attemptItemId.startsWith("canvas")&&(r.lastItem as {id:string}).id===r.attemptItemId);
+}
+// Only adopt the calculation the student already chose; never invent a rule.
+export function localHighestRule(t:Task):CanvasRule|undefined {
+  const p=t.gradePlan;
+  if(!p||p.method!=="highest"||p.mode!=="parts"||p.attemptsClosed||p.canvasPendingReview)return;
+  const rule:CanvasRule={method:"highest",count:p.items.length,...(p.passMark?{passMark:p.passMark}:{})};
+  return configured(p,rule)&&validCanvasRule(rule)?rule:undefined;
+}
+export function blankAttempt(item:GradePlan["items"][number],maximum:number|null) {
+  return !item.id.startsWith("canvas")&&item.grade===undefined&&!item.excluded&&(!item.outcome||["unknown","awaiting","not_due"].includes(item.outcome))
+    &&(item.maximum===undefined||item.maximum===maximum);
+}
+export function unlinkedRuleSlots(plan:GradePlan,records:CanvasImportRecord[],id:string){
+  const links=records.filter(r=>r.targetId===id);
+  if(!links.some(r=>r.attemptItemId))return plan.items.filter(i=>i.id.startsWith("canvas-rule-empty:")).length;
+  const linked=new Set(links.map(r=>r.lastItem?.id));
+  return plan.items.filter(i=>!linked.has(i.id)&&!i.excluded).length;
 }
 export const ruleDescription=(r:CanvasRule)=>r.method==="highest"?`Highest of ${r.count} attempts${r.passMark?` · threshold ${r.passMark.earned}/${r.passMark.possible}`:""}`:`Best ${r.bestCount} of ${r.count} · ${r.completionPoints} per confirmed submission`;
 function configured(plan:GradePlan,r:CanvasRule) {
@@ -45,14 +62,23 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
     let updated=false;
     for(const choice of selected) {
       const a=course.assignments.find(a=>a.id===choice.assignmentId);if(!a)throw new Error("Canvas item no longer exists in this file. Review again.");
-      const key=canvasKey(b,course.course.id,a.id),prior=records.get(key),itemId=`canvas:${key}`;
+      const key=canvasKey(b,course.course.id,a.id),prior=records.get(key);
+      const explicitId=prior?.attemptItemId??choice.attemptItemId,itemId=explicitId??`canvas:${key}`;
       const keep=(reason:string,kind:import("./canvas-update-status").CanvasActionKind="unchanged")=>actions.push({key,text:`${target.title} → ${a.name}: ${reason}; unchanged`,changed:false,kind});
       if(prior&&(prior.targetId!==targetId||prior.mode!=="part"||!same(prior.rule,rule)))throw new Error("This Canvas item is already linked with a different target or rule. Existing mapping preserved.");
-      if(blocked){keep("manual / existing grade or rule setup protected","protected");continue;}
+      if(prior&&choice.attemptItemId!==undefined&&choice.attemptItemId!==prior.attemptItemId)throw new Error("A saved attempt link cannot be redirected.");
+      if(explicitId!==undefined){
+        const dest=target.gradePlan?.items.find(i=>i.id===explicitId);
+        if(!same(localHighestRule(target),rule)||rule.method!=="highest"||!dest||!prior&&(!isCanvasRetake(a)||!blankAttempt(dest,a.pointsPossible)||!canvasGrade(a))
+          ||ledger.some(r=>!same(r.rule,rule)||!r.key.startsWith(`${b.accountId}:${course.course.id}:`))
+          ||[...records.values()].some(r=>r.targetId===targetId&&r.key!==key&&r.lastItem?.id===explicitId)){
+          keep("attempt unavailable, already connected or manually edited","protected");continue;
+        }
+      }else if(blocked){keep("manual / existing grade or rule setup protected","protected");continue;}
       if(prior?.readAt&&Date.parse(course.fetchedAt)<Date.parse(prior.readAt)){keep("older source ignored");continue;}
       const current=plan.items.find(i=>i.id===itemId);
       if(prior&&(!prior.readAt||prior.manual||!current||!same(current,prior.lastItem))){keep("manual / removed entry protected","protected");continue;}
-      if(current&&!prior){keep("existing entry has no source baseline","protected");continue;}
+      if(current&&!prior&&!explicitId){keep("existing entry has no source baseline","protected");continue;}
       const sourceRules=canvasSourceRules(course,a.groupId);
       const sourceReview=prior?.sourceRules!==undefined?canvasSourceRuleReview(prior.sourceRules,sourceRules):null;
       const reviewed=!!sourceReview&&sourceReview.canKeep&&choice.reviewedSourceRules===sourceRules;
@@ -62,7 +88,8 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       if(choice.outcome&&!["missed","not_taken"].includes(choice.outcome))throw new Error("Invalid explicit outcome.");
       if(choice.outcome&&(grade||complete||choice.outcome==="missed"&&rule.method!=="completion"||choice.outcome==="not_taken"&&rule.method!=="highest"))throw new Error("Explicit outcome conflicts with the source result or grading rule.");
       if(a.omitted||a.submission?.excused){keep("excluded / excused source needs separate review","attention");continue;}
-      if(current?.maximum!==undefined&&a.pointsPossible!==null&&current.maximum!==a.pointsPossible){keep("source maximum changed — review required","attention");continue;}
+      const previousMax=current?.maximum??(explicitId?prior?.lastGrade?.possible:undefined);
+      if(previousMax!==undefined&&a.pointsPossible!==null&&previousMax!==a.pointsPossible){keep("source maximum changed — review required","attention");continue;}
       // Hidden/unavailable results never clear an existing result or become zero.
       const item:GradePlan["items"][number]=current?{...current}:{id:itemId,name:a.name.slice(0,300),...(a.pointsPossible&&a.pointsPossible>0?{maximum:a.pointsPossible}:{}),outcome:"unknown"};
       if(rule.method==="highest"&&grade)item.grade=grade;
@@ -79,6 +106,7 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
         plan.items[index]=item;
       }else plan.items=plan.items.map(i=>i.id===itemId?item:i);
       records.set(key,{key,targetId,mode:"part",rule:structuredClone(rule),readAt:course.fetchedAt,lastItem:structuredClone(item),sourceRules,
+        ...(explicitId?{attemptItemId:explicitId}:{}),
         ...(item.grade?{lastGrade:item.grade}:{}),...(choice.outcome==="missed"?{manual:true}:{})});
       const label=rule.method==="highest"&&item.grade?`${item.grade.earned}/${item.grade.possible}`:item.outcome==="submitted"?`Complete → ${rule.completionPoints}`:item.outcome==="missed"?"Confirmed by you: missed → 0":item.outcome==="not_taken"?"Not taken · no zero":"Unconfirmed · no zero";
       const previous=current?.grade?`${current.grade.earned}/${current.grade.possible}`:current?.outcome==="submitted"?"Complete":"No recorded result";
@@ -89,7 +117,7 @@ export function applyCanvasRules(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       const next={...target,gradePlan:plan},index=s.tasks.findIndex(t=>t.id===targetId);
       if(index>=0)s.tasks[index]=next;else s.tasks.push(next);
       const result=partGrade(plan);
-      actions.push({key:`summary:${targetId}`,text:`${first.unit} · ${target.title}: ${result.earned===null?"No result":`${result.earned}/${result.possible}`} · ${result.finished?"settled result":"in progress, not final"} · ${plan.items.filter(i=>i.id.startsWith("canvas-rule-empty:")).length} opportunities not linked to Canvas`,changed:false,kind:"summary"});
+      actions.push({key:`summary:${targetId}`,text:`${first.unit} · ${target.title}: ${result.earned===null?"No result":`${result.earned}/${result.possible}`} · ${result.finished?"settled result":"in progress, not final"} · ${unlinkedRuleSlots(plan,[...records.values()],targetId)} opportunities not linked to Canvas`,changed:false,kind:"summary"});
     }
   }
 }

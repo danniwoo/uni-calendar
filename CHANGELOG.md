@@ -1,5 +1,10 @@
 # Changelog
 
+## Web 0.24.1 — 2026-11-02
+
+- Canvas can suggest a released numeric result for the uniquely numbered blank attempt in the same quiz, under the student's existing highest-attempt rule. Review, change or skip before importing. Keep calendar times, weights, and manual scores.
+- Keep Canvas status on one line, with a direct Open Canvas action when needed and a read-only check on return for enabled courses.
+
 ## Web 0.24.0 — 2026-11-02
 
 - Simplified navigation after user feedback: My semester, Course plan and Friends share one dropdown beside the logo; profile uses the avatar. Board views remain directly accessible, with Reminders and Manage grouped under More.

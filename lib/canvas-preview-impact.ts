@@ -1,6 +1,7 @@
 import type {GradePlan,Semester,Task} from "./semester";
 import {canvasTargets} from "./canvas-import";
 import {assessmentGrade} from "./grades";
+import {unlinkedRuleSlots} from "./canvas-rule-import";
 
 const number=(n:number)=>String(Number(n.toFixed(2)));
 type Item=GradePlan["items"][number];
@@ -16,7 +17,8 @@ function overall(t?:Task){return t?.grade?`${number(t.grade.earned)} / ${number(
 export function canvasResultChange(before:Semester,after:Semester,key:string,unit:string,targetId:string,part:boolean){
   const target=(s:Semester)=>canvasTargets(s,unit).find(t=>t.id===targetId);
   const old=target(before),next=target(after);
-  return part?{before:itemResult(old?.gradePlan?.items.find(i=>i.id===`canvas:${key}`)),after:itemResult(next?.gradePlan?.items.find(i=>i.id===`canvas:${key}`))}:
+  const itemId=after.canvasImports?.find(r=>r.key===key)?.attemptItemId??before.canvasImports?.find(r=>r.key===key)?.attemptItemId??`canvas:${key}`;
+  return part?{before:itemResult(old?.gradePlan?.items.find(i=>i.id===itemId)),after:itemResult(next?.gradePlan?.items.find(i=>i.id===itemId))}:
     {before:overall(old),after:overall(next)};
 }
 
@@ -34,5 +36,5 @@ export function canvasAssessmentImpact(before:Semester,after:Semester,unit:strin
     units:percent?"":units,pending:!result.finished,error:result.error,
     rule:completion?`Up to ${plan.bestCount} completions × ${plan.completionPoints} points each`:
       plan.method==="highest"?"Highest attempt":plan.method==="points"?"Total earned marks ÷ total possible marks":plan.method==="equal"?"Each item counts equally":plan.method==="best"?`Best ${plan.bestCount} results`:"Weighted individual results",
-    unlinked:plan.items.filter(i=>i.id.startsWith("canvas-rule-empty:")).length};
+    unlinked:unlinkedRuleSlots(plan,after.canvasImports||[],id)};
 }

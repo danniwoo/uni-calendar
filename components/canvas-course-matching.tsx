@@ -5,7 +5,8 @@ import {canvasCandidates,canvasGroupBlock,canvasKey,canvasResultLabel,planCanvas
 import {canvasMatchSections,canvasMatchStatus,canvasTargetLabel,simpleCanvasDestination} from "@/lib/canvas-match-view";
 import {existingCanvasRuleChoices,type CanvasAction} from "@/lib/canvas-update-status";
 import {CanvasRuleMapping} from "./canvas-rule-mapping";
-import {ruleDescription} from "@/lib/canvas-rule-import";
+import {localHighestRule,ruleDescription} from "@/lib/canvas-rule-import";
+import {attemptSlotOptions} from "@/lib/canvas-prepare";
 
 const result=(t?:Task)=>t?.grade?`${t.grade.earned} / ${t.grade.possible}`:t?.grade===null?"Manually cleared":t?.gradePlan?"Individual results recorded":"No recorded grade";
 
@@ -15,6 +16,7 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
   inlineSourceId?:string;onCancel?:()=>void;initialTargetId?:string;initialPlacement?:"parts";stageLabel?:string;compact?:boolean;attemptResult?:boolean;
 }){
   const [checked,setChecked]=useState<string[]>(inlineSourceId?[inlineSourceId]:[]),[editing,setEditing]=useState(!!inlineSourceId),[batch,setBatch]=useState(false),[target,setTarget]=useState(initialTargetId||""),[placement,setPlacement]=useState(initialPlacement||""),[method,setMethod]=useState("");
+  const [pickedSlot,setPickedSlot]=useState<string|null>(null);
   const editorRef=useRef<HTMLDivElement>(null);
   useEffect(()=>{if(editing)editorRef.current?.focus();},[editing]);
   const records=semester.canvasAccountId===bundle.accountId?semester.canvasImports||[]:[];
@@ -24,13 +26,19 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
   const candidates=sources.length===1?canvasCandidates(semester,unit,sources[0]):[];
   const targetRecords=records.filter(r=>r.targetId===target);
   const sameGroup=sources.length>0&&sources.every(a=>a.groupId===sources[0].groupId);
+  const source=sources.length===1?sources[0]:undefined;
+  const localRule=attemptResult&&source&&destination&&destination.gradePlan?.items.some(i=>!i.id.startsWith("canvas"))?localHighestRule(destination):undefined;
+  const slots=localRule&&destination&&source?attemptSlotOptions(semester,destination,source).filter(i=>!Object.values(choices).some(c=>(c.courseId!==course.course.id||c.assignmentId!==source.id)&&c.targetId===target&&c.attemptItemId===i.id)):[];
+  const staged=source?choices[`${course.course.id}:${source.id}`]:undefined;
+  const slotId=pickedSlot??(staged?.targetId===target?staged.attemptItemId:undefined);
+  const slot=slots.find(i=>i.id===slotId);
   const block=sameGroup?canvasGroupBlock(course,sources[0].groupId||""):"These items belong to different Canvas groups. Check their rules before combining marks.";
   function reset(){setChecked([]);setEditing(false);setBatch(false);setTarget("");setPlacement("");setMethod("");onCancel?.();}
-  function chooseTarget(id:string){const t=targets.find(t=>t.id===id);setTarget(id);setPlacement(initialPlacement|| (sources.length>1?"parts":t&&simpleCanvasDestination(t,semester.tasks)?"overall":""));setMethod("");}
+  function chooseTarget(id:string){const t=targets.find(t=>t.id===id);setTarget(id);setPickedSlot(null);setPlacement(initialPlacement|| (sources.length>1?"parts":t&&simpleCanvasDestination(t,semester.tasks)?"overall":""));setMethod("");}
   function open(ids:string[]){setChecked(ids);setTarget("");setPlacement("");setMethod("");setEditing(true);}
   function stage(items:CanvasChoice[]){onStage(items);reset();}
   const eligible=course.assignments.filter(a=>!records.some(r=>r.key===canvasKey(bundle,course.course.id,a.id))&&!choices[`${course.course.id}:${a.id}`]&&!a.omitted&&!a.submission?.excused);
-  const proposed:CanvasChoice[]=target&&sources.length?(savedRule?sources.map(a=>({courseId:course.course.id,assignmentId:a.id,unit,targetId:target,mode:"part",rule:savedRule.rule})):placement==="overall"&&sources.length===1?[{courseId:course.course.id,assignmentId:sources[0].id,unit,targetId:target,mode:"overall"}]:placement==="parts"&&["points","equal"].includes(method)&&!block?sources.map(a=>({courseId:course.course.id,assignmentId:a.id,unit,targetId:target,mode:"part",method:method as "points"|"equal"})):[]):[];
+  const proposed:CanvasChoice[]=localRule?(source&&slot?[{courseId:course.course.id,assignmentId:source.id,unit,targetId:target,mode:"part",rule:localRule,attemptItemId:slot.id}]:[]):target&&sources.length?(savedRule?sources.map(a=>({courseId:course.course.id,assignmentId:a.id,unit,targetId:target,mode:"part",rule:savedRule.rule})):placement==="overall"&&sources.length===1?[{courseId:course.course.id,assignmentId:sources[0].id,unit,targetId:target,mode:"overall"}]:placement==="parts"&&["points","equal"].includes(method)&&!block?sources.map(a=>({courseId:course.course.id,assignmentId:a.id,unit,targetId:target,mode:"part",method:method as "points"|"equal"})):[]):[];
   // Validate locally with the same planner, before staging the connection.
   let validation="";let proposedActions:CanvasAction[]=[];
   if(proposed.length)try{const merged={...choices,...Object.fromEntries(proposed.map(c=>[`${c.courseId}:${c.assignmentId}`,c]))};const p=planCanvasImport(semester,bundle,Object.values(merged));const keys=new Set(proposed.map(c=>canvasKey(bundle,c.courseId,c.assignmentId)));proposedActions=p.actions.filter(a=>keys.has(a.key));}catch(e){validation=(e as Error).message;}
@@ -48,7 +56,7 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
         {!compact?<div className="canvas-value-comparison"><div><small>Canvas</small>{sources.map(a=><p key={a.id}>{a.name}<strong>{canvasResultLabel(a)}</strong></p>)}</div><div><small>Semester · {destination.weight||"weight unknown"}</small><p>{destination.title}<strong>{result(destination)}</strong></p>{destination.date&&<small>Your due date: {destination.date} · kept unchanged</small>}</div></div>:target!==initialTargetId&&<p className="hint">Current result in this assessment: {result(destination)} · dates kept</p>}
         {destination.gradePlan&&<details><summary>Existing individual records ({destination.gradePlan.items.length})</summary><ul>{destination.gradePlan.items.map(i=><li key={i.id}>{i.name} · {i.grade?`${i.grade.earned}/${i.grade.possible}`:"No numeric result"}</li>)}</ul></details>}
         {targetRecords.length>0&&<details><summary>{targetRecords.length} existing Canvas links to this assessment</summary><ul>{targetRecords.map(r=><li key={r.key}>{course.assignments.find(a=>canvasKey(bundle,course.course.id,a.id)===r.key)?.name||"Previously linked Canvas item"} · {r.mode==="part"?"individual record":"whole-assessment result"}</li>)}</ul></details>}
-        {savedRule?<p className="notice">Use your confirmed rule: {ruleDescription(savedRule.rule)}. Blank results stay unknown. Existing manual records are protected.</p>:attemptResult?<>
+        {localRule?<><label>Save result to<select value={slot?.id||""} onChange={e=>setPickedSlot(e.target.value)}><option value="">Choose attempt…</option>{slots.map(i=><option key={i.id} value={i.id}>{i.name}</option>)}</select></label><small>{slots.length?ruleDescription(localRule)+" · schedule stays unchanged":"No available blank attempt. Existing scores and links stay unchanged."}</small></>:savedRule?<p className="notice">Use your confirmed rule: {ruleDescription(savedRule.rule)}. Blank results stay unknown. Existing manual records are protected.</p>:attemptResult?<>
           {destination.gradePlan?<p className="notice">This assessment has existing records without a reusable Canvas rule. They are kept unchanged; review its calculation before connecting another attempt.</p>:<CanvasRuleMapping key={target} course={course} unit={unit} targets={targets} fixedTarget={target} sourceIds={checked} onStage={stage} requireRuleChoice stageLabel="Apply to preview"/>}
         </>:<>
           {sources.length===1&&simpleCanvasDestination(destination,semester.tasks)&&placement==="overall"?<p className="notice">Use as this assessment’s overall grade. <button className="canvas-text-button" onClick={()=>setPlacement("parts")}>It is only one part…</button></p>:sources.length===1?<fieldset className="canvas-placement"><legend>{compact?"Use result as":"What does this Canvas result represent?"}</legend>
@@ -64,7 +72,7 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
         {validation&&<p role="alert" className="notice error">{validation}</p>}
         {proposedActions.some(a=>a.kind==="protected")&&<p className="notice">Your existing value is kept. This does not accept or replace it with Canvas.</p>}
         {noApplicableChange&&<p className="notice">No link or result can be changed with this selection. Existing records are protected.</p>}
-        {method!=="special"&&(!attemptResult||!!savedRule)&&<button className="primary" disabled={!proposed.length||!!validation||noApplicableChange} onClick={()=>stage(proposed)}>{compact?"Apply to preview":stageLabel||"Add to review · not saved yet"}</button>}
+        {method!=="special"&&(!attemptResult||!!savedRule||!!localRule)&&<button className="primary" disabled={!proposed.length||!!validation||noApplicableChange} onClick={()=>stage(proposed)}>{compact?"Apply to preview":stageLabel||"Add to review · not saved yet"}</button>}
       </>}
     </div>}
     {!inlineSourceId&&sections.map(section=><section className="canvas-source-group" key={section.id} aria-label={`Canvas group ${section.name}`}>
