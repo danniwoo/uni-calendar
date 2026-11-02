@@ -6,7 +6,7 @@ Semester Preview has a connection sheet, an Assessments tab and a deadline widge
 
 The **0.3.4 (8)** preview also exposes the signed-in board in the main **Assessments → Cloud semester** tab. It shows dated work, weight, Sydney due times and a unit filter. **Local sample** retains the sample assessments and grade views. Links from sample screens open the corresponding sample view. Home, Today and Month still use their existing local models. The staging web client's backup preview and local SQLite rehearsal are described in [migration setup](../migration/README.md#cutover-sequence).
 
-The mobile typecheck and 40 tests passed. The signed Release app and extension both report 0.3.4 (8). The app was installed and launched on the paired iPhone. Select **ISYS2120** in Cloud semester to check that the quiz appears by itself, then **All units** to see both staging deadlines. The comparison source is tagged `ios-preview-v0.3.4`.
+The mobile typecheck and 40 tests passed. The signed Release app and extension both report 0.3.4 (8). Daniel confirmed that **Assessments → Cloud semester** on his iPhone displayed the SOFT2412 and ISYS2120 assessments. Selecting **ISYS2120** showed only the database quiz. The comparison source is tagged `ios-preview-v0.3.4`.
 
 ## Independent Google + D1 proof — 0.3.2 (6)
 
