@@ -2,6 +2,13 @@
 
 Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-02 iPhone connection diagnostic / Semester Preview 0.3.1
+
+- User authorised trying the existing Site before considering migration/alternatives. Added Widgets → Test website connection: native HEAD before/after system authentication browser, explicit user observation of whether the website opened, retry without login, timeout/cancellation and conservative status classification. No body parsing, credential/cookie extraction, native token implementation, record writes, widget/account sync or hosted changes.
+- Sites still returns to its own relative path; the browser is closed manually. A callback observation or 200 JSON header never establishes verified identity. 401/403, redirects/HTML, HEAD unsupported, network errors and timeout are distinct. Results remain on the screen, with no persisted analytics. Existing sample/personal-task/widget storage keys and prior tags are retained.
+- Passed TypeScript, 21 tests, JS export and Simulator/device Release builds (each 0 errors / 4 warnings). Simulator verified entry/instructions/busy state, preserved widget preferences and arrival at Google/OpenAI sign-in. Automatic review initially blocked the iOS consent click; user explicitly approved continuing, then opted for the phone after Simulator automation timed out. This is not evidence of a Sites auth failure.
+- Installer completed; `devicectl` confirms **0.3.1 (5)** and user confirms the version on their iPhone. User is testing; website-open and Before/After results remain pending. No native authentication or live sync acceptance claimed. Trial instructions and logs are in mobile README; earlier audit evidence remains in mobile/feasibility.
+
 ### 2026-11-02 Profile & settings / invitation links / Web 0.22.0 (Sites 66)
 
 - User approved the evaluated next release. Shared `AccountMenu` is mounted in both the existing board and course plan. `/api/account` reads only the current account's email/profile, pending-request count and own blocked connections; it never exposes another account's email, marks, WAM or account identifier. Profile saves retain existing revisions and identity; settings support unblocking, saved plan/semester exports, and the existing platform sign-out route. No account migration or schema change.

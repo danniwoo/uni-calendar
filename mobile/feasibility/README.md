@@ -53,6 +53,18 @@ These checks do not validate hosted sign-in, Sites header sanitisation, producti
 
 Exit evidence: native login returns to the app; Alice cannot access Bob; sign-out/revocation prevents later access; web and phone read the same synthetic revision; one completion and Undo affect only that preparation task; two-client conflicts and a lost-response retry retain all other fields; widget display identifies its freshness. Until these pass, describe the experience as a local preview or isolated integration trial.
 
+## On-device session probe — preview 0.3.1
+
+Daniel authorised trying the current site before considering migration or another solution. The preview adds a bounded **Widgets → Test website connection** diagnostic. It checks a native `HEAD /api/semester`, opens the existing same-origin Sites sign-in with Expo's system authentication browser, and checks HEAD again after the user closes the browser. The user separately records whether the website actually opened. No production route or audience is changed.
+
+The configured native return URL is only an observation endpoint in the app; it is not supplied as an unsupported Sites `return_to` and the website does not implement a callback. The user therefore closes this browser with Cancel. A returned URL is not trusted as authentication. No authorization-code exchange or native token implementation is claimed. This experiment can show whether direct browser-session reuse works, not whether every possible supported Sites integration will work.
+
+The diagnostic never reads response bodies or sends explicit credentials/identity headers. It allows the native network stack's own cookie handling, does not extract browser cookies, and retains only status classifications in screen state. Redirects, HTML, network failure, timeouts, API rejection and unsupported HEAD are distinct. Even a 200 JSON response remains identity-unverified. Real login, authenticated synthetic reads, isolation, renewal/revocation and sync still need separate proof. The app's local sample/task/widget storage is unchanged.
+
+The added system browser uses `ASWebAuthenticationSession` on iOS, per [Expo's SDK 55 WebBrowser contract](https://docs.expo.dev/versions/v55.0.0/sdk/webbrowser/). It is not an embedded WebView. A successful browser login by itself is not evidence that native fetch has an authenticated session.
+
+Validation: 21 tests, TypeScript, JS export and both native Release builds passed. The system browser reached Google/OpenAI sign-in in Simulator. Daniel chose the physical-phone trial and confirmed 0.3.1 is installed; `devicectl` independently confirms 0.3.1 (5). Signed-in Before/After observations are pending. Simulator UI automation timed out during account entry, which is a testing limitation, not a Sites authentication result. Concurrent website work has advanced the hosted application beyond the version-63 audit above; the status probe sends no board or sync-version payload and makes no compatibility claim for writing to those later APIs.
+
 ## Alternatives
 
 | Route | When it helps | What it does not prove |
