@@ -78,6 +78,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 0.2 待驗收：Simulator 可進 Lock Screen Add Widgets，但 CUA scroll/coordinate 操作返回 `noWindowsAvailable`，尚未完成實際 widget render/tap 驗證；已請使用者在實機試加 single/two deadlines。原生 readability、tap destination、background refresh／跨日，以及無教學 glanceability 試用仍待實測。Stage 2 hosting/native auth/live sync 尚未開始。
 - 2026-11-02 widget follow-up：使用者確認 sample deadlines 有顯示，要求 customise widget content。**0.2.1 (3)** 已安裝；Widgets 可選多個 units、隱藏／顯示 titles、Save 後更新兩個 Lock Screen designs 與 Work overview，偏好共用於此 iPhone，非每個 widget 的 Edit Widget intent。TypeScript／13 tests／JS export／Simulator 與 device Release builds 通過；Simulator 驗證 save、空選取 guard、完整關閉重開 persistence，並讀取 App Group 確認三個 timeline 的 25 entries 都已套用 filter／title setting。仍待實機觀察 Save 後畫面 refresh 與 tap；Stage 2 未開始。
 
+- 2026-11-02 follow-up: **0.3.0 (4)** personal tasks installed and preserved at `ios-preview-v0.3.0`; Today supports add/edit, Today/Tomorrow, optional unit, suggestion copy, completion/delete Undo and unfinished carryover. 18 tests, native builds and Simulator persistence/reset checks passed; phone task trial remains pending. User then authorised **Stage 2 investigation**. The local API contract check passed and exposed whole-document replacement risk; native Sites auth/token handoff remains unverified. See [technical evidence](mobile/feasibility/README.md). Next: resolve the supported native login/API environment and test one synthetic board plus a narrow preparation update. No live integration, hosting migration or Stage 1 acceptance claimed.
+
 ### REMIND-01
 
 **Apple Calendar 式多提醒 → Chrome 系統通知** · P1 · **待驗證** · 使用者明確批准的增量

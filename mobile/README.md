@@ -2,6 +2,8 @@
 
 Stage 1 only: an Expo/React Native app with an **invented sample semester and device-local personal tasks**. Version 0.3.0 explores compact Home, Today, Month and Assessments views, two rectangular Lock Screen widgets and a medium work overview. No sign-in, live timetable, Canvas access, analytics, cloud writes or migration. The existing website remains the production app.
 
+Stage 2 investigation has started separately: see [hosting/authentication findings and the disposable API check](feasibility/README.md). No live integration is installed in 0.3.0.
+
 ## Try the journey
 
 1. Open **Semester Preview → Home**. Identify the sample teaching week, this week's deadlines, next week and dates needing confirmation. Counts describe dated deadlines, not estimated workload.

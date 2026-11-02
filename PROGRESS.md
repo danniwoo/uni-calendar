@@ -2,6 +2,13 @@
 
 Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-02 iOS Stage 2 investigation / native identity and API boundary
+
+- User authorised the hosting/authentication investigation after the 0.3.0 personal-plan preview. Installed app remains 0.3.0 (4), source checkpoint `ios-preview-v0.3.0` / `74bd034`. No production integration or app update in this investigation.
+- Sites metadata confirms active/custom access and successful published version 63. Local auth reads Sites dispatch identity; the documented sign-in uses top-level browser navigation and same-origin relative returns. No supported native client/token handoff was verified. Anonymous API/sign-in probes returned 403; these do not prove native access impossible. Published source SHA is not present locally, so handler checks explicitly apply to the local checkout.
+- Added `mobile/feasibility/check-current-api.mjs`: actual local auth/API handlers and validators, mocked trusted request headers, disposable SQLite, network forbidden. Passed identity rejection, owner separation, same-origin rejection, full-snapshot preparation-only save preserving grades/deadlines/unknown fields, stale revision and old-client rejection. Confirmed that a reduced current-revision payload can remove omitted fields under the existing whole-document PUT semantics. This is not a native authentication test.
+- Recommendation and bounded next experiment are in `mobile/feasibility/README.md`: establish supported native auth, then one synthetic board and one narrow preparation completion with revision/generation/idempotency protection shared by native and a web test client. Account mapping is required if changing identity providers/Sites; service bypass credentials are not student sessions. No provider selected, new accounts, schema changes, hosted writes, production data reads or migration. Notion retains the product-level findings.
+
 ### 2026-11-02 widget content customisation / Semester Preview 0.2.1
 
 - User reports sample deadlines render on the phone, and clarified that they want to customise widget content. Added multi-unit selection and title visibility in Widgets, with explicit Save, unsaved preview feedback, an empty-selection guard and persisted local preferences. Applies to the single/two-deadline widgets and medium work overview on this iPhone; layout remains chosen in the iOS gallery. These are shared content preferences, not per-instance Edit Widget intents.
