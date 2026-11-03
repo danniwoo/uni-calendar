@@ -16,7 +16,6 @@
       "buildNumber": "19"
     },
     "plugins": [
-      "expo-dev-client",
       "./plugins/withLocalWidgets",
       [
         "expo-notifications",

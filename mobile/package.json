@@ -8,7 +8,6 @@
     "@supabase/supabase-js": "2.118.0",
     "expo": "~55.0.32",
     "expo-crypto": "55.0.19",
-    "expo-dev-client": "~55.0.41",
     "expo-linking": "~55.0.17",
     "expo-notifications": "~55.0.27",
     "expo-secure-store": "55.0.18",
