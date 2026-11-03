@@ -1,5 +1,5 @@
 import type {Semester,Task} from "./semester";
-import {canvasGrade,canvasKey,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasChoice} from "./canvas-import";
+import {CANVAS_SOURCE,canvasGrade,canvasKey,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasChoice} from "./canvas-import";
 import {simpleCanvasDestination} from "./canvas-match-view";
 import {blankAttempt,localHighestRule} from "./canvas-rule-import";
 
@@ -11,6 +11,8 @@ const tokens=(s:string)=>new Set(words(s).split(" ").filter(w=>w.length>2&&!/^(t
 const weeklyQuiz=(s:string)=>/\bquiz(?:zes)?\b/i.test(s)&&/\bweek\s*\d+\b/i.test(s);
 const weeklyQuizParent=(t:Task)=>t.gradePlan?.mode==="parts"&&["points","equal"].includes(t.gradePlan.method)&&
   (t.kind==="recurring"||/\bweekly\s+quiz(?:zes)?\b/i.test(t.title));
+const weeklyQuizParents=(s:Semester,unit:string,a:CanvasAssignment)=>canvasTargets(s,unit).filter(t=>weeklyQuiz(a.name)&&weeklyQuizParent(t)&&
+  s.canvasImports?.some(r=>r.targetId===t.id&&r.mode==="part"));
 export const canvasDay=(s:string|null)=>s?new Intl.DateTimeFormat("en-CA",{timeZone:"Australia/Sydney",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(s)):"";
 // Suggest placement only. A matching quiz number never chooses a calculation rule.
 export function canvasAttemptTargets(s:Semester,unit:string,a:CanvasAssignment){
@@ -77,7 +79,19 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
     const unit=units[c.course.id];
     for(const a of c.assignments){
       const key=`${c.course.id}:${a.id}`,prior=saved.get(canvasKey(b,c.course.id,a.id));
-      if(prior)continue; // Never recreate a removed item or redirect a saved link.
+      if(prior){
+        // A previous first-use import may have created a standalone Canvas
+        // assessment. Offer a one-time, explicit migration into the existing
+        // weekly group only while that imported item is still untouched.
+        const targets=unit?canvasTargets(s,unit):[],old=targets.find(t=>t.id===prior.targetId),parents=unit?weeklyQuizParents(s,unit,a):[];
+        const safeOld=old&&old.id.startsWith("canvas-")&&old.source.startsWith(CANVAS_SOURCE)&&old.manual===true&&!old.overrides?.length&&!old.parentId&&!old.series&&!old.gradePlan&&prior.mode==="overall"&&!prior.manual;
+        if(unit&&safeOld&&parents.length===1){
+          const parent=parents[0];
+          choices[key]={courseId:c.course.id,assignmentId:a.id,unit,targetId:parent.id,mode:"part",method:parent.gradePlan!.method as "points"|"equal",migrateFromTargetId:old.id};
+          reasons[key]=`Suggested · move this imported weekly quiz into ${parent.title}`;
+        }
+        continue; // Never redirect an existing link unless the safe migration above applies.
+      }
       const term=c.course.term.match(/Semester\s*([12])\D+(20\d{2})/i);
       if(term&&(Number(term[2])!==s.year||`S${term[1]}C`!==s.session)){
         delete choices[key];issues[key]="This Canvas course is from another semester. Check the course before connecting.";continue;
@@ -106,8 +120,7 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
         // not new overall assessments. Require an existing points/equal rule
         // and at least one prior Canvas part connection before suggesting this
         // many-to-one destination; a manually created group still needs setup.
-        const weeklyParents=targets.filter(t=>weeklyQuiz(a.name)&&weeklyQuizParent(t)&&
-          s.canvasImports?.some(r=>r.targetId===t.id&&r.mode==="part"));
+        const weeklyParents=weeklyQuizParents(s,unit,a);
         if(weeklyParents.length===1){
           const parent=weeklyParents[0];
           proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:parent.id,mode:"part",method:parent.gradePlan!.method as "points"|"equal"},score:72,reason:`Suggested · weekly quiz → ${parent.title} · existing ${parent.gradePlan!.method} rule`});

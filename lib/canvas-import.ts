@@ -9,7 +9,7 @@ export const CANVAS_SOURCE="https://canvas.sydney.edu.au";
 export type CanvasAssignment={id:string;name:string;groupId:string|null;dueAt:string|null;opensAt:string|null;closesAt:string|null;pointsPossible:number|null;omitted:boolean;result?:"complete"|"incomplete";submission:null|{released:boolean;excused:boolean;score:number|null;releaseEvidence:string|null;currentAttemptGraded:boolean|null}};
 export type CanvasCourse={course:{id:string;name:string;code:string;term:string;weighted:boolean|null};fetchedAt:string;groupsUnavailable:boolean;marksPageUnavailable:boolean;assignments:CanvasAssignment[];groups:{id:string;name:string;weight:number|null;rules:{dropLowest:number|null;dropHighest:number|null;neverDrop:string[]}}[]};
 export type CanvasBundle={format:"semester-connect";schemaVersion:1;source:typeof CANVAS_SOURCE;accountId:string;exportedAt:string;courses:CanvasCourse[]};
-export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal";rule?:CanvasRule;attemptItemId?:string;outcome?:"missed"|"not_taken";reviewedSourceRules?:string};
+export type CanvasChoice={courseId:string;assignmentId:string;unit:string;targetId:string;mode:"overall"|"part";method?:"points"|"equal";rule?:CanvasRule;attemptItemId?:string;outcome?:"missed"|"not_taken";reviewedSourceRules?:string;migrateFromTargetId?:string};
 export type CanvasImportRecord=NonNullable<Semester["canvasImports"]>[number];
 const object=(x:unknown):x is Record<string,unknown>=>!!x&&typeof x==="object"&&!Array.isArray(x);
 const id=(x:unknown):x is string=>typeof x==="string"&&/^[1-9]\d{0,19}$/.test(x);
@@ -157,7 +157,10 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
     const ownedGrade=(value:unknown)=>!!prior?.readAt&&!prior.manual&&same(value,prior.lastGrade);
     const stale=!!prior?.readAt&&Date.parse(c.fetchedAt)<Date.parse(prior.readAt);
     const keep=(message:string,kind:import("./canvas-update-status").CanvasActionKind="unchanged")=>{const linked=!prior;if(linked)records.set(key,{key,targetId,mode:choice.mode,readAt:c.fetchedAt,...(choice.mode==="overall"?{manual:true}:{})});actions.push({key,text:`${message}${linked?" · mapping saved for next time":""}`,changed:linked,kind:kind==="unchanged"&&linked?"mapping":kind});};
-    if(prior&&(prior.targetId!==targetId||prior.mode!==choice.mode))throw new Error("This Canvas item is already linked elsewhere. Existing mapping was preserved.");
+    const migrating=!!choice.migrateFromTargetId&&prior?.targetId===choice.migrateFromTargetId&&prior.mode==="overall"&&choice.mode==="part";
+    if(prior&&(prior.targetId!==targetId||prior.mode!==choice.mode)&&!migrating)throw new Error("This Canvas item is already linked elsewhere. Existing mapping was preserved.");
+    const oldTarget=migrating?next.tasks.find(t=>t.id===choice.migrateFromTargetId):undefined;
+    if(migrating&&(!oldTarget||!oldTarget.id.startsWith("canvas-")||!oldTarget.source.startsWith(CANVAS_SOURCE)||oldTarget.manual!==true||oldTarget.overrides?.length||oldTarget.parentId||oldTarget.series||oldTarget.gradePlan||prior?.manual||!same(oldTarget.grade,prior?.lastGrade)))throw new Error("This imported assessment was edited, so it cannot be moved automatically. Keep it separate and review it manually.");
     if(choice.targetId==="new"){
       if(choice.mode!=="overall")throw new Error("Choose an existing assessment for individual parts.");
       if(prior&&!next.tasks.some(t=>t.id===newId)){actions.push({key,text:`${a.name}: previously imported then removed; not recreated`,changed:false,kind:"protected"});continue;}
@@ -203,18 +206,32 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       if(t.gradePlan!==undefined&&(!t.gradePlan||t.gradePlan.mode!=="parts"||t.gradePlan.method!==choice.method||!owned)){
         actions.push({key,text:`${t.title}: existing individual-grade setup kept`,changed:false,kind:"protected"});continue;
       }
-      if(item?.excluded||prior&&!item||item?.grade!==undefined&&!ownedGrade(item.grade)||prior?.manual){
+      if(!migrating&&(item?.excluded||prior&&!item||item?.grade!==undefined&&!ownedGrade(item.grade)||prior?.manual)){
         if(legacyMatch&&!prior)records.set(key,{key,targetId,mode:"part",readAt:c.fetchedAt,...(item?.grade?{lastGrade:item.grade}:{}),manual:true});
         actions.push({key,text:`${a.name}: manual / removed part preserved`,changed:false,kind:"protected"});continue;
       }
       if(stale){keep(`${a.name}: older Canvas read ignored`);continue;}
       if(item?.maximum!==undefined&&grade&&item.maximum!==grade.possible){actions.push({key,text:`${a.name}: existing maximum ${item.maximum} differs from Canvas ${grade.possible}; review manually`,changed:false,kind:"attention"});continue;}
+      if(migrating&&item&&same(item.grade,grade)){
+        // The duplicate's result is already present in the destination group.
+        // Link it and remove only the untouched standalone Canvas task.
+        records.set(key,{key,targetId,mode:"part",readAt:c.fetchedAt,...(grade?{lastGrade:grade}:{}),manual:true});
+        if(oldTarget){
+          next.tasks=next.tasks.filter(candidate=>candidate.id!==oldTarget.id);
+          actions.push({key,text:`${a.name}: moved from standalone assessment to ${t.title} · existing result kept; old duplicate removed`,changed:true,kind:"mapping"});
+        }
+        continue;
+      }
       if(item&&!grade){actions.push({key,text:`${a.name}: still ungraded; no change`,changed:false});continue;}
       if(item&&same(item.grade,grade)){keep(`${a.name}: grade unchanged`);continue;}
       const entry={id:itemId,name:(a.name||"Canvas item").slice(0,300),...(a.pointsPossible&&a.pointsPossible>0?{maximum:a.pointsPossible}:{}),...(grade?{grade}:{}),...(a.omitted||a.submission?.excused?{excluded:true}:{})};
       const plan:GradePlan=t.gradePlan?{...t.gradePlan,canvasPendingReview:true,items:item?t.gradePlan.items.map(i=>i.id===itemId?{...i,grade:grade!}:i):[...t.gradePlan.items,entry]}:{mode:"parts",method:choice.method!,canvasPendingReview:true,items:[entry]};
       if(!validGradePlan(plan))throw new Error("Individual grade plan is too large or invalid. Nothing imported.");
-      put({...t,gradePlan:plan});record();actions.push({key,text:`${t.title} → ${a.name}: ${item?.grade?`${item.grade.earned}/${item.grade.possible} → `:grade?"No recorded result → ":""}${grade?`${grade.earned}/${grade.possible}`:"ungraded / excluded part"}; dates and weight kept`,changed:true,kind:grade?"grade":"mapping"});
+      put({...t,gradePlan:plan});record();
+      if(migrating&&oldTarget){
+        next.tasks=next.tasks.filter(candidate=>candidate.id!==oldTarget.id);
+        actions.push({key,text:`${a.name}: moved from standalone assessment to ${t.title} · ${grade?`${grade.earned}/${grade.possible}`:"ungraded / excluded part"}; old duplicate removed`,changed:true,kind:grade?"grade":"mapping"});
+      }else actions.push({key,text:`${t.title} → ${a.name}: ${item?.grade?`${item.grade.earned}/${item.grade.possible} → `:grade?"No recorded result → ":""}${grade?`${grade.earned}/${grade.possible}`:"ungraded / excluded part"}; dates and weight kept`,changed:true,kind:grade?"grade":"mapping"});
     }
   }
   next.canvasImports=[...records.values()];

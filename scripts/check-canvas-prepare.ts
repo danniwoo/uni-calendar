@@ -98,6 +98,16 @@ assert.equal(weeklyPlan.semester.tasks.some(t=>t.id.startsWith("canvas-")),false
 assert.equal(weeklyResult.gradePlan?.items.length,2,"new week is appended inside the existing group");
 assert.equal(weeklyResult.gradePlan?.items.filter(i=>i.name.includes("week10")).length,1,"rebuilt Canvas ID reuses the existing week item");
 assert.equal(weeklyPlan.semester.canvasImports?.some(r=>r.key==="91:101:10"&&r.targetId===weeklyGroup.id),true,"reconnected source is remembered");
+const accidental={...weeklyGroup,id:"canvas-91-101-10",title:"week10-quiz- Requires Respondus LockDown Browser",kind:"assessment" as const,weight:"",gradePlan:undefined,source:"https://canvas.sydney.edu.au/courses/101/assignments/10",grade:{earned:2.1,possible:3},manual:true};
+const migrationBoard={...weeklyBoard,tasks:[weeklyGroup,accidental],canvasImports:[...weeklyBoard.canvasImports!,{key:"91:101:10",targetId:accidental.id,mode:"overall" as const,readAt:"2026-10-31T00:00:00Z",lastGrade:{earned:2.1,possible:3}}]};
+const migrationDraft=prepareCanvasImport(migrationBoard,weeklyBundle);
+assert.equal(migrationDraft.choices["101:10"]?.targetId,weeklyGroup.id,"saved standalone result gets a recovery destination");
+assert.equal(migrationDraft.choices["101:10"]?.migrateFromTargetId,accidental.id);
+const migrated=planCanvasImport(migrationBoard,weeklyBundle,Object.values(migrationDraft.choices));
+assert.equal(migrated.semester.tasks.some(t=>t.id===accidental.id),false,"safe recovery removes only the untouched Canvas duplicate");
+assert.equal(migrated.semester.tasks.find(t=>t.id===weeklyGroup.id)?.gradePlan?.items.some(i=>i.name.includes("week10")),true);
+const editedStandalone={...migrationBoard,canvasImports:migrationBoard.canvasImports!.map(r=>r.key==="91:101:10"?{...r,manual:true}:r)};
+assert.equal(prepareCanvasImport(editedStandalone,weeklyBundle).choices["101:10"]?.targetId,accidental.id,"manual edits never trigger automatic recovery");
 const deleted={...saved,tasks:saved.tasks.slice(1)};
 assert.equal(prepareCanvasImport(deleted,b).choices["101:1"],undefined,"deleted imported task not recreated");
 assert.equal(Object.keys(prepareCanvasImport(saved,{...b,accountId:"999"}).choices).length,0);
