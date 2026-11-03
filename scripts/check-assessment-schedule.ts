@@ -27,6 +27,25 @@ assert.throws(()=>createAssessmentSteps(s,parent,rows.map(r=>({...r,weight:"2"})
 assert.throws(()=>createAssessmentSteps(s,parent,[{...rows[0],weight:"-1"},rows[1]]),/percentage/);
 assert.equal(createAssessmentSteps(s,parent,[{...rows[0],weight:"4"},{...rows[1],weight:"6"}]).tasks.length,3);
 assert.throws(()=>createAssessmentSteps(s,parent,[{...rows[1],date:"2026-02-30"},rows[0]]),/valid date/);
+// Regression: a dated parent can represent a submission in an earlier week
+// while a separate demo step uses the student's tutorial in the following week.
+// The parent becomes an aggregate only; each child keeps its own schedule.
+const finalProject:Task={...parent,id:"final-project",title:"Final project demo and presentation",date:"2026-10-18",time:"23:59",week:10};
+const finalBoard:Semester={...s,tasks:[finalProject],classes:[...s.classes,{id:"tut13",unit:"TEST1001",activity:"Tutorial",week:13,date:"2026-11-05",time:"16:00",end:"18:00",location:"Room"}]};
+const finalRows:AssessmentStep[]=[
+  {title:"Slides submission",mode:"date",date:"2026-10-18",time:"23:59",week:10,scheduleEdited:true},
+  {title:"Demo",mode:"tutorial",week:13,scheduleEdited:true},
+];
+const finalSplit=createAssessmentSteps(finalBoard,finalProject,finalRows);
+const finalChildren=finalSplit.tasks.filter(t=>t.parentId===finalProject.id);
+assert.deepEqual(finalChildren.map(t=>[t.title,t.week,t.date,t.timeBasis]),[
+  ["Slides submission",10,"2026-10-18","deadline"],
+  ["Demo",13,"2026-11-05","class"],
+]);
+assert.equal(finalSplit.tasks.find(t=>t.id===finalProject.id)?.splitCount,2);
+assert.equal(finalSplit.tasks.find(t=>t.id===finalProject.id)?.date,undefined);
+assert.deepEqual(weekData(finalSplit,"2026-10-12").due.map(t=>t.title),["Slides submission"]);
+assert.deepEqual(weekData(finalSplit,"2026-11-02").linked.get("tut13")?.map(t=>t.title),["Demo"]);
 parts[0].done=true;
 const refreshed=mergeSemester(split,structuredClone(s));
 assert.equal(refreshed.tasks.find(t=>t.id===parts[0].id)?.done,true);
