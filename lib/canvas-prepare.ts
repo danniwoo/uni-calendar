@@ -8,6 +8,9 @@ const label=(s:string)=>words(s).match(/\b(?:assignment|a)\s*(\d+)\b/)?.[1];
 const week=(s:string)=>words(s).match(/\bweek\s*(\d+)\b/)?.[1];
 const roles=(s:string):string[]=>words(s).match(/\b(?:report|presentation|demo|quiz|exam)\b/g)||[];
 const tokens=(s:string)=>new Set(words(s).split(" ").filter(w=>w.length>2&&!/^(the|and|for|due|week|submission|requires|respondus|lockdown|browser)$/.test(w)));
+const weeklyQuiz=(s:string)=>/\bquiz(?:zes)?\b/i.test(s)&&/\bweek\s*\d+\b/i.test(s);
+const weeklyQuizParent=(t:Task)=>t.gradePlan?.mode==="parts"&&["points","equal"].includes(t.gradePlan.method)&&
+  (t.kind==="recurring"||/\bweekly\s+quiz(?:zes)?\b/i.test(t.title));
 export const canvasDay=(s:string|null)=>s?new Intl.DateTimeFormat("en-CA",{timeZone:"Australia/Sydney",year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(s)):"";
 // Suggest placement only. A matching quiz number never chooses a calculation rule.
 export function canvasAttemptTargets(s:Semester,unit:string,a:CanvasAssignment){
@@ -99,6 +102,17 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
         if(second&&first.score-second.score<12){issues[key]="Two similar assessments — choose which one below.";continue;}
         proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:first.target.id,mode:"overall"},score:first.score,reason:`Suggested · ${first.reason}`});
       }else{
+        // Weekly quiz results are individual components of an existing group,
+        // not new overall assessments. Require an existing points/equal rule
+        // and at least one prior Canvas part connection before suggesting this
+        // many-to-one destination; a manually created group still needs setup.
+        const weeklyParents=targets.filter(t=>weeklyQuiz(a.name)&&weeklyQuizParent(t)&&
+          s.canvasImports?.some(r=>r.targetId===t.id&&r.mode==="part"));
+        if(weeklyParents.length===1){
+          const parent=weeklyParents[0];
+          proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:parent.id,mode:"part",method:parent.gradePlan!.method as "points"|"equal"},score:72,reason:`Suggested · weekly quiz → ${parent.title} · existing ${parent.gradePlan!.method} rule`});
+          continue;
+        }
         // A related recurring parent needs a rule, not duplicate weekly tasks.
         const related=targets.find(t=>!simpleCanvasDestination(t,s.tasks)&&[...tokens(t.title)].filter(w=>tokens(a.name).has(w)).length>=2);
         if(related){issues[key]=`Choose how individual results belong to ${related.title}.`;continue;}
@@ -122,7 +136,8 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
   for(const p of proposals){
     if(p.choice.targetId!=="new"){
       const rivals=proposals.filter(q=>q!==p&&q.choice.targetId===p.choice.targetId);
-      if(Object.values(choices).some(v=>v.targetId===p.choice.targetId)||rivals.some(q=>q.score>=p.score-12)){
+      const sharedParts=p.choice.mode==="part"&&rivals.every(q=>q.choice.mode==="part"&&q.choice.method===p.choice.method);
+      if(!sharedParts&&(Object.values(choices).some(v=>v.targetId===p.choice.targetId)||rivals.some(q=>q.score>=p.score-12))){
         issues[p.key]="More than one Canvas item could belong here. Choose one or set up individual results.";continue;
       }
     }

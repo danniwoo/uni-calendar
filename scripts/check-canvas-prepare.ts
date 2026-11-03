@@ -75,6 +75,29 @@ assert.equal(prepareCanvasImport(s,retake).choices["101:1"],undefined);
 const weekly={...existing,tasks:[{...target,kind:"recurring" as const,title:"Weekly project activities"}]};
 const weekSource=structuredClone(b);weekSource.courses[0].assignments[0].name="Weekly project activities";
 assert.equal(prepareCanvasImport(weekly,weekSource).choices["101:1"],undefined,"exact recurring title is not an overall grade policy");
+// Weekly Canvas results belong under a previously connected points/equal group.
+// Simulate Canvas rebuilding an assignment ID: the existing week-10 row is
+// reconnected by its exact title while the new week-11 row is appended, never
+// created as a separate assessment. All values here are synthetic.
+const weeklyGroup=structuredClone(fixtureTasks[0]);
+weeklyGroup.gradePlan={mode:"parts",method:"points",items:[{id:"legacy-week10",name:"week10-quiz- Requires Respondus LockDown Browser",maximum:3,grade:{earned:2.1,possible:3}}]};
+const weeklyBoard={...structuredClone(s),canvasAccountId:"91",tasks:[weeklyGroup],units:structuredClone(s.units).map(u=>u.code==="ISYS2120"?{...u,assessments:[weeklyGroup]}:u),canvasImports:[{key:"91:101:9",targetId:weeklyGroup.id,mode:"part" as const,readAt:"2026-10-20T00:00:00Z",lastGrade:{earned:2.1,possible:3}}]};
+const weeklyBundle=structuredClone(b);weeklyBundle.courses=weeklyBundle.courses.slice(0,1);weeklyBundle.courses[0].fetchedAt="2026-10-31T00:00:00Z";
+weeklyBundle.courses[0].assignments=[
+  {...weeklyBundle.courses[0].assignments[0],id:"10",name:"week10-quiz- Requires Respondus LockDown Browser",pointsPossible:3,submission:{released:true,excused:false,score:2.1,releaseEvidence:"marks-page",currentAttemptGraded:true}},
+  {...weeklyBundle.courses[0].assignments[0],id:"11",name:"week11 weekly quiz- Requires Respondus LockDown Browser",pointsPossible:3,submission:{released:true,excused:false,score:.9,releaseEvidence:"marks-page",currentAttemptGraded:true}},
+];
+const weeklyDraft=prepareCanvasImport(weeklyBoard,weeklyBundle);
+assert.equal(weeklyDraft.choices["101:10"]?.targetId,weeklyGroup.id);
+assert.equal(weeklyDraft.choices["101:10"]?.mode,"part");
+assert.equal(weeklyDraft.choices["101:11"]?.targetId,weeklyGroup.id);
+assert.equal(Object.values(weeklyDraft.choices).filter(c=>c.targetId===weeklyGroup.id).length,2,"multiple weekly parts may share one group");
+const weeklyPlan=planCanvasImport(weeklyBoard,weeklyBundle,Object.values(weeklyDraft.choices));
+const weeklyResult=weeklyPlan.semester.tasks.find(t=>t.id===weeklyGroup.id)!;
+assert.equal(weeklyPlan.semester.tasks.some(t=>t.id.startsWith("canvas-")),false,"weekly updates never create a duplicate assessment");
+assert.equal(weeklyResult.gradePlan?.items.length,2,"new week is appended inside the existing group");
+assert.equal(weeklyResult.gradePlan?.items.filter(i=>i.name.includes("week10")).length,1,"rebuilt Canvas ID reuses the existing week item");
+assert.equal(weeklyPlan.semester.canvasImports?.some(r=>r.key==="91:101:10"&&r.targetId===weeklyGroup.id),true,"reconnected source is remembered");
 const deleted={...saved,tasks:saved.tasks.slice(1)};
 assert.equal(prepareCanvasImport(deleted,b).choices["101:1"],undefined,"deleted imported task not recreated");
 assert.equal(Object.keys(prepareCanvasImport(saved,{...b,accountId:"999"}).choices).length,0);

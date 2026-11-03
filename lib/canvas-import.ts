@@ -17,6 +17,7 @@ const text=(x:unknown,max=400):x is string=>typeof x==="string"&&x.length<=max;
 const date=(x:unknown):x is string=>typeof x==="string"&&/^\d{4}-\d\d-\d\dT/.test(x)&&Number.isFinite(Date.parse(x));
 const finite=(x:unknown)=>x===null||(typeof x==="number"&&Number.isFinite(x)&&x>=0);
 const unique=(xs:string[])=>new Set(xs).size===xs.length;
+const comparableCanvasName=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 export function validCanvasRecords(x:unknown):x is CanvasImportRecord[]{return Array.isArray(x)&&x.length<=5000&&x.every(r=>object(r)&&text(r.key,150)&&/^\d+:\d+:\d+$/.test(r.key)&&text(r.targetId,500)&&["overall","part"].includes(String(r.mode))&&(r.lastGrade===undefined||validGrade(r.lastGrade))&&(r.readAt===undefined||date(r.readAt))&&(r.manual===undefined||typeof r.manual==="boolean")&&validRuleRecord(r))&&unique(x.map(r=>r.key))&&unique(x.filter(r=>r.attemptItemId!==undefined).map(r=>JSON.stringify([r.targetId,r.attemptItemId])));}
 export function validCanvasMetadata(s:{canvasAccountId?:unknown;canvasImports?:unknown;canvasHistory?:unknown}) {
   return validCanvasHistory(s.canvasHistory,s.canvasAccountId)&&(s.canvasAccountId===undefined||id(s.canvasAccountId))&&(s.canvasImports===undefined||(validCanvasRecords(s.canvasImports)&&s.canvasImports.every(r=>id(s.canvasAccountId)&&r.key.startsWith(`${s.canvasAccountId}:`))));
@@ -184,12 +185,28 @@ export function planCanvasImport(s:Semester,b:CanvasBundle,choices:CanvasChoice[
       const blocked=canvasGroupBlock(c,a.groupId||"");
       if(blocked)throw new Error(blocked);
       if(t.grade!==undefined){actions.push({key,text:`${t.title}: existing overall grade kept`,changed:false,kind:"protected"});continue;}
-      const itemId=`canvas:${key}`,item=t.gradePlan?.items.find(i=>i.id===itemId);
+      const sourceItemId=`canvas:${key}`;
+      const directItem=t.gradePlan?.items.find(i=>i.id===sourceItemId);
+      // Canvas assignment IDs can change after a course is copied or rebuilt.
+      // Reuse one exact-name, same-maximum item when it is not already linked
+      // to another source; this reconnects a renamed source without creating a
+      // duplicate inside the user's existing grade group.
+      const legacyItems=t.gradePlan?.items.filter(i=>i.id!==sourceItemId&&
+        comparableCanvasName(i.name)===comparableCanvasName(a.name)&&
+        (i.maximum===undefined||a.pointsPossible===null||i.maximum===a.pointsPossible)&&
+        ![...records.values()].some(r=>r.targetId===t.id&&r.lastItem?.id===i.id));
+      const legacyItem=legacyItems?.length===1?legacyItems[0]:undefined;
+      const itemId=directItem?.id??legacyItem?.id??sourceItemId;
+      const item=directItem??legacyItem;
+      const legacyMatch=!!legacyItem&&!directItem;
       const owned=(next.canvasImports||[]).some(r=>r.targetId===t.id&&r.mode==="part")||[...records.values()].some(r=>r.targetId===t.id&&r.mode==="part");
       if(t.gradePlan!==undefined&&(!t.gradePlan||t.gradePlan.mode!=="parts"||t.gradePlan.method!==choice.method||!owned)){
         actions.push({key,text:`${t.title}: existing individual-grade setup kept`,changed:false,kind:"protected"});continue;
       }
-      if(item?.excluded||prior&&!item||item?.grade!==undefined&&!ownedGrade(item.grade)||prior?.manual){actions.push({key,text:`${a.name}: manual / removed part preserved`,changed:false,kind:"protected"});continue;}
+      if(item?.excluded||prior&&!item||item?.grade!==undefined&&!ownedGrade(item.grade)||prior?.manual){
+        if(legacyMatch&&!prior)records.set(key,{key,targetId,mode:"part",readAt:c.fetchedAt,...(item?.grade?{lastGrade:item.grade}:{}),manual:true});
+        actions.push({key,text:`${a.name}: manual / removed part preserved`,changed:false,kind:"protected"});continue;
+      }
       if(stale){keep(`${a.name}: older Canvas read ignored`);continue;}
       if(item?.maximum!==undefined&&grade&&item.maximum!==grade.possible){actions.push({key,text:`${a.name}: existing maximum ${item.maximum} differs from Canvas ${grade.possible}; review manually`,changed:false,kind:"attention"});continue;}
       if(item&&!grade){actions.push({key,text:`${a.name}: still ungraded; no change`,changed:false});continue;}
