@@ -63,6 +63,11 @@ assert.equal(duplicateDraft.choices["101:1"],undefined);assert.equal(duplicateDr
 assert.doesNotThrow(()=>planCanvasImport(existing,duplicateSource,Object.values(duplicateDraft.choices)),"one ambiguity cannot block good courses");
 assert.equal(preparedCandidates({...existing,tasks:[{...target,title:"Final project presentation"}]},target.unit,{...source,name:"Final project report"}).length,0,"report versus presentation isn't the same result");
 assert.equal(preparedCandidates(named,"SOFT2412",source).length,0,"unit boundary");
+const genericTarget={...target,title:"Weekly project activities and performance",weight:"7%"};
+const genericCourse=structuredClone(b.courses[0]);genericCourse.groups[0]={...genericCourse.groups[0],name:"Weekly Project Activities and Status Checking",weight:7};
+const genericSource={...source,name:"Mark",groupId:genericCourse.groups[0].id};
+assert.equal(preparedCandidates({...existing,tasks:[genericTarget]},target.unit,genericSource,genericCourse)[0].target.id,genericTarget.id,"generic Canvas labels use a matching category only when its name and weight agree");
+assert.equal(preparedCandidates({...existing,tasks:[genericTarget]},target.unit,{...genericSource,groupId:null},genericCourse).length,0,"a generic Canvas label without category evidence stays unconnected");
 const protectedBoard={...existing,tasks:[{...target,grade:{earned:6,possible:20}}]};
 const protectedPlan=planCanvasImport(protectedBoard,renamed,Object.values(prepareCanvasImport(protectedBoard,renamed).choices));
 assert.deepEqual(protectedPlan.semester.tasks[0].grade,{earned:6,possible:20});assert(protectedPlan.actions.some(a=>a.kind==="protected"));

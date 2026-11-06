@@ -22,6 +22,8 @@ assert.equal(canvasResultsHeadline(0,1,view.reviewGroups.length),"1 Canvas resul
 assert.notEqual(canvasResultsHeadline(0,0,2),"No changes in last check");
 const renamed=structuredClone(old);renamed.courses[0].groups[0].name="Display-only change";
 assert.equal(planCanvasImport(board,renamed,choices).actions.filter(a=>a.kind==="attention").length,0);
+const rebuiltGroup=structuredClone(old);rebuiltGroup.courses[0].groups[0].id="999";rebuiltGroup.courses[0].assignments.filter(a=>a.groupId==="5").forEach(a=>a.groupId="999");
+assert.equal(planCanvasImport(board,rebuiltGroup,choices).actions.filter(a=>a.kind==="attention").length,0,"Canvas group IDs are internal identifiers, not grading-rule changes");
 const snapshot=JSON.parse(canvasSourceRules(old.courses[0],"5"));snapshot.group.rules.neverDrop=["1","2"];
 const reordered=structuredClone(snapshot);reordered.group.rules.neverDrop=["2","1"];
 assert.equal(canvasSourceRuleReview(JSON.stringify(snapshot),JSON.stringify(reordered)),null);

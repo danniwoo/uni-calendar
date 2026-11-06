@@ -23,7 +23,7 @@ export function CanvasCourseMatching({semester,bundle,course,unit,rows,targets,c
   const savedRules=existingCanvasRuleChoices(semester,bundle,course.course.id,unit);
   const sources=course.assignments.filter(a=>checked.includes(a.id));
   const destination=targets.find(t=>t.id===target),savedRule=savedRules.find(r=>r.target.id===target);
-  const candidates=sources.length===1?canvasCandidates(semester,unit,sources[0]):[];
+  const candidates=sources.length===1?canvasCandidates(semester,unit,sources[0],course):[];
   const targetRecords=records.filter(r=>r.targetId===target);
   const sameGroup=sources.length>0&&sources.every(a=>a.groupId===sources[0].groupId);
   const source=sources.length===1?sources[0]:undefined;

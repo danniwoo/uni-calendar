@@ -70,17 +70,21 @@ export function canvasResultLabel(a:CanvasAssignment){
 }
 // Optional candidates only: selecting one is always a user action. Do not use
 // these heuristics in suggestCanvasMatches or save a fuzzy match automatically.
-export function canvasCandidates(s:Semester,unit:string,a:CanvasAssignment){
+export function canvasCandidates(s:Semester,unit:string,a:CanvasAssignment,course?:CanvasCourse){
   const normalize=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
   const label=(v:string)=>normalize(v).match(/\b(?:a|assignment)\s*(\d+)\b/)?.[1];
   const tokens=(v:string)=>new Set(normalize(v).split(" ").filter(w=>w.length>2&&!["the","and","for","due","week","requires","respondus","lockdown","browser","submission"].includes(w)));
-  const sourceTokens=tokens(a.name),sourceLabel=label(a.name);
+  const generic=/^(?:mark|grade|score|result)$/i.test(normalize(a.name));
+  const group=generic?course?.groups.find(g=>g.id===a.groupId):undefined;
+  const sourceName=group?.name||a.name,sourceTokens=tokens(sourceName),sourceLabel=label(sourceName);
   return canvasTargets(s,unit).map(t=>{
     const sameLabel=!!sourceLabel&&sourceLabel===label(t.title);
     const overlap=[...tokens(t.title)].filter(w=>sourceTokens.has(w)).length;
-    const exact=normalize(t.title)===normalize(a.name);
-    return {target:t,score:exact?100:sameLabel?50:overlap>=2?overlap:0,reason:exact?"Matching title · review":sameLabel?`Same assignment label A${sourceLabel} · check the full title`:"Similar words · check before selecting"};
-  }).filter(c=>c.score>0).sort((a,b)=>b.score-a.score||a.target.title.localeCompare(b.target.title)).slice(0,3);
+    const exact=normalize(t.title)===normalize(sourceName);
+    const targetWeight=Number(t.weight?.replace(/[^0-9.]/g,"")),sameWeight=!!group&&Number.isFinite(targetWeight)&&targetWeight===group.weight;
+    const allowed=!generic||!!group&&sameWeight&&overlap>=3;
+    return {target:t,score:exact?100:sameLabel?50:overlap>=2?overlap:0,reason:generic?`Canvas category “${group?.name}” · same ${group?.weight}% weight`:exact?"Matching title · review":sameLabel?`Same assignment label A${sourceLabel} · check the full title`:"Similar words · check before selecting",allowed};
+  }).filter(c=>c.allowed&&c.score>0).sort((a,b)=>b.score-a.score||a.target.title.localeCompare(b.target.title)).slice(0,3).map(c=>({target:c.target,score:c.score,reason:c.reason}));
 }
 
 // Suggestions never save data. Reuse confirmed IDs first; only unique, exact

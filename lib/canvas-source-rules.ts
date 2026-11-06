@@ -17,7 +17,6 @@ export function canvasSourceRuleReview(previous:string,current:string):SourceRul
   if(before.unavailable||after.unavailable||!before.group||!after.group){
     changes.push({label:"Canvas group information",before:before.unavailable||!before.group?"Unavailable":"Available",after:after.unavailable||!after.group?"Unavailable":"Available"});
   }else{
-    add("Canvas group",before.group.id,after.group.id);
     add("Group weight (%)",before.group.weight,after.group.weight);
     add("Drop lowest",before.group.rules.dropLowest,after.group.rules.dropLowest);
     add("Drop highest",before.group.rules.dropHighest,after.group.rules.dropHighest);

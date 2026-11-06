@@ -104,6 +104,11 @@ const shortName={...b.courses[1].assignments[0],name:"A1"};
 const candidates=canvasCandidates(candidateBoard,"SOFT2412",shortName);
 assert.equal(candidates[0].target.id,"root-1");
 assert.equal(canvasCandidates(candidateBoard,"ELEC2302",shortName).length,0,"candidates cannot cross units");
+const genericBoard=structuredClone(s);genericBoard.tasks[0]={...genericBoard.tasks[0],title:"Weekly project activities and performance",weight:"7%"};
+const genericCourse=structuredClone(b.courses[0]);genericCourse.groups[0]={...genericCourse.groups[0],name:"Weekly Project Activities and Status Checking",weight:7};
+const genericMark={...genericCourse.assignments[0],name:"Mark",groupId:genericCourse.groups[0].id};
+assert.equal(canvasCandidates(genericBoard,"ISYS2120",genericMark,genericCourse)[0].target.id,"root-0","generic Canvas names may suggest a matching named category only");
+assert.equal(canvasCandidates(genericBoard,"ISYS2120",{...genericMark,groupId:null},genericCourse).length,0,"generic names never guess without a matching Canvas category");
 const shortBundle=structuredClone(b);shortBundle.courses[1].assignments[0]=shortName;
 assert.equal(suggestCanvasMatches(candidateBoard,shortBundle).choices["102:1"],undefined,"candidate labels are not automatic matches");
 for(const name of ["Quiz 1 - attempt 3","Quiz 2, attempt #2","Quiz 2 retake","Quiz re-attempt"]){

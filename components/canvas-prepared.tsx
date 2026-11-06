@@ -14,12 +14,12 @@ function SourceReview({title,items,onStage,disabled}:{title:string;items:ReturnT
   const [open,setOpen]=useState(false),[checked,setChecked]=useState(false);
   const diffs=[...new Map(items.flatMap(r=>r.action?.sourceReview?.changes||[]).map(d=>[JSON.stringify(d),d])).values()];
   const canKeep=items.every(r=>r.choice?.rule&&r.action?.sourceReview?.canKeep);
-  return <section className="canvas-source-review" aria-label={`Review settings for ${title}`}>
-    <div className="canvas-review-heading"><div><strong>{title}</strong><small>{items.length} linked {items.length===1?"result":"results"} paused · saved grades kept</small></div><button disabled={disabled} aria-expanded={open} onClick={()=>{setOpen(!open);setChecked(false);}}>{open?"Cancel changes":"Review settings"}</button></div>
+  return <section className="canvas-source-review" aria-label={`Confirm Canvas grading rule for ${title}`}>
+    <div className="canvas-review-heading"><div><strong>{title}</strong><small>{items.length} linked {items.length===1?"result":"results"} paused · saved grades kept</small></div><button disabled={disabled} aria-expanded={open} onClick={()=>{setOpen(!open);setChecked(false);}}>{open?"Cancel":"Review Canvas rule"}</button></div>
     {open&&<div>
       {diffs.length?<table><thead><tr><th>Canvas setting</th><th>Previously read</th><th>Now</th></tr></thead><tbody>{diffs.map((d,i)=><tr key={i}><td>{d.label}</td><td>{d.before}</td><td>{d.after}</td></tr>)}</tbody></table>:<p>{items[0].action?.text}</p>}
       {items[0].choice?.rule&&<p>Your saved calculation: <strong>{ruleDescription(items[0].choice.rule)}</strong></p>}
-      {canKeep?<><label className="canvas-confirm"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/>I checked Canvas. Keep my saved calculation and assessment weight.</label><button disabled={!checked||disabled} onClick={()=>onStage(items.map(r=>({...r.choice!,reviewedSourceRules:r.action!.sourceReview!.snapshot})))}>Apply to preview</button></>:<p>Keep these results unchanged for now. Check Canvas and run a fresh check before updating.</p>}
+      {canKeep?<><label className="canvas-confirm"><input type="checkbox" checked={checked} onChange={e=>setChecked(e.target.checked)}/>I checked the Canvas rule. Keep my saved calculation and assessment weight.</label><button disabled={!checked||disabled} onClick={()=>onStage(items.map(r=>({...r.choice!,reviewedSourceRules:r.action!.sourceReview!.snapshot})))}>Keep saved calculation</button></>:<p>Keep these results unchanged for now. Check Canvas and run a fresh check before updating.</p>}
       <details><summary>Linked results ({items.length})</summary>{items.map(r=><p key={r.key}>{r.a.name} · {canvasResultLabel(r.a)}</p>)}</details>
     </div>}
   </section>;
@@ -39,10 +39,10 @@ export function CanvasPrepared({semester,afterSemester,bundle,prepared,choices,a
   const reviewedLinks=useful.filter(r=>r.action?.changed&&r.action.kind==="mapping"&&r.choice?.reviewedSourceRules);
   const resultRows=useful.filter(r=>!reviewedLinks.includes(r));
   return <div className="canvas-prepared">
-    <div className="canvas-ready-heading"><span className="canvas-eyebrow">CANVAS → YOUR SEMESTER</span><h3>{total?`${total} ${total===1?"update":"updates"} ready to import`:needChoice?`${needChoice} ${needChoice===1?"result needs":"results need"} setup`:reviewGroups.length?"Saved assessments need review":"No changes in this check"}</h3>
-      <p>{total?"Check what changes, then import once.":needChoice?"Your results were found. Set up how they count before importing.":reviewGroups.length?"Source settings differ. Your saved grades have not changed.":"Based on the course read times above."}</p>
+    <div className="canvas-ready-heading"><span className="canvas-eyebrow">CANVAS → YOUR SEMESTER</span><h3>{total?`${total} ${total===1?"update":"updates"} ready to import`:needChoice?`${needChoice} ${needChoice===1?"result needs":"results need"} setup`:reviewGroups.length?"Canvas grading rules need confirmation":"No changes in this check"}</h3>
+      <p>{total?"Check what changes, then import once.":needChoice?"Your results were found. Set up how they count before importing.":reviewGroups.length?"A Canvas grading rule changed. Your saved grades have not changed.":"Based on the course read times above."}</p>
       {total>0&&<p className="canvas-change-breakdown">{[results&&`${results} result ${results===1?"update":"updates"}`,added&&`${added} new ${added===1?"assessment":"assessments"}`,connections&&`${connections} ${connections===1?"connection":"connections"} only`].filter(Boolean).join(" · ")}</p>}
-      <div className="canvas-ready-stats"><span>{bundle.courses.length} {bundle.courses.length===1?"course":"courses"} in this check</span>{needChoice>0&&<span>{needChoice} awaiting setup</span>}{reviewGroups.length>0&&<span>{reviewGroups.length} {reviewGroups.length===1?"assessment needs":"assessments need"} review</span>}{protectedRows.length>0&&<span>{protectedRows.length} manual values kept</span>}</div>
+      <div className="canvas-ready-stats"><span>{bundle.courses.length} {bundle.courses.length===1?"course":"courses"} in this check</span>{needChoice>0&&<span>{needChoice} awaiting setup</span>}{reviewGroups.length>0&&<span>{reviewGroups.length} {reviewGroups.length===1?"assessment needs":"assessments need"} rule confirmation</span>}{protectedRows.length>0&&<span>{protectedRows.length} manual values kept</span>}</div>
     </div>
     {stale&&<p className="notice error" role="alert">Your board changed while this preview was open. <button onClick={()=>{closeEditor();onRefresh();}}>Refresh suggestions</button> before importing. Unsaved choices will reset.</p>}
     {error&&<p className="notice error" role="alert">{error} Nothing saved. Change or skip the affected item.</p>}
@@ -57,7 +57,7 @@ export function CanvasPrepared({semester,afterSemester,bundle,prepared,choices,a
           <div className="canvas-ready-columns" aria-hidden="true"><span>Canvas result</span><span>What will change</span></div>
           {courseRows.map(({a,key,sourceKey,choice,prior,action})=>{
             const target=targets.find(t=>t.id===(choice?.targetId||prior?.targetId));
-            const candidates=preparedCandidates(semester,unit,a).slice(0,3);
+            const candidates=preparedCandidates(semester,unit,a,c).slice(0,3);
             const attemptTargets=canvasAttemptTargets(semester,unit,a),attempt=isCanvasRetake(a);
             const needsSetup=!choice&&!prepared.choices[key]&&!prior;
             const blocked=action?.kind==="protected"||action?.kind==="attention";
@@ -89,7 +89,7 @@ export function CanvasPrepared({semester,afterSemester,bundle,prepared,choices,a
       })}
     </>}
     {reviewedLinks.length>0&&<details className="rule-card"><summary>{reviewedLinks.length} source connections reviewed · grades unchanged</summary><ul>{reviewedLinks.map(r=><li key={r.key}>{prepared.units[r.c.course.id]} · {r.a.name}</li>)}</ul><p>Import saves the reviewed source settings, keeping your calculation and weight.</p></details>}
-    {reviewGroups.length>0&&<section className="canvas-review-groups"><h4>Settings to review · {reviewGroups.length}</h4>{reviewGroups.map(g=>{
+    {reviewGroups.length>0&&<section className="canvas-review-groups"><h4>Confirm Canvas grading rules · {reviewGroups.length}</h4>{reviewGroups.map(g=>{
       const r=g.items[0],unit=prepared.units[r.c.course.id]||r.c.course.code,target=canvasTargets(semester,unit).find(t=>t.id===g.targetId);
       return <SourceReview key={g.id} title={`${unit} · ${target?.title||"Linked assessment"}`} items={g.items} onStage={onStage} disabled={!!editingKey||stale}/>;
     })}</section>}
@@ -109,6 +109,6 @@ export function CanvasPrepared({semester,afterSemester,bundle,prepared,choices,a
       <button disabled={!!editingKey} onClick={()=>onManage("all")}>Manage connections</button>
     </details>}
     <p className="hint">Your manual grades, dates and weights stay unchanged. New assessments need a weight.</p>
-    <div className="canvas-import-footer"><span>{editingKey?"Finish or cancel changes before importing":[`${total} ready to import`,needChoice&&`${needChoice} awaiting setup`,reviewGroups.length&&`${reviewGroups.length} ${reviewGroups.length===1?"assessment needs":"assessments need"} review`].filter(Boolean).join(" · ")}</span>{canUndo&&<button disabled={!!editingKey} onClick={onUndo}>Undo last change</button>}<button onClick={onClose}>Cancel</button><button className="primary" disabled={!total||total!==changed||!!error||stale||!!editingKey} onClick={onImport}>{total?`Import ${total} ${total===1?"update":"updates"}`:needChoice?"Set up results first":reviewGroups.length?"Review settings first":"No changes to import"}</button></div>
+    <div className="canvas-import-footer"><span>{editingKey?"Finish or cancel changes before importing":[`${total} ready to import`,needChoice&&`${needChoice} awaiting setup`,reviewGroups.length&&`${reviewGroups.length} ${reviewGroups.length===1?"assessment needs":"assessments need"} rule confirmation`].filter(Boolean).join(" · ")}</span>{canUndo&&<button disabled={!!editingKey} onClick={onUndo}>Undo last change</button>}<button onClick={onClose}>Cancel</button><button className="primary" disabled={!total||total!==changed||!!error||stale||!!editingKey} onClick={onImport}>{total?`Import ${total} ${total===1?"update":"updates"}`:needChoice?"Set up results first":reviewGroups.length?"Confirm rules first":"No changes to import"}</button></div>
   </div>;
 }
