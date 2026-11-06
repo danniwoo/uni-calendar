@@ -68,23 +68,50 @@ export function canvasResultLabel(a:CanvasAssignment){
   const g=canvasGrade(a);
   return g?`${g.earned} / ${g.possible}`:a.submission?.excused?"Excused":a.omitted?"Excluded":a.submission?.currentAttemptGraded===false?"Earlier attempt — review":a.result==="complete"?"Complete · text only":a.result==="incomplete"?"Incomplete · text only":"No released numeric grade";
 }
+export type CanvasCandidate={target:Task;score:number;reason:string;automatic?:boolean};
+const candidateWords=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(word=>word.length>2&&!["the","and","for","due","week","requires","respondus","lockdown","browser","submission","assessment"].includes(word));
+const candidatePercent=(value:string)=>{const hits=[...value.matchAll(/\b(\d+(?:\.\d+)?)\s*%/g)].map(match=>Number(match[1]));return hits.length===1&&hits[0]<=100?hits[0]:undefined;};
+// Fallback for weak or unhelpful assignment titles. A Canvas group weight is
+// usable as item evidence only when that group contains exactly one active
+// assignment; otherwise it is a category total (for example weekly quizzes).
+export function canvasGroupCandidates(course:CanvasCourse,a:CanvasAssignment,targets:Task[]):CanvasCandidate[]{
+  const group=course.groups.find(value=>value.id===a.groupId);
+  if(!group)return [];
+  const groupItems=course.assignments.filter(value=>value.groupId===group.id&&!value.omitted);
+  if(groupItems.length!==1||groupItems[0].id!==a.id)return [];
+  const source=new Set(candidateWords(group.name));
+  const named=targets.flatMap(target=>{
+    const destination=new Set(candidateWords(target.title));
+    const overlap=[...destination].filter(word=>source.has(word)).length;
+    const similar=overlap>=2&&overlap/Math.min(source.size||1,destination.size||1)>=0.5;
+    return similar?[{target,overlap}]:[];
+  });
+  const weighted=group.weight===null?[]:targets.filter(target=>candidatePercent(target.weight)===group.weight);
+  if(weighted.length===1){
+    const target=weighted[0],nameMatch=named.find(value=>value.target.id===target.id);
+    return [{target,score:80+(nameMatch?Math.min(15,nameMatch.overlap*4):0),reason:`Only Semester assessment at ${group.weight}%${nameMatch?` · Canvas category “${group.name}” also matches`:""}`}];
+  }
+  if(weighted.length>1){
+    const resolved=named.filter(value=>weighted.some(target=>target.id===value.target.id));
+    if(resolved.length)return resolved.map(value=>({target:value.target,score:65+Math.min(20,value.overlap*4),reason:`Same ${group.weight}% weight · Canvas category “${group.name}”`}));
+    return weighted.map(target=>({target,score:20,reason:`Same ${group.weight}% weight · category name does not identify one assessment`,automatic:false}));
+  }
+  return named.map(value=>({target:value.target,score:35+Math.min(20,value.overlap*4),reason:`Canvas category “${group.name}” looks similar · weight does not match or is missing`,automatic:false}));
+}
 // Optional candidates only: selecting one is always a user action. Do not use
 // these heuristics in suggestCanvasMatches or save a fuzzy match automatically.
 export function canvasCandidates(s:Semester,unit:string,a:CanvasAssignment,course?:CanvasCourse){
   const normalize=(v:string)=>v.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
   const label=(v:string)=>normalize(v).match(/\b(?:a|assignment)\s*(\d+)\b/)?.[1];
   const tokens=(v:string)=>new Set(normalize(v).split(" ").filter(w=>w.length>2&&!["the","and","for","due","week","requires","respondus","lockdown","browser","submission"].includes(w)));
-  const generic=/^(?:mark|grade|score|result)$/i.test(normalize(a.name));
-  const group=generic?course?.groups.find(g=>g.id===a.groupId):undefined;
-  const sourceName=group?.name||a.name,sourceTokens=tokens(sourceName),sourceLabel=label(sourceName);
-  return canvasTargets(s,unit).map(t=>{
+  const sourceTokens=tokens(a.name),sourceLabel=label(a.name),targets=canvasTargets(s,unit);
+  const direct=targets.map(t=>{
     const sameLabel=!!sourceLabel&&sourceLabel===label(t.title);
     const overlap=[...tokens(t.title)].filter(w=>sourceTokens.has(w)).length;
-    const exact=normalize(t.title)===normalize(sourceName);
-    const targetWeight=Number(t.weight?.replace(/[^0-9.]/g,"")),sameWeight=!!group&&Number.isFinite(targetWeight)&&targetWeight===group.weight;
-    const allowed=!generic||!!group&&sameWeight&&overlap>=3;
-    return {target:t,score:exact?100:sameLabel?50:overlap>=2?overlap:0,reason:generic?`Canvas category “${group?.name}” · same ${group?.weight}% weight`:exact?"Matching title · review":sameLabel?`Same assignment label A${sourceLabel} · check the full title`:"Similar words · check before selecting",allowed};
-  }).filter(c=>c.allowed&&c.score>0).sort((a,b)=>b.score-a.score||a.target.title.localeCompare(b.target.title)).slice(0,3).map(c=>({target:c.target,score:c.score,reason:c.reason}));
+    const exact=normalize(t.title)===normalize(a.name);
+    return {target:t,score:exact?100:sameLabel?50:overlap>=2?overlap:0,reason:exact?"Matching title · review":sameLabel?`Same assignment label A${sourceLabel} · check the full title`:"Similar words · check before selecting"};
+  }).filter(c=>c.score>0).sort((a,b)=>b.score-a.score||a.target.title.localeCompare(b.target.title));
+  return (direct.length?direct:course?canvasGroupCandidates(course,a,targets):[]).slice(0,3);
 }
 
 // Suggestions never save data. Reuse confirmed IDs first; only unique, exact

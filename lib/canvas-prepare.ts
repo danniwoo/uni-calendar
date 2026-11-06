@@ -1,5 +1,5 @@
 import type {Semester,Task} from "./semester";
-import {CANVAS_SOURCE,canvasGrade,canvasKey,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasChoice,type CanvasCourse} from "./canvas-import";
+import {CANVAS_SOURCE,canvasGrade,canvasGroupCandidates,canvasKey,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasCandidate,type CanvasChoice,type CanvasCourse} from "./canvas-import";
 import {simpleCanvasDestination} from "./canvas-match-view";
 import {blankAttempt,localHighestRule} from "./canvas-rule-import";
 
@@ -38,37 +38,32 @@ export function matchingAttemptSlot(s:Semester,t:Task,a:CanvasAssignment){
   const sameNumber=t.gradePlan?.items.filter(i=>attemptNumber(i.name)===n);
   return sameNumber?.length===1?attemptSlotOptions(s,t,a).find(i=>i.id===sameNumber[0].id):undefined;
 }
-// Only an explicit percentage in the item title is evidence. Points possible
-// and a category's weight are NOT the assessment's weight.
+// For direct title matching, only an explicit percentage in the item title is
+// evidence. The group fallback separately requires a one-item Canvas category.
 const percent=(s:string)=>{const all=[...s.matchAll(/\b(\d+(?:\.\d+)?)\s*%/g)].map(m=>Number(m[1]));return all.length===1&&all[0]<=100?all[0]:undefined;};
 
-export function preparedCandidates(s:Semester,unit:string,a:CanvasAssignment,course?:CanvasCourse){
-  // Canvas occasionally labels a graded row only "Mark" or "Grade". Its
-  // assignment group is then the only useful identity. It is a suggestion
-  // only, and requires both a strong title overlap and the same explicit
-  // percentage before it can be used for an automatic preview.
-  const generic=/^(?:mark|grade|score|result)$/i.test(words(a.name));
-  const group=generic?course?.groups.find(g=>g.id===a.groupId):undefined;
-  const sourceName=group?.name||a.name;
-  const source=tokens(sourceName),sourceRole=roles(sourceName),sourceLabel=label(sourceName),sourceWeek=week(sourceName),weight=generic?group?.weight??percent(a.name):percent(a.name);
-  return canvasTargets(s,unit).flatMap(target=>{
+export function preparedCandidates(s:Semester,unit:string,a:CanvasAssignment,course?:CanvasCourse):CanvasCandidate[]{
+  const source=tokens(a.name),sourceRole=roles(a.name),sourceLabel=label(a.name),sourceWeek=week(a.name),weight=percent(a.name);
+  const targets=canvasTargets(s,unit).filter(target=>simpleCanvasDestination(target,s.tasks));
+  const direct=targets.flatMap(target=>{
     if(!simpleCanvasDestination(target,s.tasks)||isCanvasRetake(a))return [];
     const targetLabel=label(target.title),targetWeek=week(target.title),targetRole=roles(target.title);
     if(sourceLabel&&targetLabel&&sourceLabel!==targetLabel||sourceWeek&&targetWeek&&sourceWeek!==targetWeek)return [];
     if(sourceRole.length&&targetRole.length&&!sourceRole.some(r=>targetRole.includes(r)))return [];
     const dest=tokens(target.title),overlap=[...dest].filter(w=>source.has(w)).length;
-    const exact=words(sourceName)===words(target.title),sameLabel=!!sourceLabel&&sourceLabel===targetLabel;
+    const exact=words(a.name)===words(target.title),sameLabel=!!sourceLabel&&sourceLabel===targetLabel;
     const similar=overlap>=2&&overlap/Math.min(source.size||1,dest.size||1)>=0.5;
     const sameDate=!!a.dueAt&&canvasDay(a.dueAt)===target.date;
     const sameWeight=weight!==undefined&&weight===percent(target.weight);
     const datedAssignment=sameDate&&!!sourceLabel&&/\bassignment\b/i.test(target.title);
     // Dates may be shared and personally extended; never use date or weight alone.
-    if(generic&&(!sameWeight||overlap<3))return [];
     if(!exact&&!sameLabel&&!similar&&!datedAssignment&&!(sameDate&&sameWeight))return [];
-    const evidence=[generic?`Canvas category “${group!.name}”`:exact?"Same title":sameLabel?`Assignment ${sourceLabel}`:similar?"Similar title":datedAssignment?"Both assignments":"",sameDate?"Same due date":"",sameWeight?`Both ${weight}%`:""].filter(Boolean);
+    const evidence=[exact?"Same title":sameLabel?`Assignment ${sourceLabel}`:similar?"Similar title":datedAssignment?"Both assignments":"",sameDate?"Same due date":"",sameWeight?`Item title and assessment both ${weight}%`:""].filter(Boolean);
     const score=(exact?100:sameLabel?60:similar?35+Math.min(20,overlap*4):datedAssignment?10:0)+(sameDate?18:0)+(sameWeight?15:0);
     return [{target,score,reason:evidence.join(" · ")}];
   }).sort((a,b)=>b.score-a.score||a.target.id.localeCompare(b.target.id));
+  if(direct.length||isCanvasRetake(a))return direct;
+  return course?canvasGroupCandidates(course,a,targets):[];
 }
 
 export type PreparedCanvas=ReturnType<typeof prepareCanvasImport>;
@@ -121,6 +116,7 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
       if(allCandidates.length&&!candidates.length){issues[key]="The similar assessment already has another Canvas connection. Review it before creating a duplicate.";continue;}
       if(candidates.length){
         const [first,second]=candidates;
+        if(first.automatic===false){issues[key]="Possible match found from the Canvas category. Confirm the assessment below.";continue;}
         if(second&&first.score-second.score<12){issues[key]="Two similar assessments — choose which one below.";continue;}
         proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:first.target.id,mode:"overall"},score:first.score,reason:`Suggested · ${first.reason}`});
       }else{
