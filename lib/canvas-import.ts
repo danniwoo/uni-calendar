@@ -72,13 +72,14 @@ export type CanvasCandidate={target:Task;score:number;reason:string;automatic?:b
 const candidateWords=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(word=>word.length>2&&!["the","and","for","due","week","requires","respondus","lockdown","browser","submission","assessment"].includes(word));
 const candidatePercent=(value:string)=>{const hits=[...value.matchAll(/\b(\d+(?:\.\d+)?)\s*%/g)].map(match=>Number(match[1]));return hits.length===1&&hits[0]<=100?hits[0]:undefined;};
 // Fallback for weak or unhelpful assignment titles. A Canvas group weight is
-// usable as item evidence only when that group contains exactly one active
-// assignment; otherwise it is a category total (for example weekly quizzes).
+// automatic evidence only when that group contains exactly one active item.
+// Multi-item category totals remain useful as manual candidates, so an opaque
+// title such as "Mark" is not silently proposed as a new assessment.
 export function canvasGroupCandidates(course:CanvasCourse,a:CanvasAssignment,targets:Task[]):CanvasCandidate[]{
   const group=course.groups.find(value=>value.id===a.groupId);
   if(!group)return [];
   const groupItems=course.assignments.filter(value=>value.groupId===group.id&&!value.omitted);
-  if(groupItems.length!==1||groupItems[0].id!==a.id)return [];
+  if(!groupItems.some(value=>value.id===a.id))return [];
   const source=new Set(candidateWords(group.name));
   const named=targets.flatMap(target=>{
     const destination=new Set(candidateWords(target.title));
@@ -87,6 +88,16 @@ export function canvasGroupCandidates(course:CanvasCourse,a:CanvasAssignment,tar
     return similar?[{target,overlap}]:[];
   });
   const weighted=group.weight===null?[]:targets.filter(target=>candidatePercent(target.weight)===group.weight);
+  if(groupItems.length!==1){
+    const category=`Canvas category “${group.name}” contains ${groupItems.length} items; ${group.weight===null?"its weight is unknown":`${group.weight}% is the category total, not this item’s weight`}`;
+    const namedWeighted=named.filter(value=>weighted.some(target=>target.id===value.target.id));
+    const manual=namedWeighted.length?namedWeighted:named.length?named:weighted;
+    return manual.map(value=>{
+      const target="target" in value?value.target:value;
+      const overlap="overlap" in value?value.overlap:0;
+      return {target,score:25+Math.min(20,overlap*4),reason:`${category} · choose placement`,automatic:false};
+    });
+  }
   if(weighted.length===1){
     const target=weighted[0],nameMatch=named.find(value=>value.target.id===target.id);
     return [{target,score:80+(nameMatch?Math.min(15,nameMatch.overlap*4):0),reason:`Only Semester assessment at ${group.weight}%${nameMatch?` · Canvas category “${group.name}” also matches`:""}`}];

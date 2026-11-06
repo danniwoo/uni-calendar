@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1 — 2026-11-07 (unpacked trial)
+
+- Report the installed Connect version to Semester's same-origin connection details so an old or stale unpacked build is diagnosable instead of looking like failed automatic checking.
+- Preserve all 0.5.0 permissions, read-only transport, one-minute throttles and reminder behavior. Updating still requires replacing/reloading the unpacked extension and reloading Semester; no background polling or automatic imports were added.
+
 ## 0.5.0 — 2026-11-01 (unpacked trial)
 
 - Optional Chrome-running desktop reminders configured in Semester Web 0.16.0. Explicit device opt-in; alarms/notifications are optional permissions. No n8n, polling, Canvas writes or new mandatory host access.

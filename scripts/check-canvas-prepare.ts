@@ -74,7 +74,13 @@ assert.equal(preparedCandidates({...existing,tasks:[genericTarget,duplicateWeigh
 const mismatchedWeight={...genericTarget,weight:"8%"},subtitleOnly=preparedCandidates({...existing,tasks:[mismatchedWeight]},target.unit,genericSource,genericCourse)[0];
 assert.equal(subtitleOnly.target.id,mismatchedWeight.id);assert.equal(subtitleOnly.automatic,false,"subtitle-only matches require user confirmation when the weight differs");
 const multipleItems=structuredClone(genericCourse);multipleItems.assignments.push({...genericSource,id:"2"});
-assert.equal(preparedCandidates({...existing,tasks:[genericTarget]},target.unit,genericSource,multipleItems).length,0,"a multi-item Canvas category's total weight is never treated as one item's weight");
+const multiCandidates=preparedCandidates({...existing,tasks:[genericTarget]},target.unit,genericSource,multipleItems);
+assert.equal(multiCandidates.length,1,"a multi-item category still offers a safe manual destination");
+assert.equal(multiCandidates[0].automatic,false,"a category total never becomes an automatic item-weight match");
+const multiBundle=structuredClone(b);multiBundle.courses[0]=multipleItems;
+const multiDraft=prepareCanvasImport({...existing,tasks:[genericTarget]},multiBundle);
+assert.equal(multiDraft.choices["101:1"],undefined,"a multi-item category never auto-connects or creates an assessment");
+assert.match(multiDraft.issues["101:1"],/Possible match/);
 const protectedBoard={...existing,tasks:[{...target,grade:{earned:6,possible:20}}]};
 const protectedPlan=planCanvasImport(protectedBoard,renamed,Object.values(prepareCanvasImport(protectedBoard,renamed).choices));
 assert.deepEqual(protectedPlan.semester.tasks[0].grade,{earned:6,possible:20});assert(protectedPlan.actions.some(a=>a.kind==="protected"));

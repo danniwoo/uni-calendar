@@ -40,6 +40,7 @@ test("reload creates pending raw bundle, stable timestamp, no cloud/grade writes
   assert.equal(m.reads.length,1);assert.equal(m.reads[0].world,"ISOLATED");
   assert.deepEqual(m.reads[0].args,[{operation:"course",courseId:"12",expectedUserId:"91",expectedVersion:READER_VERSION}]);
   const one=await m.controller.inbox();assert.equal(JSON.parse(one.raw).courses[0].assignments[0].submission.grade,"complete");
+  assert.equal(one.extensionVersion,READER_VERSION,"website can diagnose the installed unpacked build");
   assert.equal(one.raw.includes("Not retained"),false);assert.deepEqual(m.session.reloadState.snapshots["12"].user,{id:"91"});
   m.advance(2000);assert.equal((await m.controller.inbox()).raw,one.raw,"focus does not create a fake new update");
   assert.deepEqual(Object.keys(m.local),["reloadConfig"],"no grades persisted across browser sessions");

@@ -5,7 +5,7 @@ import {readFile} from "node:fs/promises";
 const source=await readFile(new URL("../reminder-bridge.js",import.meta.url),"utf8"),origin="https://usyd-semester-board.earthy-trout-5263.chatgpt.site";
 function fixture(){
  const listeners=new Set(),changes=new Set(),calls=[],posted=[];
- const runtime={getManifest:()=>({version:"0.5.0"}),sendMessage:async m=>{calls.push(m);return {available:true,enabled:false};},onMessage:{addListener:f=>changes.add(f),removeListener:f=>changes.delete(f)}};
+ const runtime={getManifest:()=>({version:"0.5.1"}),sendMessage:async m=>{calls.push(m);return {available:true,enabled:false};},onMessage:{addListener:f=>changes.add(f),removeListener:f=>changes.delete(f)}};
  const window={addEventListener:(_,f)=>listeners.add(f),removeEventListener:(_,f)=>listeners.delete(f),postMessage:(value,target)=>posted.push({value,target})};window.top=window;
  const context=vm.createContext({chrome:{runtime},window,location:{origin}});
  const inject=async()=>{vm.runInContext(source,context);await new Promise(r=>setImmediate(r));};
@@ -25,7 +25,7 @@ test("reminder bridge only forwards same-origin top-frame status, sync and setti
 });
 test("reinjection keeps one listener and disposes invalidated extension contexts",async()=>{
  const m=fixture();await m.inject();const old=m.context.__semesterReminderBridge;await m.inject();assert.equal(old,m.context.__semesterReminderBridge);assert.equal(m.listeners.size,1);
- m.runtime.getManifest=()=>{throw Error("invalidated");};m.context.chrome={runtime:{...m.runtime,getManifest:()=>({version:"0.5.0"})}};
+ m.runtime.getManifest=()=>{throw Error("invalidated");};m.context.chrome={runtime:{...m.runtime,getManifest:()=>({version:"0.5.1"})}};
  await m.inject();assert.notEqual(old,m.context.__semesterReminderBridge);assert.equal(m.listeners.size,1);assert.equal(m.changes.size,1);
  const n=m.posted.length;await old.send();assert.equal(m.posted.length,n);
 });

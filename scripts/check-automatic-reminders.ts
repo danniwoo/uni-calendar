@@ -55,7 +55,7 @@ const grouped={...base,tasks:[t,{...t,id:"other",title:"Synthetic other assignme
 const batches=automaticBatches(grouped,enabledAt);
 assert.equal(batches.length,2);assert.equal(batches[0].items.length,2);assert.match(batches[0].job.taskId,/^auto-digest:/);
 assert.deepEqual(automaticBatches({...grouped,tasks:grouped.tasks.toReversed()},enabledAt),batches,"reordering board tasks doesn't duplicate alerts");
-assert.ok(validReminderSnapshot({owner:"a".repeat(64),revision:1,jobs:allReminderJobs(grouped,enabledAt)}),"compatible with existing Connect 0.5.0 protocol");
+assert.ok(validReminderSnapshot({owner:"a".repeat(64),revision:1,jobs:allReminderJobs(grouped,enabledAt)}),"compatible with Connect 0.5.1 protocol");
 assert.ok(!JSON.stringify(allReminderJobs({...grouped,tasks:grouped.tasks.map(t=>({...t,grade:{earned:9,possible:10},description:"Private notes"}))},enabledAt)).includes("Private notes"),"device schedule excludes notes and grade fields");
 assert.deepEqual(readBackup(backupText(base)).automaticReminders,settings);
 assert.equal(readBackup(backupText({...base,tasks:[{...t,automaticReminder:"off"}]})).tasks[0].automaticReminder,"off");

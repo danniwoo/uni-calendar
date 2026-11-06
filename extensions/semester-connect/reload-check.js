@@ -36,6 +36,7 @@ export function bundleFromSnapshots(config, snapshots, now = Date.now()) {
 // Dependency injection keeps browser lifecycle and read-only transport testable.
 export function reloadController(api, now = () => Date.now()) {
   let queue = Promise.resolve(), epoch = 0, batchPending = false;
+  const extensionVersion=api.runtime.getManifest().version;
   const generation = new Map();
   const getConfig = async () => (await api.storage.local.get("reloadConfig")).reloadConfig;
   const getState = async () => (await api.storage.session.get("reloadState")).reloadState || {};
@@ -75,17 +76,17 @@ export function reloadController(api, now = () => Date.now()) {
     const ownEpoch=epoch;
     const config = await getConfig();
     let state = await getState();
-    if (!validConfig(config)) return {enabled:false,message:state.message || "Reload checks are off.",raw:null};
-    if (!(await api.permissions.contains({origins:ORIGINS}))) { await disable("Site permission removed. Re-enable in Semester Connect."); return {enabled:false,message:"Site permission removed.",raw:null}; }
-    if(ownEpoch!==epoch)return {enabled:false,message:"Connection changed. Check again in Semester Connect.",raw:null};
+    if (!validConfig(config)) return {enabled:false,extensionVersion,message:state.message || "Reload checks are off.",raw:null};
+    if (!(await api.permissions.contains({origins:ORIGINS}))) { await disable("Site permission removed. Re-enable in Semester Connect."); return {enabled:false,extensionVersion,message:"Site permission removed.",raw:null}; }
+    if(ownEpoch!==epoch)return {enabled:false,extensionVersion,message:"Connection changed. Check again in Semester Connect.",raw:null};
     if(state.batchInProgress&&!batchPending){state={...state,snapshots:{},batchInProgress:false,message:"Previous batch was interrupted. Nothing imported. Click Check all again after one minute."};await api.storage.session.set({reloadState:state});}
     const snapshots=Object.fromEntries(Object.entries(state.snapshots||{}).filter(([,s])=>now()-Date.parse(s.fetchedAt)>=0&&now()-Date.parse(s.fetchedAt)<MAX_AGE&&s.user?.id===config.accountId&&s.readerVersion===READER_VERSION));
     if(Object.keys(snapshots).length!==Object.keys(state.snapshots||{}).length){
       state={...state,snapshots,message:"Old previews expired. Keep Canvas open and choose Check all courses in Semester."};
       await api.storage.session.set({reloadState:state});
     }
-    if(ownEpoch!==epoch)return {enabled:false,message:"Connection changed. Check again in Semester Connect.",raw:null};
-    return {enabled:true,canCheckAll:true,checking:batchPending,accountId:config.accountId,courseCount:config.courseIds.length,message:state.message || "Keep Canvas open and choose Check all courses in Semester.",raw:bundleFromSnapshots(config,state.snapshots,now())};
+    if(ownEpoch!==epoch)return {enabled:false,extensionVersion,message:"Connection changed. Check again in Semester Connect.",raw:null};
+    return {enabled:true,extensionVersion,canCheckAll:true,checking:batchPending,accountId:config.accountId,courseCount:config.courseIds.length,message:state.message || "Keep Canvas open and choose Check all courses in Semester.",raw:bundleFromSnapshots(config,state.snapshots,now())};
   }
   // One deliberate batch uses an existing Canvas tab, but reads only the IDs
   // previously consented to in the extension. No page-supplied IDs or URLs.

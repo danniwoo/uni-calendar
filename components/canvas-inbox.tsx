@@ -5,7 +5,8 @@ import {canvasGrade,canvasKey,canvasResultLabel,readCanvasBundle,planCanvasImpor
 import {prepareCanvasImport} from "@/lib/canvas-prepare";
 import {canvasUpdateStatus,canvasResultsHeadline,canvasCheckFreshness} from "@/lib/canvas-update-status";
 
-type Inbox={enabled:boolean;raw:string|null;message:string;canCheckAll:boolean;checking:boolean;courseCount:number};
+const CONNECT_VERSION="0.5.1";
+type Inbox={enabled:boolean;extensionVersion?:string;raw:string|null;message:string;canCheckAll:boolean;checking:boolean;courseCount:number};
 const needsCanvas=(message:string)=>/open one signed-in Canvas|Canvas login expired|Canvas tab changed or closed/i.test(message);
 const checkFailed=(message:string)=>/failed|incomplete|expired|no new check|limited|interrupted/i.test(message);
 export function CanvasInbox({semester,onReview,reviewOpen,onImportFile}:{semester:Semester;onReview:(raw:string)=>void;reviewOpen:boolean;onImportFile?:()=>void}) {
@@ -20,7 +21,7 @@ export function CanvasInbox({semester,onReview,reviewOpen,onImportFile}:{semeste
       if(e.source!==window||e.origin!==location.origin||e.data?.type!=="semester-connect-inbox-v1")return;
       const value=e.data.inbox;
       if(!value||typeof value.enabled!=="boolean"||typeof value.message!=="string"||value.message.length>500||!(value.raw===null||typeof value.raw==="string"&&value.raw.length<=1500000))return;
-      setInbox({enabled:value.enabled,raw:value.raw,message:value.message,canCheckAll:value.canCheckAll===true,checking:value.checking===true,courseCount:Number.isInteger(value.courseCount)&&value.courseCount>0&&value.courseCount<=8?value.courseCount:0});
+      setInbox({enabled:value.enabled,extensionVersion:typeof value.extensionVersion==="string"&&/^\d+\.\d+\.\d+$/.test(value.extensionVersion)?value.extensionVersion:undefined,raw:value.raw,message:value.message,canCheckAll:value.canCheckAll===true,checking:value.checking===true,courseCount:Number.isInteger(value.courseCount)&&value.courseCount>0&&value.courseCount<=8?value.courseCount:0});
       setRetrying(false);setRetried(false);
       if(resumedCheck&&!value.checking){
         resumedCheck=false;
@@ -89,7 +90,7 @@ export function CanvasInbox({semester,onReview,reviewOpen,onImportFile}:{semeste
     {preview?.error&&<p className="error" role="alert">{preview.error} Nothing imported.</p>}
     {details&&<div className="canvas-connect-help">
       {connected&&inbox.raw&&!preview?.error&&!displayResults&&<button disabled={reviewOpen||inbox.checking} onClick={()=>onReview(inbox.raw!)}>Review last preview</button>}
-      {connected?<><p>{inbox.message}</p>{preview?.status&&<><p>{preview.status.protected.length} manual entries kept · {preview.status.attention.length} rules to review</p><details><summary>Last read by course · {preview.bundle.courses.length} courses</summary>{preview.bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks page unavailable":""}</p>)}</details></>}<p>Check all reads every selected course using one signed-in Canvas course tab. You do not need to refresh each Marks page. Checks only prepare a preview; they never save grades.</p></>:<>
+      {connected?<><p>{inbox.message}</p><p>Semester Connect {inbox.extensionVersion||"version not reported"}{inbox.extensionVersion!==CONNECT_VERSION&&<> · <a href={`/downloads/semester-connect-${CONNECT_VERSION}.zip`} download>Update to {CONNECT_VERSION}</a>, reload the unpacked extension, then reload Semester.</>}</p>{preview?.status&&<><p>{preview.status.protected.length} manual entries kept · {preview.status.attention.length} rules to review</p><details><summary>Last read by course · {preview.bundle.courses.length} courses</summary>{preview.bundle.courses.map(c=><p key={c.course.id}>{c.course.code} · {new Date(c.fetchedAt).toLocaleString("en-AU",{timeZone:"Australia/Sydney"})} Sydney{c.marksPageUnavailable?" · Marks page unavailable":""}</p>)}</details></>}<p>Check all reads every selected course using one signed-in Canvas course tab. Returning to Semester requests one check when the last complete batch is at least a minute old. Checks only prepare a preview; they never import grades.</p></>:<>
       <h3>Connect Semester to Canvas</h3>
       <ol><li>Open <a href="https://canvas.sydney.edu.au/" target="_blank" rel="noopener noreferrer">Canvas</a> in the same Chrome profile and sign in.</li><li>Open Semester Connect from Chrome’s extensions menu. Choose <strong>Read my courses</strong>, select your courses, then <strong>Enable for selected courses</strong> and allow site access.</li><li>Return here and reload Semester. Keep one signed-in Canvas course tab open to check all selected courses.</li></ol>
       <p>Reading your course list is not the same as enabling the connection. If Semester Connect is not installed in this browser, use a JSON export from the browser where it is installed.</p>

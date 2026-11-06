@@ -1,5 +1,11 @@
 # Changelog
 
+## Web 0.24.2 — 2026-11-07
+
+- Show the detected Semester Connect version inside connection details and link the current 0.5.1 download when an older or unreported unpacked build is responding. Clarify that returning to Semester requests a read only when the last complete batch is stale; checks never import automatically.
+- Keep multi-item Canvas category totals as manual placement evidence instead of treating the total as one item's weight or silently proposing an opaque result such as “Mark” as a new assessment.
+- Synthetic matching and connection tests only. Existing saved mappings, manual grades, course consent and reminders are unchanged.
+
 ## Web 0.24.1 — 2026-11-02
 
 - Canvas can suggest a released numeric result for the uniquely numbered blank attempt in the same quiz, under the student's existing highest-attempt rule. Review, change or skip before importing. Keep calendar times, weights, and manual scores.

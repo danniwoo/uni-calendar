@@ -29,13 +29,13 @@ export function ReminderDeliveryStatus({compact=false}:{compact?:boolean}){const
     </div>
     {d.error&&<small role="alert">{d.error}</small>}
     <details><summary>{d.available?"How delivery works":"Set up desktop alerts"}</summary><div>
-      {!d.available&&<><a href="/downloads/semester-connect-0.5.0.zip" download>Download Semester Connect 0.5.0</a><small>Install or update Connect in Chrome, enable Desktop reminders in the extension, then reload Semester.</small></>}
+      {!d.available&&<><a href="/downloads/semester-connect-0.5.1.zip" download>Download Semester Connect 0.5.1</a><small>Install or update Connect in Chrome, enable Desktop reminders in the extension, then reload Semester.</small></>}
       <small>Reminders apply after Save. Keep Chrome running; the Semester tab can be closed. Sleep or Focus mode can delay alerts. Reopen Semester here to pick up changes from another device.</small>
     </div></details>
   </div>;
   return <div className="reminder-delivery" role="status">
-    <span>{d.checking?"Checking desktop notifications…":d.error||(!d.available?"Desktop notifications need Semester Connect 0.5.0 in Chrome.":d.pending?"Reminder changes are not scheduled yet. Wait for Saved.":d.enabled?"Desktop notifications on this Chrome profile.":"Desktop notifications are off on this Chrome profile.")}</span>
-    {d.available?<button type="button" onClick={d.settings}>{d.enabled?"Settings / test":"Enable desktop notifications"}</button>:!d.checking&&<><a href="/downloads/semester-connect-0.5.0.zip" download>Download Connect 0.5.0</a><small>Update Connect, open its Notification settings, then reload Semester.</small></>}
+    <span>{d.checking?"Checking desktop notifications…":d.error||(!d.available?"Desktop notifications need Semester Connect 0.5.1 in Chrome.":d.pending?"Reminder changes are not scheduled yet. Wait for Saved.":d.enabled?"Desktop notifications on this Chrome profile.":"Desktop notifications are off on this Chrome profile.")}</span>
+    {d.available?<button type="button" onClick={d.settings}>{d.enabled?"Settings / test":"Enable desktop notifications"}</button>:!d.checking&&<><a href="/downloads/semester-connect-0.5.1.zip" download>Download Connect 0.5.1</a><small>Update Connect, open its Notification settings, then reload Semester.</small></>}
     <small>Keep Chrome running. Sleep or Focus mode can delay alerts. Changes from another device apply when you reopen Semester here.</small>
   </div>;
 }

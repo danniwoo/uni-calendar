@@ -11,7 +11,7 @@ page.on("pageerror",e=>errors.push(e.message));
 page.on("request",r=>{if(new URL(r.url()).pathname.startsWith("/api/"))apiRequests.push(r.url());});
 const shown=async l=>l.waitFor({state:"visible"});
 const incoming=async value=>page.evaluate(inbox=>window.postMessage({type:"semester-connect-inbox-v1",inbox},location.origin),value);
-const enabled={enabled:true,canCheckAll:true,checking:false,courseCount:4,message:"Synthetic check ready",raw:null};
+const enabled={enabled:true,extensionVersion:"0.5.1",canCheckAll:true,checking:false,courseCount:4,message:"Synthetic check ready",raw:null};
 try{
   await page.addInitScript(()=>localStorage.setItem("semester-view","assessments"));
   await page.goto("http://127.0.0.1:5184/?connection");
@@ -52,6 +52,13 @@ try{
   await incoming(enabled); // synthetic bridge replies to the automatic arrival check
   await shown(entry.getByText("Not checked yet",{exact:true}));
   await shown(entry.getByRole("button",{name:"Check all 4 courses",exact:true}));
+  await entry.getByRole("button",{name:"Connection details",exact:true}).click();
+  await shown(entry.getByText("Semester Connect 0.5.1",{exact:true}));
+  assert(!await entry.getByRole("link",{name:"Update to 0.5.1",exact:true}).count());
+  await incoming({...enabled,extensionVersion:"0.5.0"});
+  await shown(entry.getByRole("link",{name:"Update to 0.5.1",exact:true}));
+  await incoming(enabled);
+  await entry.getByRole("button",{name:"Hide details",exact:true}).click();
   assert(!await entry.getByRole("button",{name:"Review updates",exact:true}).count());
   await entry.getByRole("button",{name:"Check all 4 courses",exact:true}).click();
   assert(await entry.getByRole("button",{name:"Checking…",exact:true}).isDisabled());

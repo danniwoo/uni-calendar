@@ -1,4 +1,4 @@
-# Semester Connect 0.5.0
+# Semester Connect 0.5.1
 
 ## Optional desktop reminders · Web 0.16.0
 
@@ -22,7 +22,7 @@ Trial target: **Semester Web 0.16.0**. Older versions support JSON (Web 0.4.0+) 
 
 First open Semester with your invited email. A new account needs its own USYD timetable subscription link to **Build my semester**; an existing board does not need rebuilding. Keep Semester and Canvas in the same Chrome profile.
 
-**Read my courses** → select teaching units (up to eight, not portals) → **Enable for selected courses** directly below the checklist → allow the two displayed site permissions → **Open Semester**, then reload it once. This is a one-time connection setup. In Connect 0.5.0, a signed-in Canvas **dashboard or course tab** is enough for Semester's **Check all courses**. You do not need to refresh each Marks page. Opening/reloading one selected course can also check that course.
+**Read my courses** → select teaching units (up to eight, not portals) → **Enable for selected courses** directly below the checklist → allow the two displayed site permissions → **Open Semester**, then reload it once. This is a one-time connection setup. In Connect 0.5.1, a signed-in Canvas **dashboard or course tab** is enough for Semester's **Check all courses**. You do not need to refresh each Marks page. Opening/reloading one selected course can also check that course.
 
 Semester Web 0.16.0 requests a fresh check on arrival/return when the previous check is old and no review is open. This is not continuous background monitoring. Checks are rate-limited to once a minute. Review the proposed before/after results, adjust or skip incorrect suggestions, then **Import N updates** once. Saved links are reused. Retakes and unfamiliar calculation rules may still need setup; pending setup does not block other ready updates. No real grades are saved until you click Import.
 
@@ -32,7 +32,7 @@ The same account's connected courses are checked when its course list is read ag
 
 ## Reload 更新檢查（可選，先預覽）
 
-1. 試用網站為 Web 0.16.0；Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.5.0**，並 reload Semester 網頁以載入新 bridge。
+1. Chrome 重新載入 unpacked Connect，關掉舊 preview，從 Canvas 圖示開啟，確認 **0.5.1**，並 reload Semester 網頁以載入新 bridge。
 2. **Read my courses** → 核對帳戶及學期 → 勾四科 → **Enable for selected courses**。Chrome 會要求 Canvas 與 Semester 兩個固定網站權限；不授權仍可用 JSON。
 3. 在**同一個 Chrome profile** 開 Semester 網站。Codex 內建瀏覽器不會自動取得 Chrome 的 extension 連線。
 4. 保持一個已登入 Canvas 首頁（`/` 或 `/dashboard`）或 `/courses/<id>/…` 分頁開著，在 Semester 按 **Check all 4 courses**（數字依已啟用科目數）。自動依序讀完四科，只在全部成功後提供預覽；中途失敗會清 pending、提示重試，不冒充完整四科。批次最多每分鐘一次。也可只 reload 某科檢查該科；兩者都不需再次打開 extension。
@@ -47,7 +47,7 @@ The same account's connected courses are checked when its course list is read ag
 ## 更新與測試
 
 1. 到 Chrome 的 `chrome://extensions`，對 **Semester Connect — Local Preview** 按重新載入。
-2. 先把新 ZIP 解壓後的檔案放入原本 Load unpacked 的資料夾，再 Reload。關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.5.0**。舊預覽可能仍記著舊版本；必須重新讀取才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
+2. 先把新 ZIP 解壓後的檔案放入原本 Load unpacked 的資料夾，再 Reload。關掉舊的 Connect 預覽，從已登入的 USYD Canvas 分頁重新點 extension 圖示。確認版本 **0.5.1**。舊預覽可能仍記著舊版本；必須重新讀取才能刷新資料，不能只重傳舊 JSON。已有 schema 1 檔案仍可用在新版匯入配對。
 3. 手動 JSON 路徑：按 **Read my courses**，核對帳戶，再勾本學期四科；不要選 Portal。展開 **Manual import instead**，按 **Read selected courses**。
 4. 每科會分別顯示筆數與已公布成績。單科失敗不清掉其他成功資料；從 Course 選失敗那科，再按 **Read selected course** 重試。所有勾選科目成功才可匯出。
 5. 用 Course 選單檢查每科，與 **Compare in Canvas** 的 Marks 頁比對。未公布、隱藏、免計分不等於零分。

@@ -53,12 +53,13 @@ try {
   assert.equal(apiReads, 0);
   await preview.locator("#courses").click();
   await preview.locator("#workspace").waitFor({ state: "visible", timeout: 15000 });
+  await preview.locator("#manual-import > summary").click();
   await preview.locator("#course").selectOption("12");
   await preview.locator("#read").click();
   await preview.locator("#results").waitFor({ state: "visible", timeout: 15000 });
   assert.match(await preview.locator("#rows").innerText(), /2\.7 \/ 3/);
   assert.match(await preview.locator("#rows").innerText(), /23:59/);
-  assert.equal(apiReads, 8);
+  assert.equal(apiReads, 9,"course discovery plus one full course read uses only the expected fixed GET set");
   await source.close();
   await preview.locator("#start").waitFor({ state: "visible" });
   assert.equal(await preview.locator("#rows tr").count(), 0);
