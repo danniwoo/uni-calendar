@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-本輪狀態（2026-11-02）：Web **0.24.0** navigation dropdown／compact course plan 已依 UI 回饋實作並發布（Sites 68）；0.23.0 已發布（Sites 67），含 invitation status／semester filters／cursor pages／request limits。全朋友／不分享、private grades/WAM 與 Connect **0.5.0** 不變。下一步是版面使用者回饋及 SOCIAL-01 真實雙人試用。
+本輪狀態（2026-11-07）：Web **0.24.4** 已把朋友連線改為常駐、清楚分開的「使用朋友邀請／分享自己的邀請」，並發布（Sites 73）；原有全朋友／不分享、private grades/WAM 與 Connect **0.5.0** 不變。假帳戶完整 invitation → request → accept 已通過；下一步是 SOCIAL-01 正式站真實雙人試用。
 
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
@@ -19,7 +19,7 @@
 | **暫放** | 輕量 Planning 還沒收斂；不因新增功能而當作已完成 | [PLAN-01](#plan-01)：先看真實作業怎麼拆下一步 |
 | **接著做** | 修復測試發現的問題，再走一份作業的完整流程 | T03 → T04；不要先再增加頁面 |
 | **原生實驗** | IOS-01：使用者批准 Stage 1，獨立 sample-only iPhone app／widget | [IOS-01](#ios-01)；不改 M1、Canvas 試用或正式發布 gate |
-| **Web course planning** | SOCIAL-01：多年選課計畫、朋友邀請、同科比對與 private WAM；0.20.0 已發布 | [SOCIAL-01](#social-01)；整份計畫只可分享給全部 accepted friends 或完全不分享；Sites 64，待雙人試用 |
+| **Web course planning** | SOCIAL-01：多年選課計畫、朋友邀請、同科比對與 private WAM；0.24.4 已發布 | [SOCIAL-01](#social-01)；邀請入口與自己的 link/code 已清楚顯示；Sites 73，待雙人試用 |
 | **之後再決定** | 自動 Canvas 更新、平台演進 | [Later / Ideas](#later-ideas)，不是本輪交付承諾 |
 
 CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並存；Now 同時推進最多 1–3 條，其餘留續接點。
@@ -61,8 +61,9 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 <a id="social-01"></a>
 ### SOCIAL-01
 
-**Web course plan & friends** · P2 · **待驗證（Web 0.24.0 / Sites 68 已發布）** · 2026-11-02
+**Web course plan & friends** · P2 · **待驗證（Web 0.24.4 / Sites 73 已發布）** · 2026-11-07
 
+- 2026-11-07／Web 0.24.4：使用者找不到邀請朋友或自己的 code。Friends 頁現在固定顯示 **Use their invite** 與 **Share yours**；建立後直接呈現分組 code 及 Copy link／Copy code，不顯示佔版面的完整 URL。Alice/Bob 假帳戶 invitation → request → accept、reload 與 390px 無溢出檢查通過；未改真實朋友、分享或網站 audience。正式站兩人完整走一次仍是驗收下一步。
 - 2026-11-02／Web 0.24.0：依使用者回饋把不常用入口收進 dropdown，整理 board toolbar；course plan 直接進 unit cards、WAM 收在下方 expandable row。假資料 UI 檢查通過，待使用者體感回饋；不再先擴新功能。
 - 2026-11-02／Web 0.23.0：邀請狀態、expiry、撤銷後 reload；修正 create invite panel；好友／shared units／blocked users 分頁與精確學期 filter；D1 rate windows／pending caps。測試與發布憑據見 PROGRESS，不代表雙人或負載驗收。
 - 待真實雙人試用後：修復 onboarding 阻斷，再加入 course-plan restore（目前只有 export）及精確 tutorial group／preferred vs allocated。網站 audience 仍維持現有邀請制。

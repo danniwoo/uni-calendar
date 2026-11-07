@@ -1,6 +1,12 @@
 # Engineering handoff
 
-Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-11-07. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+
+### 2026-11-07 friend invitation onboarding / Web 0.24.4
+
+- User could not find where to invite a friend or retrieve their own code. Friends now opens with one always-visible **Add a friend** area: **Use their invite** accepts a link/code; **Share yours** creates the owner's invite. The active invite keeps the short grouped code prominent with direct Copy link / Copy code actions; the long raw URL is no longer shown. Raw invite values remain hash-only at rest, and website access remains a separate trial requirement.
+- Synthetic Alice/Bob/Eve browser QA created an invite, parsed the grouped code, reloaded the active-invite state, sent and accepted a request, and checked 390px without horizontal overflow. Invitation/account/privacy/pagination regressions, changed-file lint, TypeScript, whitespace checks and the production build passed. No real account, friendship, sharing setting, invitation or access grant changed during QA.
+- GitHub main code commit `ddf54e1c5bc8c24e0a592ed65bd0a34b0a906e1d`. Published **Web 0.24.4 / Sites 73**, source `47ade7d584af9d80986e63e1d7942d5e302de183`; deployment `appgdep_6aef0ddbea508191905a646520ae8e6d` succeeded 2026-11-07 at 22:39 Sydney: https://usyd-semester-board.earthy-trout-5263.chatgpt.site/plan?view=friends . Existing custom audience and seven external visitor grants were preserved. Hosted two-person acceptance remains pending.
 
 ### 2026-11-02 navigation and course-plan density / Web 0.24.0
 
