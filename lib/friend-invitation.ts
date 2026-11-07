@@ -15,6 +15,10 @@ export function invitationLink(origin:string,code:string) {
   url.hash=new URLSearchParams({invite:normalized}).toString();
   return url.toString();
 }
+export function invitationCodeLabel(input:string) {
+  const normalized=invitationCode(input);
+  return normalized?normalized.match(/.{1,4}/g)!.join("-"):input;
+}
 // Remember a view preference only; no identity, invitation or student data is stored.
 export function planningYear(sydneyDay:string,saved:string|null) {
   const value=Number(saved);

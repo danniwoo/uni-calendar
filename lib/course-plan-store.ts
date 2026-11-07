@@ -123,7 +123,7 @@ export async function changeCoursePlan(db:D1Database, owner:string, raw:unknown)
     const code=crypto.randomUUID().replaceAll("-","").toUpperCase();
     const expiresAt=new Date(Date.now()+7*24*60*60*1000).toISOString();
     const invite=await db.prepare("INSERT INTO friend_invites (owner,code_hash,expires_at) VALUES (?,?,?) ON CONFLICT(owner) DO UPDATE SET code_hash=excluded.code_hash, expires_at=excluded.expires_at, revoked_at=NULL, revision=friend_invites.revision+1 RETURNING revision").bind(owner,await hash(code),expiresAt).first<{revision:number}>();
-    return {message:"Invitation created. Any previous code has expired.",inviteCode:code,expiresAt,inviteRevision:invite!.revision};
+    return {message:"Invite ready to share.",inviteCode:code,expiresAt,inviteRevision:invite!.revision};
   }
   if(body.action==="revoke-invite") {
     await db.prepare("UPDATE friend_invites SET revoked_at=?,revision=revision+1 WHERE owner=? AND revoked_at IS NULL").bind(now,owner).run();

@@ -3,7 +3,7 @@ import {coursePlanTestDb} from "./course-plan-test-db";
 import {changeCoursePlan,readCoursePlan} from "../lib/course-plan-store";
 import {accountResponse,type AccountData} from "../lib/account";
 import {coursePlanResponse} from "../lib/course-plan-api";
-import {invitationCode,invitationLink,planningYear} from "../lib/friend-invitation";
+import {invitationCode,invitationCodeLabel,invitationLink,planningYear} from "../lib/friend-invitation";
 const {db,sqlite}=coursePlanTestDb();
 const change=(owner:string,body:unknown)=>changeCoursePlan(db,owner,body);
 const account=async(owner:string)=>(await accountResponse({owner,email:`${owner}@example.test`},()=>db)).json() as Promise<AccountData>;
@@ -16,6 +16,7 @@ const invitation=await change("alice",{action:"create-invite"}),code=invitation.
 const link=invitationLink("https://semester.example",code);
 assert.equal(new URL(link).search,"?view=friends");assert.equal(new URL(link).searchParams.has("invite"),false);
 assert.equal(invitationCode(link),code);assert.equal(invitationCode(code.toLowerCase()),code);
+const labelCode="0123456789ABCDEF0123456789ABCDEF";assert.equal(invitationCodeLabel(labelCode),"0123-4567-89AB-CDEF-0123-4567-89AB-CDEF");assert.equal(invitationCode(invitationCodeLabel(labelCode)),labelCode);
 assert.equal(invitationCode("javascript:alert(1)"),null);assert.equal(invitationCode("https://semester.example/#invite=invalid"),null);
 assert.deepEqual(await preview("bob",link),{name:"Alice Example",state:"available"});
 assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM friendships").get()!.n,0,"preview never creates or accepts a request");

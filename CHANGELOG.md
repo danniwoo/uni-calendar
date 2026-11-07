@@ -1,5 +1,11 @@
 # Changelog
 
+## Web 0.24.4 — 2026-11-07
+
+- Put **Add a friend** directly at the top of Friends instead of hiding both connection paths behind a toggle. The card now clearly separates **Use their invite** from **Share yours**.
+- Show a newly created invitation link and a grouped, directly copyable code together. On a later visit, explain that an active invite must be replaced to copy it again; raw invite codes remain hash-only at rest.
+- Synthetic Alice/Bob browser QA completed invitation creation, code entry, request and acceptance at desktop and 390px. No real accounts, invitations, friend records, sharing settings or access grants were changed.
+
 ## Web 0.24.3 — 2026-11-07
 
 - Suggest a generic Canvas `Mark`, `Total`, `Overall` or `Final mark` as the whole assessment when its multi-item Canvas category name matches the board's only assessment at that category weight. The compact preview shows the destination; one short reason stays behind **Why this match?**.

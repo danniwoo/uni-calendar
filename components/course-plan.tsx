@@ -1,6 +1,6 @@
 "use client";
 import {useEffect, useRef, useState} from "react";
-import {Plus, Users, LockKeyhole, ArrowRight, Ellipsis, RefreshCw, Download, Settings, ChevronDown} from "lucide-react";
+import {Plus, Users, LockKeyhole, ArrowRight, Ellipsis, RefreshCw, Download, Settings, ChevronDown, UserPlus, Link2, Copy} from "lucide-react";
 import {Sheet,SheetContent,SheetHeader,SheetTitle,SheetDescription} from "@/components/ui/sheet";
 import {creditSummary,wamSummary,wamExclusion,matchesFor,sameOffering,PLAN_STATUSES,STATUS_LABEL,type CoursePlanData,type PlanEntry,type PlanDraft,type PlanFriend,type SharedPlan,type PlanSession,type FriendsPage,type SharedPage} from "@/lib/course-plan";
 import {useSharedPlanPage} from "./shared-plan-page";
@@ -8,7 +8,7 @@ import {sydneyDate} from "@/lib/semester";
 import {openProfileSettings,PROFILE_CHANGED} from "./account-menu";
 import AppHeader from "./app-header";
 import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from "@/components/ui/dropdown-menu";
-import {invitationCode,invitationLink,planningYear,type InvitePreview} from "@/lib/friend-invitation";
+import {invitationCode,invitationCodeLabel,invitationLink,planningYear,type InvitePreview} from "@/lib/friend-invitation";
 
 type Editor = {id:string|null;revision:number;draft:PlanDraft;initial:string};
 type MutationResult = {message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview;inviteRevision?:number};
@@ -21,7 +21,7 @@ export default function CoursePlan() {
   const [busy,setBusy]=useState(false),[loading,setLoading]=useState(true),[error,setError]=useState("");
   const [loadError,setLoadError]=useState(""),[signIn,setSignIn]=useState(false),[notice,setNotice]=useState("");
   const [editor,setEditor]=useState<Editor|null>(null),[selected,setSelected]=useState<string|null>(null);
-  const [code,setCode]=useState(""),[connectOpen,setConnectOpen]=useState(false);
+  const [code,setCode]=useState("");
   const [preview,setPreview]=useState<{code:string;value:InvitePreview}|null>(null);
   const [inviteFromLink,setInviteFromLink]=useState<string|null>(null);
   const [signInPath,setSignInPath]=useState("/signin-with-chatgpt?return_to=%2Fplan");
@@ -29,7 +29,7 @@ export default function CoursePlan() {
   const [invite,setInvite]=useState<{code:string;expiresAt:string;revision:number}|null>(null);
   const [friendFilter,setFriendFilter]=useState("all"),[sessionFilter,setSessionFilter]=useState<""|PlanSession>(""),[ready,setReady]=useState(false);
   const [moreBusy,setMoreBusy]=useState(false),[refreshKey,setRefreshKey]=useState(0);
-  const moreRef=useRef(false),queryRef=useRef("");
+  const moreRef=useRef(false),queryRef=useRef(""),friendSetupRef=useRef<HTMLElement|null>(null);
   const query=new URLSearchParams({year:String(year),...(tab==="friends"&&sessionFilter?{session:sessionFilter}:{}),...(tab==="friends"&&friendFilter!=="all"?{friend:friendFilter}:{})}).toString();
   queryRef.current=query;
   const busyRef=useRef(false),dirtyRef=useRef(false),requestVersion=useRef(0);
@@ -57,7 +57,7 @@ export default function CoursePlan() {
       setSignInPath(`/signin-with-chatgpt?return_to=${encodeURIComponent(url.pathname+url.search+url.hash)}`);
       if(url.searchParams.get("view")==="friends")setTab("friends");
       const invitation=new URLSearchParams(url.hash.slice(1)).get("invite");
-      if(invitation!==null){setTab("friends");setConnectOpen(true);setCode(invitation);setInviteFromLink(invitation);}
+      if(invitation!==null){setTab("friends");setCode(invitation);setInviteFromLink(invitation);}
     };
     readLocation();window.addEventListener("hashchange",readLocation);window.addEventListener("popstate",readLocation);
     try{setYear(planningYear(sydneyDate(new Date()),localStorage.getItem("semester-plan-year")));}catch{}
@@ -153,7 +153,7 @@ export default function CoursePlan() {
       <div className="course-title"><h1>{tab==="plan"?"Course plan":"Friends"}</h1>{data&&<button className="course-sharing" onClick={openProfileSettings} title="Course-plan sharing settings" aria-label={`Sharing settings · ${data.profile?.sharing?"all accepted friends":"private"}`}>{data.profile?.sharing?<Users size={14}/>:<LockKeyhole size={14}/>}<span>{data.profile?.sharing?"All friends":"Private"}</span></button>}</div>
       <div className="course-title-actions">
         <label className="course-year-picker">Year<select value={year} disabled={loading||busy} onChange={e=>chooseYear(Number(e.target.value))}>{years.map(y=><option key={y}>{y}</option>)}</select></label>
-        {data&&(tab==="plan"?<button className="primary" disabled={disabled} onClick={()=>openEditor()}><Plus size={16}/>Add unit</button>:<button className="primary" onClick={()=>setConnectOpen(!connectOpen)} aria-expanded={connectOpen}><Plus size={16}/>Add friend</button>)}
+        {data&&(tab==="plan"?<button className="primary" disabled={disabled} onClick={()=>openEditor()}><Plus size={16}/>Add unit</button>:<button className="primary" onClick={()=>friendSetupRef.current?.scrollIntoView({behavior:"smooth",block:"start"})}><UserPlus size={16}/>Add friend</button>)}
         <DropdownMenu><DropdownMenuTrigger className="course-more" aria-label="More course-plan options" title="More"><Ellipsis size={20}/></DropdownMenuTrigger><DropdownMenuContent className="app-options-menu" align="end">
           <DropdownMenuItem disabled={busy||loading} onSelect={()=>void refresh()}><RefreshCw size={16}/>Refresh</DropdownMenuItem>
           <DropdownMenuItem disabled={!data||busy} onSelect={exportPlan}><Download size={16}/>Export my plan</DropdownMenuItem>
@@ -188,32 +188,34 @@ export default function CoursePlan() {
         </details>
         <p className="course-footnote">Plans, enrolment and completion are self-reported. Check official unit availability, prerequisites and degree requirements before enrolling. Credit totals exclude considering and completed entries.</p>
       </>:<>
-        <p className="course-connection-count">{data.friendCount} friend{data.friendCount===1?"":"s"}{incomingCount?` · ${incomingCount} pending request${incomingCount===1?"":"s"}`:""}</p>
         {!data.profile&&<div className="course-onboarding"><div><strong>Introduce yourself</strong><p>Choose a name your friends recognise before sending or accepting requests.</p></div><button onClick={openProfileSettings}>Set up profile</button></div>}
-        {data.friends.some(f=>f.state!=="blocked")?<section className="course-connections" aria-label="Friends and requests">{[...data.friends].filter(f=>f.state!=="blocked").sort((a,b)=>(a.state==="incoming"?0:a.state==="accepted"?1:2)-(b.state==="incoming"?0:b.state==="accepted"?1:2)||a.name.localeCompare(b.name)).map(friend=><div className="course-connection" key={friend.connectionId}><div><strong>{friend.name}</strong><span className="muted">{friend.state==="accepted"?"Friends":friend.state==="incoming"?"Wants to connect":"Request sent"}</span></div><div className="course-actions">
-          {friend.state==="incoming"&&<button className="primary" disabled={disabled} onClick={()=>friendAction(friend,"accept")}>Accept</button>}
-          <button disabled={disabled} onClick={()=>friendAction(friend,"remove")}>{friend.state==="incoming"?"Decline":friend.state==="outgoing"?"Cancel request":"Remove"}</button><button disabled={disabled} onClick={()=>friendAction(friend,"block")}>Block</button>
-        </div></div>)}</section>:!connectOpen&&<div className="course-empty">Add a friend to start planning together.</div>}
-        {data.friendsNext&&<button disabled={disabled||moreBusy} onClick={()=>loadMore("friends")}>{moreBusy?"Loading…":"Load more friends and requests"}</button>}
-        {connectOpen&&<div className="course-friend-setup">
-          <section className="course-panel"><h2>Have an invitation?</h2><form onSubmit={async e=>{e.preventDefault();await checkInvite(code);}}><label htmlFor="friend-code">Friend’s link or code</label><div className="course-inline"><input id="friend-code" value={code} maxLength={2048} onChange={e=>{setCode(e.target.value);setPreview(null);}} autoComplete="off" required disabled={busy}/><button disabled={disabled||!code.trim()}>Check invitation</button></div></form>
+        <section id="add-friend" ref={friendSetupRef} className="course-add-friend" aria-labelledby="add-friend-title">
+          <header className="course-add-friend-heading"><div><h2 id="add-friend-title">Add a friend</h2><p>Paste their invitation, or create yours to send.</p></div></header>
+          <div className="course-friend-setup">
+          <section className="course-connect-option"><span className="course-connect-label"><Link2 size={14}/>Use their invite</span><h3>Enter your friend’s code or link</h3><form onSubmit={async e=>{e.preventDefault();await checkInvite(code);}}><label className="sr-only" htmlFor="friend-code">Friend’s invitation</label><div className="course-inline"><input id="friend-code" value={code} maxLength={2048} placeholder="Paste invitation link or code" onChange={e=>{setCode(e.target.value);setPreview(null);}} autoComplete="off" required disabled={busy}/><button className="primary" disabled={disabled||!code.trim()}>Find friend</button></div></form>
             {preview&&<div className="course-invitation-preview"><strong>{preview.value.name}</strong>
               {preview.value.state==="available"?<><p>Send a friend request? Their units appear after they accept and choose to share.</p>{data.profile?<button className="primary" disabled={disabled} onClick={async()=>{if(await mutate({action:"request-friend",code:preview.code})){clearInvitation();window.dispatchEvent(new Event(PROFILE_CHANGED));}}}>Send request to {preview.value.name}</button>:<button onClick={openProfileSettings}>Set up profile to continue</button>}</>
               :<p>{preview.value.state==="self"?"This is your own invitation. Share it with a friend.":preview.value.state==="accepted"?"You are already friends.":preview.value.state==="outgoing"?"Your request has already been sent.":"They already sent you a request. Accept it in the list above."}</p>}
               <button disabled={busy} onClick={clearInvitation}>Dismiss invitation</button>
             </div>}
           </section>
-          <section className="course-panel"><h2>Invite a friend</h2><p className="muted">Share a link in your existing chat. You accept their request before sharing units.</p>
+          <div className="course-connect-or" aria-hidden="true">or</div>
+          <section className="course-connect-option"><span className="course-connect-label"><UserPlus size={14}/>Share yours</span><h3>Send your invite</h3><p className="muted">Your friend opens the link, then sends you a request.</p>
             {data.profile?<>
-              <p className="course-invite-status" role="status">{data.invitation.state==="active"?`Invitation active · expires ${new Date(data.invitation.expiresAt!).toLocaleString("en-AU",{timeZone:"Australia/Sydney",dateStyle:"medium",timeStyle:"short"})} (Sydney)`:data.invitation.state==="expired"?"Your invitation has expired.":data.invitation.state==="revoked"?"Your invitation has been revoked.":"No active invitation."}</p>
-              {data.invitation.state==="active"&&!activeInvite&&<p className="muted">Your previously shared link still works. To copy a link here, create a replacement; the old link will stop working.</p>}
-              <div className="course-inline"><button disabled={disabled} onClick={async()=>{const r=await mutate({action:"create-invite"});if(r?.inviteCode&&r.expiresAt&&r.inviteRevision)setInvite({code:r.inviteCode,expiresAt:r.expiresAt,revision:r.inviteRevision});}}>{data.invitation.state==="active"?"Replace invitation link":"Create invitation link"}</button><button disabled={disabled||data.invitation.state!=="active"} onClick={async()=>{if(await mutate({action:"revoke-invite"}))setInvite(null);}}>Revoke invitation</button></div>
-              {activeInvite&&origin&&<div className="course-invite"><label htmlFor="friend-invite">Your invitation link</label><div className="course-inline"><input id="friend-invite" value={invitationLink(origin,activeInvite.code)} readOnly/><button onClick={()=>copy(invitationLink(origin,activeInvite.code),"Invitation link copied.")}>Copy link</button></div><p className="muted">Expires {new Date(activeInvite.expiresAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})}.</p><details><summary>Use a code instead</summary><div className="course-inline"><input aria-label="Your invitation code" value={activeInvite.code} readOnly/><button onClick={()=>copy(activeInvite.code,"Invitation code copied.")}>Copy code</button></div></details></div>}
-              <p className="muted">New invitations replace earlier links and codes. Revoking one leaves existing requests unchanged.</p>
+              {activeInvite&&origin?<div className="course-invite" role="status"><div className="course-invite-heading"><div><strong>Your invite is ready</strong><small>Expires {new Date(activeInvite.expiresAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})}</small></div></div><div className="course-code-row"><div><small>Your friend code</small><code>{invitationCodeLabel(activeInvite.code)}</code></div><div className="course-invite-actions"><button className="primary" onClick={()=>copy(invitationLink(origin,activeInvite.code),"Invitation link copied.")}><Copy size={14}/>Copy link</button><button onClick={()=>copy(invitationCodeLabel(activeInvite.code),"Invitation code copied.")}><Copy size={14}/>Copy code</button></div></div></div>:<>{data.invitation.state!=="none"&&<p className="course-invite-status" role="status">{data.invitation.state==="active"?"You already have an active invite.":data.invitation.state==="expired"?"Your last invite expired.":"Your last invite was cancelled."}</p>}{data.invitation.state==="active"&&<p className="muted">Create a new invite to copy it again. The previous one will stop working.</p>}<button className="primary" disabled={disabled} onClick={async()=>{const r=await mutate({action:"create-invite"});if(r?.inviteCode&&r.expiresAt&&r.inviteRevision)setInvite({code:r.inviteCode,expiresAt:r.expiresAt,revision:r.inviteRevision});}}>{data.invitation.state==="active"?"Create a new invite":"Create my invite"}</button></>}
+              {data.invitation.state==="active"&&<button className="course-text-action" disabled={disabled} onClick={async()=>{if(await mutate({action:"revoke-invite"}))setInvite(null);}}>Cancel active invite</button>}
             </>:<button onClick={openProfileSettings}>Set up profile to invite</button>}
-            <p className="course-access-note">This trial website is invite-only. If your friend cannot open it, ask the website owner to grant access first. A friend link does not grant website access.</p>
           </section>
-        </div>}
+          </div>
+          <p className="course-access-note">During this trial, your friend also needs access to the Semester website.</p>
+        </section>
+        <section className="course-friends-section" aria-label="Friends and requests"><div className="course-friends-heading"><div><h2>Friends & requests</h2><p className="muted">{data.friendCount} friend{data.friendCount===1?"":"s"}{incomingCount?` · ${incomingCount} waiting for you`:""}</p></div></div>
+          {data.friends.some(f=>f.state!=="blocked")?<div className="course-connections">{[...data.friends].filter(f=>f.state!=="blocked").sort((a,b)=>(a.state==="incoming"?0:a.state==="accepted"?1:2)-(b.state==="incoming"?0:b.state==="accepted"?1:2)||a.name.localeCompare(b.name)).map(friend=><div className="course-connection" key={friend.connectionId}><div><strong>{friend.name}</strong><span className="muted">{friend.state==="accepted"?"Friends":friend.state==="incoming"?"Wants to connect":"Request sent"}</span></div><div className="course-actions">
+            {friend.state==="incoming"&&<button className="primary" disabled={disabled} onClick={()=>friendAction(friend,"accept")}>Accept</button>}
+            <button disabled={disabled} onClick={()=>friendAction(friend,"remove")}>{friend.state==="incoming"?"Decline":friend.state==="outgoing"?"Cancel request":"Remove"}</button><button disabled={disabled} onClick={()=>friendAction(friend,"block")}>Block</button>
+          </div></div>)}</div>:<div className="course-empty"><strong>No friends yet</strong><p>Use either option above to connect.</p></div>}
+          {data.friendsNext&&<button disabled={disabled||moreBusy} onClick={()=>loadMore("friends")}>{moreBusy?"Loading…":"Load more friends and requests"}</button>}
+        </section>
         <section className="course-friend-plans"><div className="course-term-heading"><h2>Friends’ shared units · {year}</h2><label>Semester <select value={sessionFilter} onChange={e=>setSessionFilter(e.target.value as ""|PlanSession)}><option value="">Both semesters</option><option value="S1C">Semester 1</option><option value="S2C">Semester 2</option></select></label><label>Show <select value={friendFilter} onChange={e=>setFriendFilter(e.target.value)}><option value="all">All friends</option>{friendFilter!=="all"&&!friends.some(f=>f.id===friendFilter)&&<option value={friendFilter}>Selected friend</option>}{friends.map(f=><option key={f.id} value={f.id}>{f.name}</option>)}</select></label></div>
           {!sharedForYear.length&&!loading?<p className="course-empty">{data.friendCount?"No shared course plans for this selection yet. A friend may have no units planned or have sharing switched off.":"Connect with a friend to see their shared course plan."}</p>:sharedForYear.map(p=>{const mine=data.plans.find(m=>sameOffering(m,p));return <article className="course-shared-row" key={`${p.friendId}-${p.code}-${p.year}-${p.session}`}><div><strong>{p.code} · {p.name}</strong><span>{p.friendName} · {STATUS_LABEL[p.status]} · {period(p)}</span><small className="muted">Updated {new Date(p.updatedAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})} · self-reported</small></div>{mine?<span className="course-status">In your plan · {STATUS_LABEL[mine.status]}</span>:<button disabled={disabled} onClick={()=>openEditor(p)}>Add to my plan</button>}</article>;})}
           {data.sharedNext&&<button disabled={disabled||moreBusy} onClick={()=>loadMore("shared")}>{moreBusy?"Loading…":"Load more shared units"}</button>}
