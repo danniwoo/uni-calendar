@@ -1,5 +1,11 @@
 # Changelog
 
+## Web 0.24.3 — 2026-11-07
+
+- Suggest a generic Canvas `Mark`, `Total`, `Overall` or `Final mark` as the whole assessment when its multi-item Canvas category name matches the board's only assessment at that category weight. The compact preview shows the destination; one short reason stays behind **Why this match?**.
+- Weekly quiz titles never use this overall-result shortcut. Existing individual-grade rules remain protected, and ambiguous weights or category names still require an explicit choice instead of creating a duplicate assessment.
+- Synthetic matching regression only; no real Canvas data or saved board values were changed.
+
 ## Web 0.24.2 — 2026-11-07
 
 - Show the detected Semester Connect version inside connection details and link the current 0.5.1 download when an older or unreported unpacked build is responding. Clarify that returning to Semester requests a read only when the last complete batch is stale; checks never import automatically.

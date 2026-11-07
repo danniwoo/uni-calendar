@@ -131,7 +131,8 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
           continue;
         }
         // A related recurring parent needs a rule, not duplicate weekly tasks.
-        const related=targets.find(t=>!simpleCanvasDestination(t,s.tasks)&&[...tokens(t.title)].filter(w=>tokens(a.name).has(w)).length>=2);
+        const sourceGroup=c.groups.find(g=>g.id===a.groupId),sourceTokens=new Set([...tokens(a.name),...tokens(sourceGroup?.name||"")]);
+        const related=targets.find(t=>!simpleCanvasDestination(t,s.tasks)&&[...tokens(t.title)].filter(w=>sourceTokens.has(w)).length>=2);
         if(related){issues[key]=`Choose how individual results belong to ${related.title}.`;continue;}
         proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:"new",mode:"overall"},score:0,reason:"New assessment · weight stays unknown"});
       }

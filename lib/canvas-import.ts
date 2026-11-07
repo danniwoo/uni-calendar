@@ -71,6 +71,7 @@ export function canvasResultLabel(a:CanvasAssignment){
 export type CanvasCandidate={target:Task;score:number;reason:string;automatic?:boolean};
 const candidateWords=(value:string)=>value.toLowerCase().replace(/[^a-z0-9]+/g," ").trim().split(" ").filter(word=>word.length>2&&!["the","and","for","due","week","requires","respondus","lockdown","browser","submission","assessment"].includes(word));
 const candidatePercent=(value:string)=>{const hits=[...value.matchAll(/\b(\d+(?:\.\d+)?)\s*%/g)].map(match=>Number(match[1]));return hits.length===1&&hits[0]<=100?hits[0]:undefined;};
+const aggregateCanvasName=(value:string)=>/^(?:(?:final|overall)\s+)?(?:mark|marks|grade|result|total)(?:\s+(?:mark|grade|result))?$/.test(value.toLowerCase().replace(/[^a-z0-9]+/g," ").trim());
 // Fallback for weak or unhelpful assignment titles. A Canvas group weight is
 // automatic evidence only when that group contains exactly one active item.
 // Multi-item category totals remain useful as manual candidates, so an opaque
@@ -89,8 +90,15 @@ export function canvasGroupCandidates(course:CanvasCourse,a:CanvasAssignment,tar
   });
   const weighted=group.weight===null?[]:targets.filter(target=>candidatePercent(target.weight)===group.weight);
   if(groupItems.length!==1){
-    const category=`Canvas category “${group.name}” contains ${groupItems.length} items; ${group.weight===null?"its weight is unknown":`${group.weight}% is the category total, not this item’s weight`}`;
     const namedWeighted=named.filter(value=>weighted.some(target=>target.id===value.target.id));
+    // Some courses keep weekly activity rows for scheduling/completion, then
+    // publish one generic Mark/Total row for the whole weighted category. When
+    // that category name identifies the board's only same-weight assessment,
+    // suggest the overall result; a weekly quiz title never takes this path.
+    if(aggregateCanvasName(a.name)&&weighted.length===1&&namedWeighted.length===1){
+      return [{target:weighted[0],score:92,reason:`Only ${group.weight}% assessment · Canvas category name matches`}];
+    }
+    const category=`Canvas category “${group.name}” has ${groupItems.length} items; ${group.weight===null?"weight unknown":`${group.weight}% is the category total`}`;
     const manual=namedWeighted.length?namedWeighted:named.length?named:weighted;
     return manual.map(value=>{
       const target="target" in value?value.target:value;
