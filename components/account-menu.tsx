@@ -86,7 +86,7 @@ export default function AccountMenu() {
     </button>
     <Sheet open={open} onOpenChange={value=>{if(!value)close();}}><SheetContent className="detail-panel account-panel">
       <SheetHeader><SheetTitle>Profile &amp; settings</SheetTitle><SheetDescription>Your Semester identity, sharing and account data.</SheetDescription></SheetHeader>
-      <nav className="account-nav" aria-label="Account navigation"><a href="/plan">Course plan</a><a href="/plan?view=friends"><Users size={16}/>Friends{data?.incoming?` · ${data.incoming} request${data.incoming===1?"":"s"}`:""}</a></nav>
+      <nav className="account-nav" aria-label="Account navigation"><a href="/plan">Course plan</a><a href="/plan?view=friends"><Users size={16}/>Friends &amp; invites{data?.incoming?` · ${data.incoming} request${data.incoming===1?"":"s"}`:""}</a></nav>
       {loadError&&<div className="notice error" role="alert">{loadError}{signIn?<a href={`/signin-with-chatgpt?return_to=${encodeURIComponent(returnTo)}`} target="_top">Sign in with ChatGPT</a>:<button onClick={()=>load()} disabled={busy}>Retry loading</button>}</div>}
       {!data&&!loadError&&<p role="status">Loading your profile…</p>}
       {error&&<div className="notice error" role="alert">{error}<button disabled={busy} onClick={()=>load()}>Refresh saved profile</button></div>}

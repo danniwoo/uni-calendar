@@ -11,8 +11,20 @@ import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} f
 import {invitationCode,invitationCodeLabel,invitationLink,planningYear,type InvitePreview} from "@/lib/friend-invitation";
 
 type Editor = {id:string|null;revision:number;draft:PlanDraft;initial:string};
-type MutationResult = {message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview;inviteRevision?:number};
+type SavedInvite = {code:string;expiresAt:string;revision:number;fingerprint:string};
+type MutationResult = {message:string;inviteCode?:string;expiresAt?:string;invitePreview?:InvitePreview;inviteRevision?:number;inviteFingerprint?:string};
 const period = (p:{year:number;session:PlanSession}) => `Semester ${p.session==="S1C"?1:2}, ${p.year}`;
+const INVITE_CACHE_KEY="semester-friend-invite-v1";
+function readSavedInvite():SavedInvite|null {
+  try {
+    const value=JSON.parse(localStorage.getItem(INVITE_CACHE_KEY)??"null") as Partial<SavedInvite>|null;
+    if(!value||typeof value.code!=="string"||!invitationCode(value.code)||typeof value.expiresAt!=="string"||!Number.isInteger(value.revision)||typeof value.fingerprint!=="string")return null;
+    return value as SavedInvite;
+  } catch{return null;}
+}
+function saveInvite(value:SavedInvite|null) {
+  try {if(value)localStorage.setItem(INVITE_CACHE_KEY,JSON.stringify(value));else localStorage.removeItem(INVITE_CACHE_KEY);}catch{}
+}
 
 export default function CoursePlan() {
   const thisYear=Number(sydneyDate(new Date()).slice(0,4));
@@ -26,7 +38,7 @@ export default function CoursePlan() {
   const [inviteFromLink,setInviteFromLink]=useState<string|null>(null);
   const [signInPath,setSignInPath]=useState("/signin-with-chatgpt?return_to=%2Fplan");
   const [origin,setOrigin]=useState("");
-  const [invite,setInvite]=useState<{code:string;expiresAt:string;revision:number}|null>(null);
+  const [invite,setInvite]=useState<SavedInvite|null>(null);
   const [friendFilter,setFriendFilter]=useState("all"),[sessionFilter,setSessionFilter]=useState<""|PlanSession>(""),[ready,setReady]=useState(false);
   const [moreBusy,setMoreBusy]=useState(false),[refreshKey,setRefreshKey]=useState(0);
   const moreRef=useRef(false),queryRef=useRef(""),friendSetupRef=useRef<HTMLElement|null>(null);
@@ -46,7 +58,11 @@ export default function CoursePlan() {
       if(request!==requestVersion.current||currentQuery!==queryRef.current)return;
       if(!response.ok){setSignIn(!!result.signIn);if(result.signIn)setData(null);throw new Error(result.error||"Could not load course plans.");}
       setData(result);setLoadError("");setSignIn(false);
-      setInvite(old=>old&&old.revision===result.invitation.revision&&result.invitation.state==="active"?old:null);
+      setInvite(old=>{
+        const candidate=old??readSavedInvite();
+        if(candidate&&result.invitation.state==="active"&&candidate.revision===result.invitation.revision&&candidate.fingerprint===result.invitation.fingerprint)return candidate;
+        saveInvite(null);return null;
+      });
 
     } catch(e) {if(request===requestVersion.current)setLoadError(e instanceof Error?e.message:"Could not load course plans.");}
     finally {if(request===requestVersion.current)setLoading(false);}
@@ -126,9 +142,9 @@ export default function CoursePlan() {
     if((operation==="block"||operation==="remove"&&friend.state==="accepted")&&!window.confirm(`${operation==="block"?"Block":"Remove"} ${friend.name}? You will no longer see each other's shared units.`))return;
     if(await mutate({action:"friend-action",friendId:friend.id,connectionId:friend.connectionId,revision:friend.revision,operation})){setPreview(null);window.dispatchEvent(new Event(PROFILE_CHANGED));}
   }
-  async function copy(text:string,message:string) {
+  async function copy(text:string,message:string,fallback="Copy was unavailable. Select the displayed text and copy it manually.") {
     try {await navigator.clipboard.writeText(text);setNotice(message);}
-    catch {setError("Copy was unavailable. Select the displayed text and copy it manually.");}
+    catch {setError(fallback);}
   }
   function exportPlan() {
     if(!data)return;
@@ -202,8 +218,8 @@ export default function CoursePlan() {
           <div className="course-connect-or" aria-hidden="true">or</div>
           <section className="course-connect-option"><span className="course-connect-label"><UserPlus size={14}/>Share yours</span><h3>Send your invite</h3><p className="muted">Your friend opens the link, then sends you a request.</p>
             {data.profile?<>
-              {activeInvite&&origin?<div className="course-invite" role="status"><div className="course-invite-heading"><div><strong>Your invite is ready</strong><small>Expires {new Date(activeInvite.expiresAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})}</small></div></div><div className="course-code-row"><div><small>Your friend code</small><code>{invitationCodeLabel(activeInvite.code)}</code></div><div className="course-invite-actions"><button className="primary" onClick={()=>copy(invitationLink(origin,activeInvite.code),"Invitation link copied.")}><Copy size={14}/>Copy link</button><button onClick={()=>copy(invitationCodeLabel(activeInvite.code),"Invitation code copied.")}><Copy size={14}/>Copy code</button></div></div></div>:<>{data.invitation.state!=="none"&&<p className="course-invite-status" role="status">{data.invitation.state==="active"?"You already have an active invite.":data.invitation.state==="expired"?"Your last invite expired.":"Your last invite was cancelled."}</p>}{data.invitation.state==="active"&&<p className="muted">Create a new invite to copy it again. The previous one will stop working.</p>}<button className="primary" disabled={disabled} onClick={async()=>{const r=await mutate({action:"create-invite"});if(r?.inviteCode&&r.expiresAt&&r.inviteRevision)setInvite({code:r.inviteCode,expiresAt:r.expiresAt,revision:r.inviteRevision});}}>{data.invitation.state==="active"?"Create a new invite":"Create my invite"}</button></>}
-              {data.invitation.state==="active"&&<button className="course-text-action" disabled={disabled} onClick={async()=>{if(await mutate({action:"revoke-invite"}))setInvite(null);}}>Cancel active invite</button>}
+              {activeInvite&&origin?<div className="course-invite" role="status"><div className="course-invite-heading"><div><strong>Your invite is ready</strong><small>Expires {new Date(activeInvite.expiresAt).toLocaleDateString("en-AU",{timeZone:"Australia/Sydney"})}</small></div></div><div className="course-code-row"><div><small>Your friend code</small><code>{invitationCodeLabel(activeInvite.code)}</code></div><div className="course-invite-actions"><button className="primary" onClick={()=>copy(invitationLink(origin,activeInvite.code),"Invitation link copied.","Copy was unavailable. Copy the displayed friend code instead.")}><Copy size={14}/>Copy link</button><button onClick={()=>copy(invitationCodeLabel(activeInvite.code),"Invitation code copied.","Copy was unavailable. Select the displayed friend code and copy it manually.")}><Copy size={14}/>Copy code</button></div></div></div>:<>{data.invitation.state!=="none"&&<p className="course-invite-status" role="status">{data.invitation.state==="active"?"Your earlier invite is still active, but its code is not saved on this device.":data.invitation.state==="expired"?"Your last invite expired.":"Your last invite was cancelled."}</p>}{data.invitation.state==="active"&&<p className="muted">Create a replacement code to show and copy it here. The earlier invite will stop working.</p>}<button className="primary" disabled={disabled} onClick={async()=>{const r=await mutate({action:"create-invite"});if(r?.inviteCode&&r.expiresAt&&r.inviteRevision&&r.inviteFingerprint){const next={code:r.inviteCode,expiresAt:r.expiresAt,revision:r.inviteRevision,fingerprint:r.inviteFingerprint};saveInvite(next);setInvite(next);}}}>{data.invitation.state==="active"?"Create replacement code":"Create my invite"}</button></>}
+              {data.invitation.state==="active"&&<button className="course-text-action" disabled={disabled} onClick={async()=>{if(await mutate({action:"revoke-invite"})){saveInvite(null);setInvite(null);}}}>Cancel active invite</button>}
             </>:<button onClick={openProfileSettings}>Set up profile to invite</button>}
           </section>
           </div>

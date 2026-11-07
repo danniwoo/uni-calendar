@@ -1,5 +1,11 @@
 # Changelog
 
+## Web 0.24.5 — 2026-11-07
+
+- Keep a newly created friend code available after reload on the same browser while the server continues to store only its hash. A short server fingerprint prevents another signed-in account or a replaced invite from reusing the cached code.
+- When the active code is unavailable on this device, say so directly and offer **Create replacement code** instead of showing an unexplained active-invite state. Profile navigation now names **Friends & invites** explicitly.
+- Synthetic browser QA verified same-account reload, cross-account isolation, missing-device recovery, request/accept and 390px layout without touching real records.
+
 ## Web 0.24.4 — 2026-11-07
 
 - Put **Add a friend** directly at the top of Friends instead of hiding both connection paths behind a toggle. The card now clearly separates **Use their invite** from **Share yours**.

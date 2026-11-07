@@ -18,7 +18,7 @@ export type PlanFriend = {
 };
 // Explicit allowlist: extending the owner's records must never expand friend access.
 export type SharedPlan = Pick<PlanEntry, "university" | "code" | "name" | "year" | "session" | "status" | "credits" | "updatedAt"> & {friendId: string; friendName: string};
-export type InvitationStatus = {state:"none"|"active"|"expired"|"revoked";expiresAt:string|null;revision:number};
+export type InvitationStatus = {state:"none"|"active"|"expired"|"revoked";expiresAt:string|null;revision:number;fingerprint:string|null};
 export type FriendsPage = {friends:PlanFriend[];friendsNext:string|null};
 export type SharedPage = {sharedPlans:SharedPlan[];sharedNext:string|null};
 export type SharedFilter = {year?:number;session?:PlanSession;friend?:string;code?:string};

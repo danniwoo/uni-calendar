@@ -13,6 +13,8 @@ assert.equal((await accountResponse({owner:"alice",email:"alice@example.test"},(
 assert.deepEqual(await account("bob"),{email:"bob@example.test",profile:null,incoming:0,blocked:[],blockedNext:null});
 await change("alice",{action:"save-profile",name:"Alice Example",sharing:true,revision:0});
 const invitation=await change("alice",{action:"create-invite"}),code=invitation.inviteCode!;
+assert.match(invitation.inviteFingerprint!,/^[a-f0-9]{16}$/);
+assert.equal((await readCoursePlan(db,"alice")).invitation.fingerprint,invitation.inviteFingerprint);
 const link=invitationLink("https://semester.example",code);
 assert.equal(new URL(link).search,"?view=friends");assert.equal(new URL(link).searchParams.has("invite"),false);
 assert.equal(invitationCode(link),code);assert.equal(invitationCode(code.toLowerCase()),code);

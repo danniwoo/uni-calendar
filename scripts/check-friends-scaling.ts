@@ -59,7 +59,7 @@ profile("sender");profile("recipient");
 assert.equal((await readCoursePlan(db,"sender")).invitation.state,"none");
 const invite=await change("sender",{action:"create-invite"});
 let status=(await readCoursePlan(db,"sender")).invitation;
-assert.equal(status.state,"active");assert.equal(status.expiresAt,invite.expiresAt);assert.equal(status.revision,invite.inviteRevision);
+assert.equal(status.state,"active");assert.equal(status.expiresAt,invite.expiresAt);assert.equal(status.revision,invite.inviteRevision);assert.equal(status.fingerprint,invite.inviteFingerprint);
 assert.equal(JSON.stringify(await readCoursePlan(db,"sender")).includes(invite.inviteCode!),false);
 assert.notEqual(sqlite.prepare("SELECT code_hash FROM friend_invites WHERE owner='sender'").get()!.code_hash,invite.inviteCode);
 const replacement=await change("sender",{action:"create-invite"});assert.equal(replacement.inviteRevision,2);
