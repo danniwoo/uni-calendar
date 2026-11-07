@@ -2,6 +2,12 @@
 
 Updated: 2026-11-07. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-07 active invite recovery / Web 0.24.5
+
+- The 0.24.4 owner UI correctly showed a newly rotated code but reverted to an unexplained active status after reload because the server deliberately retained only the hash. 0.24.5 caches the raw code only in that browser and requires the server's owner-only hash fingerprint plus revision to match before displaying it. Another account, replacement, revocation, expiry or invalid cache removes it. No database migration or recoverable server token was added.
+- Missing-device copy now says the earlier invite is active but unavailable locally and offers **Create replacement code**. Profile navigation says **Friends & invites**. Synthetic browser QA verified same-account reload, cross-account cache rejection, missing-device recovery, request/accept and 390px. Invitation/privacy/pagination checks, targeted lint, TypeScript, whitespace and production build passed; no real records changed.
+- GitHub main commit `3fbd02df8cb41486badecfd8f26505813bf48d40`. Published **Web 0.24.5 / Sites 74**, source `d37e92ab6c5208b36da23c5aa72be95f6128d972`; deployment `appgdep_6aef14123e9c81918082b6d7031bf640` succeeded 2026-11-07 at 23:05 Sydney: https://usyd-semester-board.earthy-trout-5263.chatgpt.site/plan?view=friends . Existing custom audience and seven external visitors were preserved. Hosted two-person acceptance remains pending.
+
 ### 2026-11-07 friend invitation onboarding / Web 0.24.4
 
 - User could not find where to invite a friend or retrieve their own code. Friends now opens with one always-visible **Add a friend** area: **Use their invite** accepts a link/code; **Share yours** creates the owner's invite. The active invite keeps the short grouped code prominent with direct Copy link / Copy code actions; the long raw URL is no longer shown. Raw invite values remain hash-only at rest, and website access remains a separate trial requirement.
