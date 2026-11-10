@@ -2,6 +2,16 @@
 
 Updated: 2026-11-10. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-10 · GROWTH-03 Stage 3 Semester Admin — Growth & Invitations
+
+- Implemented locally on `migration/d1-supabase-free`; nothing was deployed or pushed. `0008_admin_growth.sql` adds D1-owned administrator roles, immutable audit history, revisioned growth-policy versions/state, campaign-wide caps and per-distribution-link attribution dimensions.
+- Added a server-authorized `/admin/` application matching the supplied compact desktop reference while remaining responsive. It manages growth-stage suggestions, access/invitation policies, private invitations, campaigns and distribution links, account suspension/restoration and audit review. It shows only operational account/access/acquisition fields—not grades, units, plans, imports or semester JSON.
+- Access policy is now a runtime D1 decision on the Worker. Draft settings do nothing until an admin explicitly reviews and publishes them with optimistic revision checks. Existing active enrolments remain active when new enrolment channels are paused. Friend-referral enrolment remains distinct from ordinary existing-user friend requests.
+- Administrator bootstrap is an operator-only Wrangler procedure using an exact verified Supabase issuer and Auth subject UUID for an already active mapped account. There is no HTTP role-grant route, and email/user metadata cannot grant authority. A suspended administrator is denied on the next request despite a valid JWT.
+- Private/campaign tokens remain opaque and hash-only. The Admin UI receives a shareable URL only once at creation; audit records contain metadata, never the token. Campaign attribution supports society, organic social, paid social, partner, direct and other distributions without pretending Stage 4 conversion/retention analytics exist.
+- Verification: Worker/API 30/30, web 15/15, both project typechecks, web production build, Worker dry-run, root production build, and existing course-plan/Friends privacy/scaling regressions pass. Browser E2E was intentionally deferred. Stage 4 analytics and recommendations remain out of scope.
+- Future staging order (requires separate approval): back up `semester-staging`; apply pending `0007` then `0008`; deploy Worker; provision the first owner with the verified `(issuer, subject)` mapping; deploy `migration/web/dist` to `semester-pilot`; then run admin authorization, draft/publish, invitation, campaign, existing-user and suspension checks. Roll back Worker and Pages to their preserved Stage 1 artifacts; leave additive tables unused unless a separately approved D1 restore is required.
+
 ### 2026-11-10 · GROWTH-02 Stage 2 society campaigns and unified friend referrals
 
 - Added `0007_growth_referrals.sql` without restructuring the academic store. `growth_campaigns` and `invitation_contexts` extend the Stage 1 token mechanism; `account_attribution` is immutable per account and separates direct channel, direct campaign, immediate referrer and root-campaign lineage. Existing access rows receive a non-destructive legacy/private attribution backfill.

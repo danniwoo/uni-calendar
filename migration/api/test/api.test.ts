@@ -46,6 +46,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec(readFileSync(new URL("../migrations/0005_recovery.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0006_invitation_access.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0007_growth_referrals.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0008_admin_growth.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -379,7 +380,8 @@ test("legacy backup-trial members are backfilled and do not consume invitations"
 test("society acquisition and A to B to C referrals stay distinct from explicit friendship",async t=>{
   const {call,db}=setup(t),aJwt=await token(alice),bJwt=await token(bob),cJwt=await token(charlie),dJwt=await token(dana);
   const campaignId=crypto.randomUUID(),campaignToken="J".repeat(43),campaignInvite=crypto.randomUUID(),created="2026-11-10T00:00:00.000Z";
-  db.sqlite.prepare("INSERT INTO growth_campaigns VALUES (?,? ,?,'society',?,NULL)").run(campaignId,"SYNCS-2027S1","SYNCS 2027 S1",created);
+  db.sqlite.prepare("INSERT INTO growth_campaigns(id,campaign_key,name,channel,created_at,revoked_at,starts_at,updated_at) VALUES (?,? ,?,'society',?,NULL,?,?)")
+    .run(campaignId,"SYNCS-2027S1","SYNCS 2027 S1",created,created,created);
   db.sqlite.prepare(`INSERT INTO access_invitations(id,kind,token_hash,label,max_redemptions,redemption_count,expires_at,created_at)
     VALUES (?,'campaign',?,'SYNCS',100,0,'2099-01-01T00:00:00.000Z',?)`).run(campaignInvite,await invitationHash(campaignToken),created);
   db.sqlite.prepare("INSERT INTO invitation_contexts(invitation_id,campaign_id) VALUES (?,?)").run(campaignInvite,campaignId);
@@ -436,6 +438,139 @@ test("society acquisition and A to B to C referrals stay distinct from explicit 
   const publicFriends=JSON.stringify(await (await call("/v1/friends",bJwt)).json());
   assert.equal(/account_id|referrer_account_id|root_campaign_id|campaign_id/.test(publicFriends),false);
   assert.equal(db.sqlite.prepare("SELECT redemption_count FROM access_invitations WHERE id=?").get(bInvite.id)?.redemption_count,1);
+});
+
+async function enrolledAccount(call:ReturnType<typeof setup>["call"],db:SQLiteDatabase,jwt:string) {
+  const accountId=(await (await call("/v1/session",jwt)).json() as {accountId:string}).accountId;
+  db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?) ON CONFLICT DO NOTHING").run(accountId);
+  await call("/v1/session",jwt);
+  return accountId;
+}
+
+test("admin APIs require an active explicitly provisioned D1 role and leak no academic data",async t=>{
+  const {call,db}=setup(t),adminJwt=await token(alice),studentJwt=await token(bob);
+  const adminId=await enrolledAccount(call,db,adminJwt),studentId=await enrolledAccount(call,db,studentJwt);
+  assert.equal((await call("/v1/admin")).status,401);
+  assert.equal((await call("/v1/admin",studentJwt)).status,403);
+  assert.equal((await call("/v1/admin",await token(bob,{user_metadata:{role:"owner"},app_metadata:{role:"owner"}}))).status,403);
+  assert.equal((await call("/v1/admin/roles",studentJwt,"POST",{accountId:studentId,role:"owner"})).status,404);
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'owner',?)").run(adminId,"2026-11-10T00:00:00Z");
+  db.sqlite.prepare("INSERT INTO pilot_boards(account_id,data,revision,updated_at) VALUES (?,?,1,?)")
+    .run(studentId,JSON.stringify({privateGrade:99,notes:"secret academic text"}),"2026-11-10T00:00:00Z");
+  const response=await call("/v1/admin",adminJwt);assert.equal(response.status,200);
+  const text=await response.text();assert.equal(text.includes("secret academic text"),false);assert.equal(text.includes("privateGrade"),false);
+  assert.equal((await call("/v1/admin/session",adminJwt)).status,200);
+  const secondAdminId=studentId;
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'admin',?)").run(secondAdminId,"2026-11-10T00:00:00Z");
+  const protectedAccess=db.sqlite.prepare("SELECT updated_at FROM account_access WHERE account_id=?").get(secondAdminId) as {updated_at:string};
+  assert.equal((await call("/v1/admin/users/access",adminJwt,"POST",{accountId:secondAdminId,operation:"suspend",expectedUpdatedAt:protectedAccess.updated_at})).status,403);
+  db.sqlite.prepare(`INSERT INTO admin_audit_log(id,admin_account_id,action,target_type,result,created_at)
+    VALUES (?,?,?,?,?,?)`).run("audit-immutable",adminId,"test.recorded","test","success","2026-11-10T00:00:00Z");
+  assert.throws(()=>db.sqlite.prepare("UPDATE admin_audit_log SET action='test.changed' WHERE id='audit-immutable'").run(),/append-only/);
+  assert.throws(()=>db.sqlite.prepare("DELETE FROM admin_audit_log WHERE id='audit-immutable'").run(),/append-only/);
+  db.sqlite.prepare("UPDATE account_access SET state='suspended' WHERE account_id=?").run(adminId);
+  assert.equal((await call("/v1/admin",adminJwt)).status,403,"a suspended admin loses authority even with a valid JWT");
+});
+
+test("draft policy is inert until revision-protected publish, then pauses only new enrolments",async t=>{
+  const {call,db}=setup(t),adminJwt=await token(alice),existingJwt=await token(bob),newJwt=await token(charlie),laterJwt=await token(dana);
+  const adminId=await enrolledAccount(call,db,adminJwt);await enrolledAccount(call,db,existingJwt);
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'owner',?)").run(adminId,"2026-11-10T00:00:00Z");
+  const initial=await (await call("/v1/admin",adminJwt)).json() as {policy:{published:{version:number};draft:{revision:number;stage:string;policy:Record<string,unknown>}}};
+  const paused={...initial.policy.draft.policy,pauseNewEnrolments:true};
+  const draft=await call("/v1/admin/policy/draft",adminJwt,"PATCH",{stage:"campus_beta",policy:paused,expectedRevision:initial.policy.draft.revision});
+  assert.equal(draft.status,200);
+  const beforePublish="L".repeat(43);await addInvitation(db,beforePublish);
+  await call("/v1/session",newJwt);assert.equal((await call("/v1/access/redeem",newJwt,"POST",{token:beforePublish})).status,200,"draft cannot affect access");
+  const saved=await draft.json() as {published:{version:number};draft:{revision:number}};
+  const races=await Promise.all([
+    call("/v1/admin/policy/publish",adminJwt,"POST",{expectedDraftRevision:saved.draft.revision,expectedPublishedVersion:saved.published.version,confirm:true}),
+    call("/v1/admin/policy/publish",adminJwt,"POST",{expectedDraftRevision:saved.draft.revision,expectedPublishedVersion:saved.published.version,confirm:true}),
+  ]);
+  assert.deepEqual(races.map(r=>r.status).sort(),[200,409]);
+  const afterPublish="M".repeat(43);await addInvitation(db,afterPublish);await call("/v1/session",laterJwt);
+  assert.equal((await call("/v1/access/redeem",laterJwt,"POST",{token:afterPublish})).status,403);
+  assert.notEqual((await call("/v1/imported/board",existingJwt)).status,403,"existing access remains active");
+  const dashboard=await (await call("/v1/admin",adminJwt)).json() as {policy:{published:{stage:string};draft:{revision:number};hasDraft:boolean};audit:{action:string}[]};
+  assert.equal(dashboard.policy.published.stage,"campus_beta");assert.equal(dashboard.policy.hasDraft,false);
+  assert.ok(dashboard.audit.some(row=>row.action==="policy.published"));
+  assert.equal(dashboard.audit.filter(row=>row.action==="policy.published").length,1,"a losing concurrent publish must not log success");
+  const bad={...paused,enrolmentMode:"public",publicEnrolmentAvailable:true};
+  assert.equal((await call("/v1/admin/policy/draft",adminJwt,"PATCH",{stage:"public_access",policy:bad,expectedRevision:dashboard.policy.draft.revision})).status,400);
+});
+
+test("the published total enrolment cap admits only one concurrent final account",async t=>{
+  const {call,db}=setup(t),adminJwt=await token(alice),firstJwt=await token(bob),secondJwt=await token(charlie);
+  const adminId=await enrolledAccount(call,db,adminJwt);
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'owner',?)").run(adminId,"2026-11-10T00:00:00Z");
+  const state=await (await call("/v1/admin",adminJwt)).json() as {policy:{published:{version:number};draft:{revision:number;stage:string;policy:Record<string,unknown>}}};
+  const capped={...state.policy.draft.policy,totalEnrolmentCap:2};
+  const draft=await (await call("/v1/admin/policy/draft",adminJwt,"PATCH",{stage:state.policy.draft.stage,policy:capped,expectedRevision:state.policy.draft.revision})).json() as {published:{version:number};draft:{revision:number}};
+  assert.equal((await call("/v1/admin/policy/publish",adminJwt,"POST",{expectedDraftRevision:draft.draft.revision,expectedPublishedVersion:draft.published.version,confirm:true})).status,200);
+  const first="N".repeat(43),second="O".repeat(43);await addInvitation(db,first);await addInvitation(db,second);
+  await Promise.all([call("/v1/session",firstJwt),call("/v1/session",secondJwt)]);
+  const attempts=await Promise.all([
+    call("/v1/access/redeem",firstJwt,"POST",{token:first}),
+    call("/v1/access/redeem",secondJwt,"POST",{token:second}),
+  ]);
+  assert.deepEqual(attempts.map(response=>response.status).sort(),[200,409]);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM account_access WHERE state!='deleted'").get()?.n,2);
+  assert.equal(db.sqlite.prepare("SELECT SUM(redemption_count) n FROM access_invitations WHERE token_hash IN (?,?)")
+    .get(await invitationHash(first),await invitationHash(second))?.n,1);
+});
+
+test("admin invitations, distribution campaigns and access actions are audited and policy-bound",async t=>{
+  const {call,db}=setup(t),adminJwt=await token(alice),userJwt=await token(bob),campaignUserJwt=await token(charlie);
+  const adminId=await enrolledAccount(call,db,adminJwt),userId=await enrolledAccount(call,db,userJwt);
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'owner',?)").run(adminId,"2026-11-10T00:00:00Z");
+  const created=await call("/v1/admin/invitations",adminJwt,"POST",{label:"Support pilot",expiryHours:24,maxRedemptions:1});
+  assert.equal(created.status,201);const invitation=await created.json() as {id:string;url:string};
+  const raw=new URLSearchParams(new URL(invitation.url).hash.slice(1)).get("invite")!;
+  const stored=db.sqlite.prepare("SELECT token_hash FROM access_invitations WHERE id=?").get(invitation.id) as {token_hash:string};
+  assert.notEqual(stored.token_hash,raw);assert.equal(JSON.stringify(db.sqlite.prepare("SELECT * FROM access_invitations WHERE id=?").get(invitation.id)).includes(raw),false);
+  assert.equal((await call("/v1/admin/invitations/revoke",adminJwt,"POST",{id:invitation.id})).status,200);
+  assert.equal((await call("/v1/access/invitation",undefined,"POST",{token:raw})).status,410);
+
+  const campaign=await call("/v1/admin/campaigns",adminJwt,"POST",{key:"WELCOME-2027",name:"Welcome Week 2027",societyId:"SYNCS",
+    startsAt:null,maxRedemptions:1,distribution:{label:"Instagram Story 01",channel:"organic_social",source:"instagram_personal",format:"story",placement:"story",creativeId:"story_01",maxRedemptions:1,expiryHours:48}});
+  assert.equal(campaign.status,201);const campaignResult=await campaign.json() as {campaignId:string;invitationId:string;url:string};
+  const campaignToken=new URLSearchParams(new URL(campaignResult.url).hash.slice(1)).get("invite")!;
+  const campaignUserId=(await (await call("/v1/session",campaignUserJwt)).json() as {accountId:string}).accountId;
+  assert.equal((await call("/v1/access/redeem",campaignUserJwt,"POST",{token:campaignToken})).status,200);
+  assert.equal(db.sqlite.prepare("SELECT direct_channel FROM account_attribution WHERE account_id=?").get(campaignUserId)?.direct_channel,"organic_social");
+  assert.equal(db.sqlite.prepare("SELECT redemption_count FROM growth_campaigns WHERE id=?").get(campaignResult.campaignId)?.redemption_count,1);
+  assert.equal((await call("/v1/admin/campaign-links",adminJwt,"POST",{campaignId:campaignResult.campaignId,distribution:{label:"Second",channel:"society",source:"SYNCS",format:"post",placement:"feed",creativeId:null,maxRedemptions:1,expiryHours:24}})).status,409);
+
+  const dashboard=await (await call("/v1/admin",adminJwt)).json() as {campaigns:{id:string;status:string}[];users:{account_id:string;updated_at:string;state:string;direct_channel?:string;acquisition_label?:string;acquired_at?:string}[]};
+  assert.equal(dashboard.campaigns.find(row=>row.id===campaignResult.campaignId)?.status,"exhausted");
+  const acquired=dashboard.users.find(row=>row.account_id===campaignUserId)!;
+  assert.equal(acquired.direct_channel,"organic_social");assert.equal(acquired.acquisition_label,"Instagram Story 01");assert.ok(acquired.acquired_at);
+  const user=dashboard.users.find(row=>row.account_id===userId)!;
+  const suspended=await call("/v1/admin/users/access",adminJwt,"POST",{accountId:userId,operation:"suspend",expectedUpdatedAt:user.updated_at});
+  assert.equal(suspended.status,200);assert.equal((await call("/v1/imported/board",userJwt)).status,403);
+  const suspendedBody=await suspended.json() as {updatedAt:string};
+  assert.equal((await call("/v1/admin/users/access",adminJwt,"POST",{accountId:userId,operation:"restore",expectedUpdatedAt:suspendedBody.updatedAt})).status,200);
+  assert.notEqual((await call("/v1/imported/board",userJwt)).status,403);
+  const actions=db.sqlite.prepare("SELECT action FROM admin_audit_log ORDER BY created_at").all().map(row=>row.action);
+  for(const action of ["invitation.created","invitation.revoked","campaign.created","account.suspended","account.restored"])assert.ok(actions.includes(action));
+});
+
+test("disabling referral enrolment leaves existing friendships and existing-user requests intact",async t=>{
+  const {call,db}=setup(t),adminJwt=await token(alice),aJwt=await token(bob),bJwt=await token(charlie),newJwt=await token(dana);
+  const adminId=await enrolledAccount(call,db,adminJwt);await enrolledAccount(call,db,aJwt);await enrolledAccount(call,db,bJwt);
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'owner',?)").run(adminId,"2026-11-10T00:00:00Z");
+  await call("/v1/friends/profile",aJwt,"PATCH",{name:"A",expectedRevision:0});await call("/v1/friends/profile",bJwt,"PATCH",{name:"B",expectedRevision:0});
+  const invite=await (await call("/v1/friends/invitation",aJwt,"POST",{})).json() as {url:string};const referral=new URLSearchParams(new URL(invite.url).hash.slice(1)).get("invite")!;
+  await call("/v1/friends/request",bJwt,"POST",{token:referral});
+  const incoming=await (await call("/v1/friends",aJwt)).json() as {friends:{connectionId:string;revision:number}[]};
+  await call("/v1/friends/action",aJwt,"POST",{connectionId:incoming.friends[0].connectionId,expectedRevision:incoming.friends[0].revision,operation:"accept"});
+  const state=await (await call("/v1/admin",adminJwt)).json() as {policy:{published:{version:number};draft:{revision:number;policy:Record<string,unknown>;stage:string}}};
+  const disabled={...state.policy.draft.policy,allowFriendReferralEnrolment:false,allowExistingFriendRequests:true};
+  const draft=await (await call("/v1/admin/policy/draft",adminJwt,"PATCH",{stage:state.policy.draft.stage,policy:disabled,expectedRevision:state.policy.draft.revision})).json() as {draft:{revision:number};published:{version:number}};
+  await call("/v1/admin/policy/publish",adminJwt,"POST",{expectedDraftRevision:draft.draft.revision,expectedPublishedVersion:draft.published.version,confirm:true});
+  assert.equal(((await (await call("/v1/friends",aJwt)).json() as {friends:{state:string}[]}).friends[0].state),"accepted");
+  await call("/v1/session",newJwt);assert.equal((await call("/v1/access/redeem",newJwt,"POST",{token:referral})).status,403);
+  const existingInvite=await call("/v1/access/redeem",bJwt,"POST",{token:referral});assert.equal(existingInvite.status,200);
 });
 
 test("Today plans isolate accounts, preserve the restore point and reject racing or invalid writes", async t => {

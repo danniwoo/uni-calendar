@@ -27,6 +27,7 @@ let friendsData=null;
 let friendsBusy=false;
 let friendsMessage="";
 let friendLink=null;
+let adminAllowed=false;
 
 // Only text nodes receive API/auth content. No remote HTML is inserted.
 function element(tag, text, className) {
@@ -145,6 +146,7 @@ function render() {
       : "Supabase session available · API identity not yet verified", "muted"));
     const actions = element("div", undefined, "actions");
     actions.append(button(state.busy ? "Checking…" : "Refresh test data", () => controller.refresh(), state.busy || authBusy || state.rejected), button("Sign out", signOut, authBusy, "secondary"));
+    if(adminAllowed){const admin=element("a","Admin Dashboard");admin.href="/admin/";actions.append(admin);}
     account.append(actions);
   } else {
     account.append(element("p", "Use the same Google account in the web and phone trials. No new Semester password is needed.", "muted"));
@@ -274,6 +276,8 @@ async function completeSession(session) {
     } finally {invitationBusy=false;invitationAttempt="";}
   } else invitationAttempt="";
   if(controller.getState().session?.user.id===session.user.id)await controller.refresh();
+  if(controller.getState().session?.user.id===session.user.id&&controller.getState().access?.enrolled)
+    adminAllowed=await api.adminSession(session).then(()=>true).catch(()=>false);
   render();
 }
 
@@ -291,7 +295,7 @@ async function signIn() {
 async function signOut() {
   authBusy = true; authMessage = ""; suppressSessionEvents = true;
   controller.clear();
-  friendsData=null;friendLink=null;referralOffer=null;
+  friendsData=null;friendLink=null;referralOffer=null;adminAllowed=false;
   try {
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw error;
@@ -317,6 +321,7 @@ async function start() {
   client.auth.onAuthStateChange((_event, session) => {
     authEvents += 1;
     if (suppressSessionEvents) return;
+    if(session?.user?.id!==controller.getState().session?.user?.id)adminAllowed=false;
     const changed = controller.setSession(session);
     // Keep auth callbacks synchronous; run API work outside the SDK auth lock.
     if (changed && session) setTimeout(() => {
@@ -335,6 +340,7 @@ async function start() {
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
     if (authEvents === version && !suppressSessionEvents) {
+      if(data.session?.user?.id!==controller.getState().session?.user?.id)adminAllowed=false;
       const changed = controller.setSession(data.session);
       if (changed && data.session) void completeSession(data.session);
     }

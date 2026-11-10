@@ -76,6 +76,49 @@ test("combined referral API keeps enrolment and friendship consent as separate c
   assert.deepEqual(JSON.parse(calls[2].init.body),{token});
 });
 
+test("admin API keeps every management action authenticated and server-authorized",async()=>{
+  const calls=[];
+  const client=createApi("https://api.example",async(url,init)=>{
+    calls.push({url,init});
+    return Response.json({ok:true});
+  });
+  await client.adminSession(a);
+  await client.savePolicyDraft(a,{expectedRevision:2,config:{stage:"campus_beta"}});
+  await client.publishPolicy(a,{expectedRevision:2,confirm:true});
+  await client.createAdminInvitation(a,{label:"Pilot",expiresInDays:7,maxRedemptions:1});
+  await client.revokeAdminInvitation(a,"invite-1");
+  await client.createCampaign(a,{name:"SYNCS-2027S1",maxRedemptions:100});
+  await client.createCampaignLink(a,{campaignId:"campaign-1",channel:"organic_social"});
+  await client.changeAccountAccess(a,{accountId:"account-1",operation:"suspend",reason:"operator test"});
+  assert.deepEqual(calls.map(call=>[new URL(call.url).pathname,call.init.method]),[
+    ["/v1/admin/session","GET"],
+    ["/v1/admin/policy/draft","PATCH"],
+    ["/v1/admin/policy/publish","POST"],
+    ["/v1/admin/invitations","POST"],
+    ["/v1/admin/invitations/revoke","POST"],
+    ["/v1/admin/campaigns","POST"],
+    ["/v1/admin/campaign-links","POST"],
+    ["/v1/admin/users/access","POST"],
+  ]);
+  for(const call of calls){
+    assert.equal(call.init.headers.Authorization,"Bearer token-a");
+    assert.equal(call.init.credentials,"omit");
+    assert.equal(call.init.redirect,"error");
+  }
+});
+
+test("admin denial is bounded and never echoes privileged server details",async()=>{
+  const client=createApi("https://api.example",async()=>Response.json({
+    error:{code:"admin_required",message:"internal role row and account identifiers"},
+  },{status:403}));
+  await assert.rejects(client.adminDashboard(a),error=>{
+    assert.equal(error.code,"admin_required");
+    assert.equal(error.message,"Administrator access is required.");
+    assert.doesNotMatch(error.message,/role row|account identifiers/);
+    return true;
+  });
+});
+
 test("malformed API data is rejected and server error details are not echoed", async () => {
   const malformed = createApi("https://api.example", async () => Response.json({ semester: {}, revision: 1 }));
   await assert.rejects(malformed.get(a), { code: "invalid_board" });

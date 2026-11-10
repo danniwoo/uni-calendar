@@ -1,6 +1,6 @@
 # Semester staging API
 
-Independent staging API for the Web, iPhone and widget trials. It never reads or writes the production Sites tables. Stage 1 adds private invitation enrolment; Stage 2 adds society campaigns, unified friend referrals and first-touch attribution in the separately owned staging D1 database. Supabase authentication alone does not grant academic-route access.
+Independent staging API for the Web, iPhone and widget trials. It never reads or writes the production Sites tables. Stage 1 adds private invitation enrolment; Stage 2 adds society campaigns, unified friend referrals and first-touch attribution; Stage 3 adds explicit administrators, revisioned growth policy, campaign distribution management and audit in the separately owned staging D1 database. Supabase authentication alone does not grant academic-route or administrator access.
 
 ## Setup
 
@@ -27,6 +27,13 @@ All responses use `Cache-Control: no-store`. Private routes need `Authorization:
 | `POST` / `DELETE /v1/friends/invitation` | Empty object / `{id}` | Rotates a personal seven-day combined link, or revokes the caller-owned link. |
 | `POST /v1/friends/request` | `{token}` | Explicitly sends an idempotent pending request after validating the still-live personal link. |
 | `POST /v1/friends/action` | `{connectionId,expectedRevision,operation}` | Receiver-only accept/decline, or participant remove/block/unblock. |
+| `GET /v1/admin/session` | Active enrolled admin bearer token | Minimal `{admin,role}` authorization check. No role is inferred from email or metadata. |
+| `GET /v1/admin` | Active enrolled admin bearer token | Operational policy, invitation, campaign, account-access and audit views; no academic records. |
+| `PATCH /v1/admin/policy/draft` | Full policy plus expected draft revision | Saves an inert draft. Growth-stage presets are suggestions only. |
+| `POST /v1/admin/policy/publish` | Expected draft/published revisions plus `confirm:true` | Atomically publishes reviewed policy or returns 409. |
+| `POST /v1/admin/invitations` / `.../revoke` | Validated create/revoke input | Creates a private URL shown once, or revokes by ID. |
+| `POST /v1/admin/campaigns` / `campaign-links` / `campaigns/revoke` | Validated campaign/distribution input | Manages campaign-wide capacity and separately attributable share URLs. |
+| `POST /v1/admin/users/access` | Account ID, expected access revision and suspend/restore operation | Changes access without reading academic content; action is audited. |
 | `GET /v1/semester` | Bearer token | `SemesterResponse`, or 404 if no sample exists |
 | `POST /v1/semester/sample` | Empty body or `{}` | Creates an explicitly labelled synthetic board once; subsequent calls return the existing board unchanged |
 | `POST /v1/backup-trial/:accountId` | Raw web backup JSON; enrolled owner only | 201 creates an independent immutable snapshot. Identical bytes return 200, a different file returns 409. |
@@ -61,7 +68,23 @@ After migration `0007_growth_referrals.sql`, create a multi-use society campaign
 npm run campaign:create -- --key SYNCS-2027S1 --name "SYNCS 2027 S1" --uses 200 --hours 2160 --base-url http://localhost:4174/
 ```
 
-Add `--remote --base-url https://semester-pilot.pages.dev/` only after separate staging approval. Enrolled students create personal friend links through the authenticated Friends API; acquisition capacity (20 new accounts per rotated link in Stage 2) is independent from request caps. Existing enrolled recipients do not consume that capacity. Stage 3 will make these defaults configurable.
+Add `--remote --base-url https://semester-pilot.pages.dev/` only after separate staging approval. Enrolled students create personal friend links through the authenticated Friends API; acquisition capacity is independent from request caps. Existing enrolled recipients do not consume that capacity. Stage 3 moves these defaults into the published D1 policy.
+
+## Administrator bootstrap and policy safety
+
+Migration `0008_admin_growth.sql` must follow `0007`. It seeds a conservative invitation-only published policy. Public registration is deliberately rejected until a safe public enrolment authorization model exists. Draft changes never affect public APIs; publication requires explicit confirmation and matching draft/published revisions.
+
+There is no role-grant HTTP endpoint. First sign in and enrol the intended owner normally, verify the Supabase Auth subject UUID and exact issuer, then provision the already-mapped active account from `migration/api`:
+
+```sh
+# Local D1 by default; do not pass an email.
+npm run admin:provision -- --issuer https://PROJECT.supabase.co/auth/v1 --subject VERIFIED_AUTH_USER_UUID
+
+# Staging only after explicit deployment approval and backup verification.
+npm run admin:provision -- --issuer https://PROJECT.supabase.co/auth/v1 --subject VERIFIED_AUTH_USER_UUID --remote
+```
+
+The operator command cannot create an identity or enrol a user. It joins the exact `(issuer, subject)` mapping to an active D1 account and appends a bootstrap audit record. Routine actions then use `/admin/`; raw invitation tokens are returned once and D1 stores only SHA-256 hashes. Audit rows are append-only at the database level.
 
 `SemesterResponse` is defined in `src/contract.ts`: `{semester:{id,title,weekLabel,assessments:[{id,unitCode,title,dueAt,weightLabel}],tasks:[{id,title,unitCode,completed}]},revision}`. Dates are ISO strings and the initial revision is 1. Sample deadlines are relative to initial creation time and do not continually move with refreshes.
 
@@ -75,7 +98,7 @@ Account creation uses a D1 transaction (`batch`) and unique identity mapping. Ea
 
 ## Verification and limits
 
-Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, anonymous/admin tokens, malformed requests, stale/concurrent updates, idempotent seeding, exact-origin CORS, society/referral ancestry, explicit request/acceptance, self/duplicate requests, quota separation and Friends response privacy. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
+Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, malformed requests, stale/concurrent updates, exact-origin CORS, society/referral ancestry, explicit request/acceptance, quota separation, explicit admin roles, suspended-admin denial, revision races, draft/publish separation, invitation/campaign policy enforcement, hash-only links, immutable audit and academic-data exclusion. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
 
 This first proof checks signed access tokens locally. Revoking a refresh token, deleting an Auth account or signing out does not immediately invalidate an already issued access token; it remains usable until expiry. The D1 access-state check still blocks suspended/deletion-state accounts on every academic request. Before real-data release, complete Auth-account deletion, required revocation checks, session lifetime policy, abuse controls and data migration. The private backup route accepts only a validated website export with an empty feed URL and limits streamed input to 1.8 MB. Admission now requires an atomic invitation redemption or preserved legacy membership; Google Testing mode alone does not enforce this. The synthetic endpoints cannot read or overwrite private restore points.
 

@@ -43,12 +43,14 @@ if (!config.ready) {
       const problem=await response.json();
       return Response.json({error:problem.error?.message ?? "Could not access this semester."},{status:response.status});
     };
-    void api.session(session,controller.signal).then(status=>{
+    void api.session(session,controller.signal).then(async status=>{
       if(controller.signal.aborted||subject!==owner)return;
       if(!status.access.enrolled){root.render(<main>Opening your invitation page…</main>);location.replace("/");return;}
+      const isAdmin=await api.adminSession(session,controller.signal).then(()=>true).catch(()=>false);
+      if(controller.signal.aborted||subject!==owner)return;
       const header=<header className="app-header">
         <a className="app-brand" href="/board/"><CalendarDays aria-hidden="true"/><span>semester</span></a>
-        <span>My semester</span><a href="/?tools=1" style={{marginLeft:"auto"}}>Account &amp; backups</a>
+        <span>My semester</span>{isAdmin&&<a href="/admin/" style={{marginLeft:"auto"}}>Admin</a>}<a href="/?tools=1" style={isAdmin?undefined:{marginLeft:"auto"}}>Account &amp; backups</a>
       </header>;
       root.render(<SemesterBoard key={owner} staging={{request,header}}/>);
     }).catch(()=>{if(!controller.signal.aborted&&subject===owner){root.render(<main>Semester access could not be verified. <a href="/">Return to your account</a></main>);}});

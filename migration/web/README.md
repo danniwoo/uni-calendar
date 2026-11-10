@@ -8,6 +8,8 @@ Stage 1 private invitation links use `#invite=<opaque token>`. The web app remov
 
 Stage 2 uses the same fragment for society and personal friend links. A personal link can enrol a new student, but the page keeps the friend offer separate: the recipient chooses a display name and explicitly sends a request; the inviter must accept it. Existing students skip enrolment capacity. The Friends panel under **Account & backups** creates/revokes a personal link and manages pending/accepted/blocked connections. It never shows grades, WAM or private semester data.
 
+Stage 3 adds `/admin/`. Its static shell contains no management data: the Worker must confirm an active D1 enrolment and an explicit, unrevoked `admin_roles` row before returning anything. Server-confirmed administrators get an Admin link on the account/board pages; ordinary users do not. The dashboard supports reviewed draft/publish policy, one-time private invitation URLs, campaigns and attributed distribution links, user suspend/restore and the append-only audit view. Analytics & Retention is an honest Stage 4 placeholder—no retention or conversion values are fabricated.
+
 ## Local setup
 
 Use Node 22.13+ (the existing Node 24 toolchain is also suitable). Install the locked dependencies at the repository root for the original board, then install the web client dependencies. From this directory:
@@ -56,6 +58,8 @@ npm run build
 ```
 
 The local tests cover configuration, callback cleanup, API token/body/redirect handling, unexpected data, logout and account-switch races, stale updates, expired/rejected sessions, explicit seeding and refreshed tokens.
+
+For local Stage 3 use, apply migrations through `0008` to the disposable local D1, provision an already enrolled owner with the API's `npm run admin:provision` procedure, run both API and web dev servers, sign in as that exact account, then open **http://localhost:4174/admin/**. Saving a draft is safe and inert. Use **Review & publish** only after comparing the displayed draft with the published configuration. Share URLs are visible only in the immediate creation result; copy them then because old raw tokens cannot be recovered from D1.
 
 Stage 2 manual staging acceptance, after explicit migration/deployment approval: create a society campaign and enrol synthetic A; have A create a personal link; enrol synthetic B through it, confirm the request, and accept as A; repeat B → C. Verify A is direct society acquisition, B/C are direct friend referrals with A/B as immediate referrers and the same root campaign. Then use the link with an existing enrolled account and verify acquisition/redemption counts do not change. Revoke/expire a link and verify no new request can be sent. This local implementation has not yet been deployed.
 

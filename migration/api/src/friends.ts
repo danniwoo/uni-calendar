@@ -1,5 +1,6 @@
 import {ApiError} from "./auth.ts";
 import {invitationHash,invitationToken} from "./access.ts";
+import {readPublishedPolicy} from "./growth-policy.ts";
 import type {SqlDatabase} from "./store.ts";
 
 const idPattern=/^[0-9a-f-]{36}$/;
@@ -62,19 +63,21 @@ export async function saveFriendProfile(db:SqlDatabase,accountId:string,body:Rec
 export async function createFriendInvitation(db:SqlDatabase,accountId:string,webUrl:string) {
   const profile=await db.prepare("SELECT 1 ok FROM friend_profiles WHERE account_id=?1").bind(accountId).first();
   if(!profile)throw new ApiError(409,"profile_required","Choose a display name before sharing a friend invitation.");
-  await rateLimit(db,accountId,"create_invitation",5,3600);
+  const {policy}=await readPublishedPolicy(db);
+  if(!policy.allowExistingFriendRequests)throw new ApiError(403,"friend_programme_disabled","New friend connections are currently disabled.");
+  await rateLimit(db,accountId,"create_invitation",policy.friendInvitationsPerHour,3600);
   const tokenBytes=crypto.getRandomValues(new Uint8Array(32));
   const token=btoa(String.fromCharCode(...tokenBytes)).replaceAll("+","-").replaceAll("/","_").replace(/=+$/,""),timestamp=now();
-  const invitationId=crypto.randomUUID(),expiresAt=new Date(Date.now()+7*86_400_000).toISOString();
+  const invitationId=crypto.randomUUID(),expiresAt=new Date(Date.now()+policy.friendReferralExpiryHours*3_600_000).toISOString();
   await db.batch([
     db.prepare(`UPDATE access_invitations SET revoked_at=?2 WHERE id IN
       (SELECT invitation_id FROM invitation_contexts WHERE inviter_account_id=?1) AND revoked_at IS NULL`).bind(accountId,timestamp),
     db.prepare(`INSERT INTO access_invitations(id,kind,token_hash,label,max_redemptions,redemption_count,expires_at,created_at)
-      VALUES (?1,'friend_referral',?2,'Personal friend referral',20,0,?3,?4)`)
-      .bind(invitationId,await invitationHash(token),expiresAt,timestamp),
+      VALUES (?1,'friend_referral',?2,'Personal friend referral',?3,0,?4,?5)`)
+      .bind(invitationId,await invitationHash(token),policy.friendReferralMaxRedemptions,expiresAt,timestamp),
     db.prepare("INSERT INTO invitation_contexts(invitation_id,inviter_account_id) VALUES (?1,?2)").bind(invitationId,accountId),
   ]);
-  return {id:invitationId,url:`${webUrl.replace(/\/$/,"")}/#invite=${token}`,expiresAt,maxNewAccounts:20};
+  return {id:invitationId,url:`${webUrl.replace(/\/$/,"")}/#invite=${token}`,expiresAt,maxNewAccounts:policy.friendReferralMaxRedemptions};
 }
 
 export async function revokeFriendInvitation(db:SqlDatabase,accountId:string,body:Record<string,unknown>) {
@@ -92,7 +95,9 @@ export async function requestFriend(db:SqlDatabase,accountId:string,body:Record<
   if(!token)throw new ApiError(400,"invitation_invalid","This invitation is not valid.");
   const profile=await db.prepare("SELECT 1 ok FROM friend_profiles WHERE account_id=?1").bind(accountId).first();
   if(!profile)throw new ApiError(409,"profile_required","Choose a display name before sending the friend request.");
-  await rateLimit(db,accountId,"request_friend",20,3600);
+  const {policy}=await readPublishedPolicy(db);
+  if(!policy.allowExistingFriendRequests)throw new ApiError(403,"friend_programme_disabled","New friend connections are currently disabled.");
+  await rateLimit(db,accountId,"request_friend",policy.friendRequestsPerHour,3600);
   const timestamp=now(),hash=await invitationHash(token);
   const invite=await db.prepare(`SELECT x.inviter_account_id FROM access_invitations i JOIN invitation_contexts x ON x.invitation_id=i.id
     JOIN friend_profiles p ON p.account_id=x.inviter_account_id

@@ -13,6 +13,7 @@
     "build": "wrangler deploy --config wrangler.local.jsonc --dry-run --outdir dist",
     "invite:create": "node scripts/invitations.mjs create",
     "campaign:create": "node scripts/invitations.mjs campaign-create",
+    "admin:provision": "node scripts/admin.mjs provision",
     "invite:revoke": "node scripts/invitations.mjs revoke"
   },
   "dependencies": {

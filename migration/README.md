@@ -2,7 +2,7 @@
 
 Status: independent staging implementation, 2026-11-02. Daniel selected Cloudflare Workers + D1 and Supabase Auth, starting on free plans. The first provider is now Google; Apple will follow during public-release preparation. Resend, SMTP and Email+Password are deferred. A new Supabase project and D1 database have been created; the old Sites app remains unchanged.
 
-Stage 1 private invitation self-onboarding was deployed to isolated staging and its real Google → redemption → D1 import path passed on 2026-11-10. Migration `0006_invitation_access.sql` separates Supabase identity mapping from D1 access, backfills current pilot members, and supports active/suspended/deletion states. Stage 2 society campaigns, unified friend referrals and immutable attribution are implemented locally in `0007_growth_referrals.sql` but are not deployed. Admin UI remains deferred to Stage 3.
+Stage 1 private invitation self-onboarding was deployed to isolated staging and its real Google → redemption → D1 import path passed on 2026-11-10. Migration `0006_invitation_access.sql` separates Supabase identity mapping from D1 access, backfills current pilot members, and supports active/suspended/deletion states. Stage 2 society campaigns, unified friend referrals and immutable attribution (`0007_growth_referrals.sql`) and Stage 3 D1-backed growth administration (`0008_admin_growth.sql`) are implemented and verified locally but are not deployed. Stage 4 activation, retention, conversion tables and decision guidance remain deferred.
 
 ## Isolation
 

@@ -55,6 +55,16 @@ export function createApi(baseUrl, fetcher = fetch) {
     revokeFriendInvitation: (session,id)=>request("/v1/friends/invitation",session,{method:"DELETE",body:{id}}),
     requestFriend: (session,token)=>request("/v1/friends/request",session,{method:"POST",body:{token}}),
     changeFriendship: (session,connectionId,expectedRevision,operation)=>request("/v1/friends/action",session,{method:"POST",body:{connectionId,expectedRevision,operation}}),
+    adminSession: (session,signal)=>request("/v1/admin/session",session,{signal}),
+    adminDashboard: (session,signal)=>request("/v1/admin",session,{signal}),
+    savePolicyDraft: (session,body)=>request("/v1/admin/policy/draft",session,{method:"PATCH",body}),
+    publishPolicy: (session,body)=>request("/v1/admin/policy/publish",session,{method:"POST",body}),
+    createAdminInvitation: (session,body)=>request("/v1/admin/invitations",session,{method:"POST",body}),
+    revokeAdminInvitation: (session,id)=>request("/v1/admin/invitations/revoke",session,{method:"POST",body:{id}}),
+    createCampaign: (session,body)=>request("/v1/admin/campaigns",session,{method:"POST",body}),
+    createCampaignLink: (session,body)=>request("/v1/admin/campaign-links",session,{method:"POST",body}),
+    revokeCampaign: (session,id)=>request("/v1/admin/campaigns/revoke",session,{method:"POST",body:{id}}),
+    changeAccountAccess: (session,body)=>request("/v1/admin/users/access",session,{method:"POST",body}),
     get: (session, signal) => boardRequest("/v1/semester", session, { signal }),
     seed: (session, signal) => boardRequest("/v1/semester/sample", session, { method: "POST", signal }),
     update: (session, taskId, completed, expectedRevision, signal) => boardRequest(`/v1/tasks/${encodeURIComponent(taskId)}`, session, { method: "PATCH", body: { completed, expectedRevision }, signal }),
@@ -67,6 +77,11 @@ function safeMessage(status,code="") {
     invitation_required:"A valid Semester invitation is required for this account.",access_disabled:"Semester access is currently disabled for this account.",
     invitation_unavailable:"This invitation is no longer available.",self_referral:"You cannot use your own friend invitation.",
     profile_required:"Choose a display name before sending the friend request.",friend_unavailable:"This friend invitation is unavailable."};
+  Object.assign(invitation,{admin_required:"Administrator access is required.",revision_conflict:"This changed in another session. Refresh before trying again.",
+    admin_target_protected:"Administrator access must be changed through the operator procedure.",
+    policy_invalid:"Review the growth-policy values.",public_enrolment_unavailable:"Public Semester enrolment is not safely available yet.",
+    publish_confirmation_required:"Review and confirm the policy before publishing.",admin_input_invalid:"Review the admin form values.",
+    enrolments_paused:"New Semester enrolments are paused.",enrolment_channel_disabled:"This enrolment channel is disabled by the published policy."});
   if(invitation[code])return invitation[code];
   if (status === 401) return "Your API session was rejected. Sign out and sign in again.";
   if (status === 403) return "This account is not allowed to use the test API.";

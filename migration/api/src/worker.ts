@@ -6,6 +6,8 @@ import { maxRecoveryBytes } from "../../recovery.ts";
 import { exportBackup, getImportedAssessments, setImportedCompletion, maxBackupBytes, requireMember, storeBackup } from "./backup.ts";
 import {accessStatus,previewInvitation,redeemInvitation,requireAccess} from "./access.ts";
 import {changeFriendship,createFriendInvitation,readFriends,requestFriend,revokeFriendInvitation,saveFriendProfile} from "./friends.ts";
+import {adminSession,changeAccountAccess,createCampaign,createCampaignLink,createPrivateInvitation,publishPolicy,
+  readAdminDashboard,revokeAdminInvitation,revokeCampaign,savePolicyDraft} from "./admin.ts";
 import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
 import type { JWTVerifyGetKey } from "jose";
 
@@ -83,8 +85,11 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         const backup = path.match(/^\/v1\/backup-trial\/([0-9a-f-]{36})$/);
         const recovery = path.match(/^\/v1\/recovery\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
-        const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments", "/v1/friends"].includes(path) ? ["GET"]
+        const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments", "/v1/friends", "/v1/admin/session", "/v1/admin"].includes(path) ? ["GET"]
           : path === "/v1/access/invitation" || path === "/v1/access/redeem" ? ["POST"]
+          : path === "/v1/admin/policy/draft" ? ["PATCH"]
+          : ["/v1/admin/policy/publish","/v1/admin/invitations","/v1/admin/invitations/revoke","/v1/admin/campaigns",
+              "/v1/admin/campaign-links","/v1/admin/campaigns/revoke","/v1/admin/users/access"].includes(path) ? ["POST"]
           : path === "/v1/friends/profile" ? ["PATCH"]
           : path === "/v1/friends/invitation" ? ["POST","DELETE"]
           : path === "/v1/friends/request" || path === "/v1/friends/action" ? ["POST"]
@@ -118,6 +123,16 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         // Authentication maps identity only. Every academic route below also
         // requires an active Semester enrolment.
         await requireAccess(env.DB,accountId);
+        if(path==="/v1/admin/session")return send(await adminSession(env.DB,accountId));
+        if(path==="/v1/admin")return send(await readAdminDashboard(env.DB,accountId));
+        if(path==="/v1/admin/policy/draft")return send(await savePolicyDraft(env.DB,accountId,await jsonBody(request,16_384)));
+        if(path==="/v1/admin/policy/publish")return send(await publishPolicy(env.DB,accountId,await jsonBody(request,2048)));
+        if(path==="/v1/admin/invitations")return send(await createPrivateInvitation(env.DB,accountId,env.PILOT_WEB_URL??[...origins(env.ALLOWED_ORIGINS)][0]??"",await jsonBody(request,2048)),201);
+        if(path==="/v1/admin/invitations/revoke")return send(await revokeAdminInvitation(env.DB,accountId,await jsonBody(request,512)));
+        if(path==="/v1/admin/campaigns")return send(await createCampaign(env.DB,accountId,env.PILOT_WEB_URL??[...origins(env.ALLOWED_ORIGINS)][0]??"",await jsonBody(request,4096)),201);
+        if(path==="/v1/admin/campaign-links")return send(await createCampaignLink(env.DB,accountId,env.PILOT_WEB_URL??[...origins(env.ALLOWED_ORIGINS)][0]??"",await jsonBody(request,4096)),201);
+        if(path==="/v1/admin/campaigns/revoke")return send(await revokeCampaign(env.DB,accountId,await jsonBody(request,512)));
+        if(path==="/v1/admin/users/access")return send(await changeAccountAccess(env.DB,accountId,await jsonBody(request,1024)));
         if(path==="/v1/friends")return send(await readFriends(env.DB,accountId));
         if(path==="/v1/friends/profile")return send(await saveFriendProfile(env.DB,accountId,await jsonBody(request,512)));
         if(path==="/v1/friends/invitation")return send(request.method==="POST"
