@@ -21,7 +21,10 @@ export function createApi(baseUrl, fetcher = fetch) {
     });
     let payload;
     try { payload = await response.json(); } catch { throw new ApiError(response.status, "invalid_response", "The API returned an unreadable response."); }
-    if (!response.ok) throw new ApiError(response.status, payload?.error?.code || "request_failed", safeMessage(response.status));
+    if (!response.ok) {
+      const code=payload?.error?.code || "request_failed";
+      throw new ApiError(response.status,code,safeMessage(response.status,code));
+    }
     return payload;
   };
   const boardRequest = async (...args) => {
@@ -32,16 +35,31 @@ export function createApi(baseUrl, fetcher = fetch) {
   return {
     async session(session, signal) {
       const value = await request("/v1/session", session, { signal });
-      if (typeof value?.accountId !== "string" || !value.accountId) throw new ApiError(502, "invalid_account", "The API returned an unexpected account format.");
+      if (typeof value?.accountId !== "string" || !value.accountId || !["none","active","suspended","deletion_pending","deleted"].includes(value?.access?.state)
+          || typeof value.access.enrolled!=="boolean") throw new ApiError(502, "invalid_account", "The API returned an unexpected account format.");
       return value;
     },
+    async previewInvitation(token,signal) {
+      const response=await fetcher(`${baseUrl}/v1/access/invitation`,{method:"POST",signal,cache:"no-store",credentials:"omit",redirect:"error",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});
+      let value;try{value=await response.json();}catch{throw new ApiError(response.status,"invalid_response","The invitation service returned an unreadable response.");}
+      if(!response.ok){const code=value?.error?.code||"request_failed";throw new ApiError(response.status,code,safeMessage(response.status,code));}
+      if(value?.valid!==true||typeof value.expiresAt!=="string"||!Number.isSafeInteger(value.remaining)||value.remaining<1)
+        throw new ApiError(502,"invalid_response","The invitation service returned an unexpected response.");
+      return value;
+    },
+    redeem: (session,token,signal)=>request("/v1/access/redeem",session,{method:"POST",body:{token},signal}),
     get: (session, signal) => boardRequest("/v1/semester", session, { signal }),
     seed: (session, signal) => boardRequest("/v1/semester/sample", session, { method: "POST", signal }),
     update: (session, taskId, completed, expectedRevision, signal) => boardRequest(`/v1/tasks/${encodeURIComponent(taskId)}`, session, { method: "PATCH", body: { completed, expectedRevision }, signal }),
   };
 }
 
-function safeMessage(status) {
+function safeMessage(status,code="") {
+  const invitation={invitation_invalid:"This invitation link is not valid.",invitation_expired:"This invitation has expired.",
+    invitation_revoked:"This invitation has been revoked.",invitation_exhausted:"This invitation has already been used.",
+    invitation_required:"A valid Semester invitation is required for this account.",access_disabled:"Semester access is currently disabled for this account."};
+  if(invitation[code])return invitation[code];
   if (status === 401) return "Your API session was rejected. Sign out and sign in again.";
   if (status === 403) return "This account is not allowed to use the test API.";
   if (status === 404) return "No test semester was found.";

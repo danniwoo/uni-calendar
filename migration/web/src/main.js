@@ -4,6 +4,7 @@ import { createApi } from "./api.js";
 import { createController } from "./controller.js";
 import { backupCheckPanel } from "./backup-check.js";
 import { todayPlanPanel } from "./today-plan.js";
+import {captureInvitation,forgetInvitation} from "./invitation.js";
 import "./style.css";
 
 const root = document.querySelector("#app");
@@ -14,7 +15,13 @@ let authMessage = "";
 let suppressSessionEvents = false;
 let signoutFailed = false;
 let authEvents = 0;
-const controller = createController(createApi(config.apiUrl), render);
+const api=createApi(config.apiUrl);
+const controller = createController(api, render);
+let pendingInvitation=null;
+let invitationMessage="";
+let invitationKind="";
+let invitationBusy=false;
+let invitationAttempt="";
 
 // Only text nodes receive API/auth content. No remote HTML is inserted.
 function element(tag, text, className) {
@@ -37,7 +44,7 @@ function status(text, kind = "notice") {
 
 function render() {
   const state = controller.getState();
-  if (state.accountId && !state.rejected && !new URLSearchParams(location.search).has("tools")) {
+  if (state.access?.enrolled && !state.rejected && !new URLSearchParams(location.search).has("tools")) {
     location.replace("/board/");
     return;
   }
@@ -57,11 +64,22 @@ function render() {
     return;
   }
 
+  const invitation=element("section",undefined,"panel invitation");
+  invitation.append(element("h2",pendingInvitation?"Private invitation":"Private pilot access"));
+  if(pendingInvitation)invitation.append(element("p",invitationBusy?"Checking and activating this invitation…":invitationMessage||"Invitation ready. Continue with Google to activate Semester access."));
+  else invitation.append(element("p",invitationMessage||"Existing pilot students can sign in normally. New students need a private invitation link."));
+  if(invitationKind==="error")invitation.classList.add("invitation-error");
+  if(state.session && !state.access?.enrolled && pendingInvitation && !invitationBusy)
+    invitation.append(button("Retry invitation",()=>completeSession(state.session),state.busy||authBusy));
+  main.append(invitation);
+
   const account = element("section", undefined, "panel account");
   account.append(element("h2", state.session ? "Your account" : "Connect your account"));
   if (state.session) {
     account.append(element("p", state.session.user.email || "Signed in", "account-name"));
-    account.append(element("p", state.accountId ? "Supabase sign-in and API identity verified for this request." : "Supabase session available · API connection not yet verified", "muted"));
+    account.append(element("p", state.access?.enrolled ? "Google identity verified · Semester access active"
+      : state.checked ? "Google identity verified · a valid invitation is still required"
+      : "Supabase session available · API identity not yet verified", "muted"));
     const actions = element("div", undefined, "actions");
     actions.append(button(state.busy ? "Checking…" : "Refresh test data", () => controller.refresh(), state.busy || authBusy || state.rejected), button("Sign out", signOut, authBusy, "secondary"));
     account.append(actions);
@@ -76,7 +94,7 @@ function render() {
 
   const diagnostics=element("details");
   diagnostics.append(element("summary","Connection diagnostics"));
-  if (state.session && state.checked && !state.board && !state.rejected) {
+  if (state.session && state.access?.enrolled && state.checked && !state.board && !state.rejected) {
     const empty = element("section", undefined, "panel");
     empty.append(element("h2", "No test semester yet"), element("p", "Create a few sample deadlines and tasks for this account. Existing test data is kept."), button("Create test semester", () => controller.seed(), state.busy || authBusy));
     diagnostics.append(empty);
@@ -110,7 +128,7 @@ function render() {
     }
     diagnostics.append(section);
   }
-  if (state.session && state.accountId && !state.rejected) {
+  if (state.session && state.accountId && state.access?.enrolled && !state.rejected) {
     const openBoard=element("a","Open my semester board");
     openBoard.href="/board/";
     main.append(openBoard);
@@ -145,6 +163,48 @@ function render() {
   root.replaceChildren(main);
 }
 
+async function previewPendingInvitation() {
+  if(!pendingInvitation)return;
+  const token=pendingInvitation;
+  invitationBusy=true;invitationMessage="";invitationKind="";render();
+  try {
+    const value=await api.previewInvitation(token);
+    if(pendingInvitation!==token)return;
+    const date=new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Sydney",day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}).format(new Date(value.expiresAt));
+    invitationMessage=`Invitation ready · expires ${date} Sydney.`;
+  } catch(error) {
+    if(pendingInvitation!==token)return;
+    invitationMessage=error.message||"This invitation could not be checked.";invitationKind="error";
+    if(["invitation_invalid","invitation_expired","invitation_revoked","invitation_exhausted"].includes(error.code)) {
+      pendingInvitation=null;forgetInvitation(sessionStorage,config.supabaseUrl);
+    }
+  } finally {invitationBusy=false;render();}
+}
+
+async function completeSession(session) {
+  if(!session || controller.getState().session?.user.id!==session.user.id)return;
+  const key=`${session.user.id}:${pendingInvitation??"none"}`;
+  if(invitationAttempt===key)return;
+  invitationAttempt=key;
+  if(pendingInvitation) {
+    const token=pendingInvitation;invitationBusy=true;invitationMessage="Activating your invitation…";invitationKind="";render();
+    try {
+      const result=await api.redeem(session,token);
+      if(controller.getState().session?.user.id!==session.user.id)return;
+      pendingInvitation=null;forgetInvitation(sessionStorage,config.supabaseUrl);
+      invitationMessage=result.alreadyEnrolled?"This account already has Semester access.":"Invitation accepted. Semester access is active.";
+    } catch(error) {
+      if(controller.getState().session?.user.id!==session.user.id)return;
+      invitationMessage=error.message||"This invitation could not be activated.";invitationKind="error";
+      if(["invitation_invalid","invitation_expired","invitation_revoked","invitation_exhausted"].includes(error.code)) {
+        pendingInvitation=null;forgetInvitation(sessionStorage,config.supabaseUrl);
+      }
+    } finally {invitationBusy=false;invitationAttempt="";}
+  } else invitationAttempt="";
+  if(controller.getState().session?.user.id===session.user.id)await controller.refresh();
+  render();
+}
+
 async function signIn() {
   authBusy = true; authMessage = ""; render();
   try {
@@ -172,10 +232,14 @@ async function signOut() {
 async function start() {
   // Remove any OAuth code/error/token fragment immediately, including on a
   // misconfigured build, before network calls or user interaction.
-  const callback = takeAuthCallback(window.location.href);
+  const captured=captureInvitation(window.location.href,sessionStorage,config.supabaseUrl);
+  pendingInvitation=captured.token;
+  if(captured.invalid){invitationMessage="This invitation link is not valid.";invitationKind="error";}
+  const callback = takeAuthCallback(new URL(captured.cleanUrl,window.location.origin).toString());
   window.history.replaceState({}, "", callback.cleanUrl);
   render();
   if (!config.ready) return;
+  if(pendingInvitation)void previewPendingInvitation();
   client = pilotClient(config);
   client.auth.onAuthStateChange((_event, session) => {
     authEvents += 1;
@@ -183,7 +247,7 @@ async function start() {
     const changed = controller.setSession(session);
     // Keep auth callbacks synchronous; run API work outside the SDK auth lock.
     if (changed && session) setTimeout(() => {
-      if (controller.getState().session?.user?.id === session.user.id) void controller.refresh();
+      if (controller.getState().session?.user?.id === session.user.id) void completeSession(session);
     }, 0);
   });
   authBusy = true; render();
@@ -199,7 +263,7 @@ async function start() {
     if (error) throw error;
     if (authEvents === version && !suppressSessionEvents) {
       const changed = controller.setSession(data.session);
-      if (changed && data.session) void controller.refresh();
+      if (changed && data.session) void completeSession(data.session);
     }
   } catch {
     controller.clear();

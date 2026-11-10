@@ -5,12 +5,15 @@ import { readFileSync } from "node:fs";
 import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT, type JWTPayload } from "jose";
 import { createApi, type Env } from "../src/worker.ts";
 import { configuredIssuer } from "../src/auth.ts";
+import {invitationHash} from "../src/access.ts";
 import type { SqlDatabase, SqlStatement } from "../src/store.ts";
 import type { SemesterResponse } from "../src/contract.ts";
 
 const issuer = "https://semester-test.supabase.co/auth/v1";
 const alice = "11111111-1111-4111-8111-111111111111";
 const bob = "22222222-2222-4222-8222-222222222222";
+const charlie = "44444444-4444-4444-8444-444444444444";
+const dana = "55555555-5555-4555-8555-555555555555";
 const key = await generateKeyPair("ES256");
 const publicJwk = { ...await exportJWK(key.publicKey), kid: "test-key", alg: "ES256", use: "sig" };
 
@@ -41,6 +44,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec(readFileSync(new URL("../migrations/0003_today_plans.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0004_imported_completion.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0005_recovery.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0006_invitation_access.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -72,6 +76,26 @@ function setup(t: { after(fn: () => void): void }) {
   };
   return { db, env, api, call };
 }
+
+async function addInvitation(db:SQLiteDatabase,token:string,{id=crypto.randomUUID(),expiresAt="2099-01-01T00:00:00.000Z",revokedAt=null as string|null,max=1,count=0}={}) {
+  db.sqlite.prepare(`INSERT INTO access_invitations
+    (id,kind,token_hash,label,max_redemptions,redemption_count,expires_at,revoked_at,created_at)
+    VALUES (?,'private',?,'Test invitation',?,?,?,?,?)`)
+    .run(id,await invitationHash(token),max,count,expiresAt,revokedAt,"2026-11-10T00:00:00.000Z");
+  return id;
+}
+
+test("the invitation migration backfills a populated legacy allowlist",t=>{
+  const sqlite=new DatabaseSync(":memory:");t.after(()=>sqlite.close());sqlite.exec("PRAGMA foreign_keys=ON");
+  for(const name of ["0001_pilot.sql","0002_backup_trial.sql","0003_today_plans.sql","0004_imported_completion.sql","0005_recovery.sql"])
+    sqlite.exec(readFileSync(new URL(`../migrations/${name}`,import.meta.url),"utf8"));
+  const account="99999999-9999-4999-8999-999999999999";
+  sqlite.prepare("INSERT INTO pilot_accounts VALUES (?,?)").run(account,"2026-11-01T00:00:00Z");
+  sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(account);
+  sqlite.exec(readFileSync(new URL("../migrations/0006_invitation_access.sql",import.meta.url),"utf8"));
+  const access=sqlite.prepare("SELECT state,source FROM account_access WHERE account_id=?").get(account) as {state:string;source:string};
+  assert.equal(access.state,"active");assert.equal(access.source,"legacy_pilot");
+});
 
 test("private restore is admitted, owner-bound, byte-preserving and never replaces another board", async t => {
   const { call, db } = setup(t);
@@ -159,8 +183,12 @@ test("forged signature and symmetric signing algorithm are rejected", async t =>
 });
 
 test("sample creation is explicit and idempotent; each owner gets their own board", async t => {
-  const { call } = setup(t);
+  const { call,db } = setup(t);
   const a = await token(); const b = await token(bob);
+  for(const jwt of [a,b]) {
+    const {accountId}=await (await call("/v1/session",jwt)).json() as {accountId:string};
+    db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(accountId);
+  }
   assert.equal((await call("/v1/semester", a)).status, 404);
   const seeded = await call("/v1/semester/sample", a, "POST");
   assert.equal(seeded.status, 200);
@@ -182,7 +210,9 @@ test("sample creation is explicit and idempotent; each owner gets their own boar
 });
 
 test("stale and concurrent writes preserve data, and only the owned task can change", async t => {
-  const { call } = setup(t); const jwt = await token();
+  const { call,db } = setup(t); const jwt = await token();
+  const {accountId}=await (await call("/v1/session",jwt)).json() as {accountId:string};
+  db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(accountId);
   await call("/v1/semester/sample", jwt, "POST");
   const path = "/v1/tasks/sample-report-draft";
   const results = await Promise.all(Array.from({ length: 5 }, () => call(path, jwt, "PATCH", { completed: true, expectedRevision: 1 })));
@@ -198,6 +228,8 @@ test("stale and concurrent writes preserve data, and only the owned task can cha
 
 test("request validation rejects owner injection, invalid updates and oversized bodies", async t => {
   const { call, api, env } = setup(t); const jwt = await token();
+  const {accountId}=await (await call("/v1/session",jwt)).json() as {accountId:string};
+  (env.DB as SQLiteDatabase).sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(accountId);
   await call("/v1/semester/sample", jwt, "POST");
   for (const body of [{ completed: true, expectedRevision: 1, owner: bob }, { completed: "yes", expectedRevision: 1 },
     { completed: true, expectedRevision: 0 }, { completed: true, expectedRevision: 1.2 }, [], null]) {
@@ -248,6 +280,85 @@ test("account first-request races do not duplicate identities or create orphan a
   assert.equal(new Set(ids).size, 1);
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM pilot_accounts").get()?.n, 1);
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) AS n FROM pilot_identities").get()?.n, 1);
+});
+
+test("a private invitation enrols a mapped account and unlocks protected import routes",async t=>{
+  const {call,db}=setup(t),jwt=await token(),invite="A".repeat(43);
+  await addInvitation(db,invite);
+  const preview=await call("/v1/access/invitation",undefined,"POST",{token:invite});
+  assert.equal(preview.status,200);assert.equal((await preview.json() as {remaining:number}).remaining,1);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM pilot_accounts").get()?.n,0,"public preview must not map an identity");
+  const session=await (await call("/v1/session",jwt)).json() as {accountId:string;access:{state:string;enrolled:boolean}};
+  assert.deepEqual(session.access,{state:"none",enrolled:false,source:null,enrolledAt:null});
+  assert.equal((await call("/v1/imported/board",jwt)).status,403);
+  const redeemed=await call("/v1/access/redeem",jwt,"POST",{token:invite});
+  assert.equal(redeemed.status,200);
+  assert.equal((await redeemed.json() as {access:{state:string};alreadyEnrolled:boolean}).alreadyEnrolled,false);
+  const active=await (await call("/v1/session",jwt)).json() as {access:{state:string;enrolled:boolean;source:string}};
+  assert.equal(active.access.state,"active");assert.equal(active.access.enrolled,true);assert.equal(active.access.source,"private_invitation");
+  assert.equal((await call("/v1/imported/board",jwt)).status,200);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM backup_trial_members WHERE account_id=?").get(session.accountId)?.n,1);
+  assert.equal(db.sqlite.prepare("SELECT redemption_count n FROM access_invitations").get()?.n,1);
+});
+
+test("invalid, expired, revoked and exhausted invitations fail without granting access",async t=>{
+  const {call,db}=setup(t),jwt=await token();
+  await call("/v1/session",jwt);
+  const cases:[string,{expiresAt?:string;revokedAt?:string;max?:number;count?:number},number,string][]=[
+    ["B".repeat(43),{expiresAt:"2000-01-01T00:00:00.000Z"},410,"invitation_expired"],
+    ["C".repeat(43),{revokedAt:"2026-11-10T00:00:00.000Z"},410,"invitation_revoked"],
+    ["D".repeat(43),{max:1,count:1},409,"invitation_exhausted"],
+  ];
+  for(const [value,options,status,code] of cases) {
+    await addInvitation(db,value,options);
+    for(const authenticated of [false,true]) {
+      const response=await call(authenticated?"/v1/access/redeem":"/v1/access/invitation",authenticated?jwt:undefined,"POST",{token:value});
+      assert.equal(response.status,status);assert.equal((await response.json() as {error:{code:string}}).error.code,code);
+    }
+  }
+  assert.equal((await call("/v1/access/invitation",undefined,"POST",{token:"short"})).status,400);
+  assert.equal((await call("/v1/access/redeem",jwt,"POST",{token:"E".repeat(43)})).status,404);
+  const session=await (await call("/v1/session",jwt)).json() as {access:{state:string}};
+  assert.equal(session.access.state,"none");
+});
+
+test("only one account can redeem a final invitation slot",async t=>{
+  const {call,db}=setup(t),invite="F".repeat(43),tokens=[await token(bob),await token(charlie)];
+  await addInvitation(db,invite);
+  await Promise.all(tokens.map(jwt=>call("/v1/session",jwt)));
+  const results=await Promise.all(tokens.map(jwt=>call("/v1/access/redeem",jwt,"POST",{token:invite})));
+  assert.deepEqual(results.map(result=>result.status).sort(),[200,409]);
+  assert.equal(db.sqlite.prepare("SELECT redemption_count n FROM access_invitations").get()?.n,1);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM invitation_redemptions WHERE counted=1").get()?.n,1);
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM account_access WHERE state='active'").get()?.n,1);
+});
+
+test("redemption retries are idempotent and cannot reactivate suspended access",async t=>{
+  const {call,db}=setup(t),jwt=await token(dana),first="G".repeat(43),second="H".repeat(43);
+  await call("/v1/session",jwt);await addInvitation(db,first);
+  assert.equal((await call("/v1/access/redeem",jwt,"POST",{token:first})).status,200);
+  const again=await call("/v1/access/redeem",jwt,"POST",{token:first});
+  assert.equal(again.status,200);assert.equal((await again.json() as {alreadyEnrolled:boolean}).alreadyEnrolled,true);
+  assert.equal(db.sqlite.prepare("SELECT redemption_count n FROM access_invitations WHERE token_hash=?").get(await invitationHash(first))?.n,1);
+  const {accountId}=await (await call("/v1/session",jwt)).json() as {accountId:string};
+  db.sqlite.prepare("UPDATE account_access SET state='suspended' WHERE account_id=?").run(accountId);
+  await addInvitation(db,second);
+  assert.equal((await call("/v1/access/redeem",jwt,"POST",{token:second})).status,403);
+  assert.equal((await call("/v1/imported/board",jwt)).status,403);
+  assert.equal(db.sqlite.prepare("SELECT redemption_count n FROM access_invitations WHERE token_hash=?").get(await invitationHash(second))?.n,0);
+});
+
+test("legacy backup-trial members are backfilled and do not consume invitations",async t=>{
+  const {call,db}=setup(t),jwt=await token(),invite="I".repeat(43);
+  const {accountId}=await (await call("/v1/session",jwt)).json() as {accountId:string};
+  db.sqlite.prepare("INSERT INTO backup_trial_members VALUES (?)").run(accountId);
+  const session=await (await call("/v1/session",jwt)).json() as {access:{state:string;source:string}};
+  assert.equal(session.access.state,"active");assert.equal(session.access.source,"legacy_pilot");
+  await addInvitation(db,invite);
+  const result=await call("/v1/access/redeem",jwt,"POST",{token:invite});
+  assert.equal(result.status,200);assert.equal((await result.json() as {alreadyEnrolled:boolean}).alreadyEnrolled,true);
+  assert.equal(db.sqlite.prepare("SELECT redemption_count n FROM access_invitations").get()?.n,0);
+  assert.equal((await call("/v1/imported/board",jwt)).status,200);
 });
 
 test("Today plans isolate accounts, preserve the restore point and reject racing or invalid writes", async t => {

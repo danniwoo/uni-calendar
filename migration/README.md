@@ -2,6 +2,8 @@
 
 Status: independent staging implementation, 2026-11-02. Daniel selected Cloudflare Workers + D1 and Supabase Auth, starting on free plans. The first provider is now Google; Apple will follow during public-release preparation. Resend, SMTP and Email+Password are deferred. A new Supabase project and D1 database have been created; the old Sites app remains unchanged.
 
+Stage 1 private invitation self-onboarding is implemented locally on 2026-11-10 and has not been deployed. Migration `0006_invitation_access.sql` separates Supabase identity mapping from D1 access, backfills current pilot members, and supports active/suspended/deletion states. The Pages client preserves an opaque invitation through PKCE in tab-scoped storage and redeems it after authentication. Campaigns, Friends referrals, attribution and admin UI remain deferred.
+
 ## Isolation
 
 The private web pilot is at **https://semester-pilot.pages.dev/**. The staging Worker serves the authenticated API used by both the web and iPhone. Two distinct Google accounts have completed the import trial. The second account's fictional DEMO1001 semester was verified on iPhone and through its Deadline focus Lock Screen link. Pilot enrollment is per account.

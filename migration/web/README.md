@@ -4,6 +4,8 @@ The [private pilot](https://semester-pilot.pages.dev/) signs students in with th
 
 The staging Worker reads the active D1 snapshot and applies occurrence completion records shared with iOS. Board saves check the loaded revision. Refresh the page or the phone’s Assessments view to see changes from the other device. The first backup remains available through Account & backups. Course plan, Friends, timetable import and the Canvas browser connection still use the original Sites environment.
 
+Stage 1 private invitation links use `#invite=<opaque token>`. The web app removes the token from the address bar immediately, keeps it only in this tab's `sessionStorage` across the PKCE redirect, and sends it to the Worker in a POST body. After Google sign-in, the Worker maps identity and atomically redeems the invitation before the browser can open `/board/`. A signed-in but unenrolled account remains on the account page. Existing pilot members sign in without a new invitation.
+
 ## Local setup
 
 Use Node 22.13+ (the existing Node 24 toolchain is also suitable). Install the locked dependencies at the repository root for the original board, then install the web client dependencies. From this directory:
@@ -23,19 +25,24 @@ Open **http://localhost:4174/** for local development. Supabase must allow the e
 
 From `migration/web`, install the locked dependencies and run `npm run build` with the public staging settings. Publish the contents of `migration/web/dist` to the **semester-pilot** Pages Direct Upload project. The API is deployed separately with the existing staging Wrangler configuration. Set its exact allowed web origin to `https://semester-pilot.pages.dev` and its pilot landing URL to `https://semester-pilot.pages.dev/`. Keep the iPhone API URL on the Worker.
 
-For a second-account rehearsal, verify the staging Google identity against its D1 account and approve admission for that account alone. On the hosted site use **Preview a practice semester** and confirm the destination account. **Pilot reflection** is due the next day at 17:00 Sydney. Sign into Semester Preview with the same Google account to compare Home and Deadline focus. An existing imported semester cannot be replaced through the practice shortcut.
+For a second-account rehearsal after Stage 1 is deployed, create a private invitation with the operator CLI and let that account redeem it through Google sign-in; do not insert an account ID manually. On the hosted site use **Preview a practice semester** and confirm the destination account. **Pilot reflection** is due the next day at 17:00 Sydney. Sign into Semester Preview with the same Google account to compare Home and Deadline focus. An existing imported semester cannot be replaced through the practice shortcut.
 
 Google OAuth uses PKCE, and this client explicitly exchanges the returned code with Supabase. It clears the code/error fragment from the address bar before exchange and rejects implicit token callbacks. The Supabase SDK stores the staging session in browser localStorage under a dedicated project-scoped key and renews it. This is a browser-only proof, not SSR auth. API calls use the Supabase session access token. No user-supplied owner ID is sent. The API remains responsible for validating tokens and enforcing ownership.
 
 ## Trial
 
-1. Continue with Google using an allowed staging test account.
-2. Verify the API identity and load the account's test board; missing data is an explicit state.
-3. Select **Create test semester** if needed. The API's sample endpoint must keep existing test data.
-4. Open the phone staging trial with the same Google account.
-5. Tick a preparation task here, then refresh on the phone; do the reverse as well. This proof uses explicit refresh, not realtime subscriptions or offline writes.
-6. Check a second account sees its own board. Sign out and confirm no previous board remains.
-7. With a stale revision on one device, confirm a 409 reloads the latest version without automatically overwriting the other device's change.
+1. Open a newly generated invitation link in a private browser window and confirm it is labelled ready before Google sign-in.
+2. Continue with Google. Cancel once and retry in the same tab to verify the invitation survives the interrupted PKCE flow.
+3. After successful sign-in, confirm the invitation activates access and `/board/` opens. A new account shows an empty board with an Account & backups import link.
+4. Import a valid Semester JSON, or leave the account empty. Refresh and confirm the account remains enrolled.
+5. Reopen the used link with a different synthetic account and confirm it reports already used; retry with the enrolled account and confirm access remains available.
+6. Sign in without an invitation using a non-member test account and confirm it stays on the account page and cannot call imported-board/recovery routes.
+7. Sign in with an existing `backup_trial_members` account and confirm it opens normally without consuming an invitation.
+8. Revoke an unused invitation with the operator CLI and confirm its link is rejected.
+9. Open the phone staging trial with the same enrolled Google account.
+10. Tick a preparation task here, then refresh on the phone; do the reverse as well. This proof uses explicit refresh, not realtime subscriptions or offline writes.
+11. Check a second enrolled account sees only its own board. Sign out and confirm no previous board remains.
+12. With a stale revision on one device, confirm a 409 reloads the latest version without automatically overwriting the other device's change.
 
 Pending requests are invalidated when identity changes or the user signs out. API rejection clears the displayed board; sign-out must complete before signing in again. Network failure leaves the displayed board unchanged and reports failure; it does not report a save. This proof does not yet add Apple Login, account linking, general-purpose migration, user-facing email or the full current website UI.
 

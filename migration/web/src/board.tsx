@@ -3,6 +3,7 @@ import {CalendarDays} from "lucide-react";
 import SemesterBoard from "../../../components/semester-board";
 import {pilotClient} from "./auth.js";
 import {readConfig} from "./config.js";
+import {createApi} from "./api.js";
 import "../../../app/globals.css";
 import "../../../app/board.css";
 import "../../../app/navigation.css";
@@ -13,6 +14,7 @@ if (!config.ready) {
   root.render(<main>Semester is not configured. <a href="/">Open account setup</a></main>);
 } else {
   const client=pilotClient(config);
+  const api=createApi(config.apiUrl);
   let subject:string|undefined;
   let active:AbortController|undefined;
   root.render(<main>Opening your semester…</main>);
@@ -41,10 +43,14 @@ if (!config.ready) {
       const problem=await response.json();
       return Response.json({error:problem.error?.message ?? "Could not access this semester."},{status:response.status});
     };
-    const header=<header className="app-header">
-      <a className="app-brand" href="/board/"><CalendarDays aria-hidden="true"/><span>semester</span></a>
-      <span>My semester</span><a href="/?tools=1" style={{marginLeft:"auto"}}>Account &amp; backups</a>
-    </header>;
-    root.render(<SemesterBoard key={owner} staging={{request,header}}/>);
+    void api.session(session,controller.signal).then(status=>{
+      if(controller.signal.aborted||subject!==owner)return;
+      if(!status.access.enrolled){root.render(<main>Opening your invitation page…</main>);location.replace("/");return;}
+      const header=<header className="app-header">
+        <a className="app-brand" href="/board/"><CalendarDays aria-hidden="true"/><span>semester</span></a>
+        <span>My semester</span><a href="/?tools=1" style={{marginLeft:"auto"}}>Account &amp; backups</a>
+      </header>;
+      root.render(<SemesterBoard key={owner} staging={{request,header}}/>);
+    }).catch(()=>{if(!controller.signal.aborted&&subject===owner){root.render(<main>Semester access could not be verified. <a href="/">Return to your account</a></main>);}});
   });
 }

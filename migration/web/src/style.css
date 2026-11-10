@@ -24,6 +24,8 @@ button:disabled { opacity: .5; cursor: default; }
 button:focus-visible, input:focus-visible { outline: 3px solid #b4a6ed; outline-offset: 3px; }
 .status { padding: 11px 14px; border-radius: 9px; font-size: 14px; background: #eeecf8; }
 .status.error { background: #fbebe8; color: #88382d; }
+.invitation { border-color:#cfc7eb; background:#faf9ff; }
+.invitation-error { border-color:#edc7c0; background:#fff8f6; color:#71382f; }
 .revision { font-size: 12px; white-space: nowrap; color: #706c7d; }
 .deadline { display: flex; justify-content: space-between; gap: 15px; padding: 13px 0; border-top: 1px solid #eeecf2; }
 .deadline > div, .task > span { display: flex; flex-direction: column; gap: 4px; }

@@ -1,5 +1,5 @@
 export function createController(api, onChange = () => {}) {
-  let state = { session: null, accountId: null, board: null, busy: false, error: "", notice: "", checked: false, rejected: false };
+  let state = { session: null, accountId: null, access: null, board: null, busy: false, error: "", notice: "", checked: false, rejected: false };
   let generation = 0;
   let active = null;
   const emit = () => onChange({ ...state });
@@ -11,7 +11,7 @@ export function createController(api, onChange = () => {}) {
       generation += 1;
       active?.abort();
       active = null;
-      state = { session, accountId: null, board: null, busy: false, error: "", notice: "", checked: false, rejected: false };
+      state = { session, accountId: null, access: null, board: null, busy: false, error: "", notice: "", checked: false, rejected: false };
     } else state = { ...state, session };
     emit();
     return changed;
@@ -31,7 +31,7 @@ export function createController(api, onChange = () => {}) {
     } catch (error) {
       if (current(version) && error.name !== "AbortError") {
         state = { ...state, error: error.message || "Connection failed. Try again." };
-        if (error.status === 401 || error.status === 403) state = { ...state, board: null, accountId: null, checked: false, rejected: true };
+        if (error.status === 401) state = { ...state, board: null, accountId: null, access:null, checked: false, rejected: true };
       }
     } finally {
       if (current(version)) { active = null; state = { ...state, busy: false }; emit(); }
@@ -40,10 +40,11 @@ export function createController(api, onChange = () => {}) {
 
   async function read(session, signal) {
     const account = await api.session(session, signal);
+    if(!account.access.enrolled)return {accountId:account.accountId,access:account.access,board:null,checked:true};
     let board = null;
     try { board = await api.get(session, signal); }
     catch (error) { if (error.status !== 404) throw error; }
-    return { accountId: account.accountId, board, checked: true };
+    return { accountId: account.accountId, access:account.access,board, checked: true };
   }
 
   return {
@@ -54,8 +55,9 @@ export function createController(api, onChange = () => {}) {
     refresh: () => run(read),
     seed: () => run(async (session, signal) => {
       const account = await api.session(session, signal);
+      if(!account.access.enrolled)return {accountId:account.accountId,access:account.access,board:null,checked:true};
       const board = await api.seed(session, signal);
-      return { accountId: account.accountId, board, checked: true, notice: "Test semester loaded. Open the phone trial with this same Google account." };
+      return { accountId: account.accountId,access:account.access,board, checked: true, notice: "Test semester loaded. Open the phone trial with this same Google account." };
     }),
     update: (taskId, completed) => {
       if (!state.board || !state.board.semester.tasks.some(task => task.id === taskId)) return Promise.resolve();

@@ -1,13 +1,19 @@
 import { readBackup } from "../../../lib/backup.ts";
 import { importedAssessments } from "../../../lib/imported-assessments.ts";
 import { ApiError } from "./auth.ts";
+import {requireAccess} from "./access.ts";
 import type { SqlDatabase } from "./store.ts";
 
 export const maxBackupBytes = 1_800_000;
 export async function requireMember(db: SqlDatabase, owner: string, requested: string) {
-  if (owner !== requested || !await db.prepare("SELECT 1 AS admitted FROM backup_trial_members WHERE account_id = ?1").bind(owner).first()) {
+  if (owner !== requested) {
     throw new ApiError(403, "not_admitted", "This account is not enrolled in the backup trial.");
   }
+  await requireAccess(db,owner);
+  // backup_trial_members remains the foreign-key parent for the imported-data
+  // tables. New invitation enrolments create it automatically; this fallback
+  // also repairs an interrupted enrolment without changing authorization.
+  await db.prepare("INSERT INTO backup_trial_members(account_id) VALUES (?1) ON CONFLICT(account_id) DO NOTHING").bind(owner).run();
 }
 export async function storeBackup(db: SqlDatabase, owner: string, text: string) {
   try {

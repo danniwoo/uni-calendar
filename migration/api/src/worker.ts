@@ -4,6 +4,7 @@ import { readTodayPlan, saveTodayPlan } from "./today-plan.ts";
 import { currentRecovery, restoreRecovery } from "./recovery.ts";
 import { maxRecoveryBytes } from "../../recovery.ts";
 import { exportBackup, getImportedAssessments, setImportedCompletion, maxBackupBytes, requireMember, storeBackup } from "./backup.ts";
+import {accessStatus,previewInvitation,redeemInvitation,requireAccess} from "./access.ts";
 import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
 import type { JWTVerifyGetKey } from "jose";
 
@@ -82,6 +83,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         const recovery = path.match(/^\/v1\/recovery\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
         const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments"].includes(path) ? ["GET"]
+          : path === "/v1/access/invitation" || path === "/v1/access/redeem" ? ["POST"]
           : path === "/v1/imported/board" ? ["GET","PUT"] : path === "/v1/imported/completion" ? ["PATCH"] : path === "/v1/today/plan" ? ["GET", "PATCH"] : backup || recovery ? ["GET", "POST"] : path === "/v1/semester/sample" ? ["POST"] : taskMatch ? ["PATCH"] : [];
         if (!methods.length) throw new ApiError(404, "not_found", "This endpoint does not exist.");
         if (request.method === "OPTIONS") {
@@ -96,8 +98,22 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         }
         if (!methods.includes(request.method)) { headers.set("Allow", methods.join(", ")); throw new ApiError(405, "method_not_allowed", "This method is not supported."); }
         if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
+        if (path === "/v1/access/invitation") {
+          const body=await jsonBody(request,512);
+          if(Object.keys(body).some(key=>key!=="token"))throw new ApiError(400,"invitation_invalid","This invitation link is not valid.");
+          return send(await previewInvitation(env.DB,body.token));
+        }
         const identity = await authenticate(request, env.SUPABASE_URL, testKey);
         const accountId = await resolveAccount(env.DB, identity);
+        if(path === "/v1/session")return send({accountId,access:await accessStatus(env.DB,accountId)});
+        if(path === "/v1/access/redeem") {
+          const body=await jsonBody(request,512);
+          if(Object.keys(body).some(key=>key!=="token"))throw new ApiError(400,"invitation_invalid","This invitation link is not valid.");
+          return send(await redeemInvitation(env.DB,accountId,body.token));
+        }
+        // Authentication maps identity only. Every academic route below also
+        // requires an active Semester enrolment.
+        await requireAccess(env.DB,accountId);
         if (path === "/v1/imported/board") return send(request.method === "GET" ? await getWebBoard(env.DB,accountId)
           : await saveWebBoard(env.DB,accountId,await jsonBody(request,1_800_000)));
         if (recovery) {
@@ -117,7 +133,6 @@ export function createApi(testKey?: JWTVerifyGetKey) {
           const result = await storeBackup(env.DB, accountId, await boundedText(request, maxBackupBytes));
           return send(result, result.created ? 201 : 200);
         }
-        if (path === "/v1/session") return send({ accountId });
         if (path === "/v1/semester") return send(await getSemester(env.DB, accountId));
         if (path === "/v1/semester/sample") {
           const body = await boundedText(request);

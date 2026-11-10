@@ -1,5 +1,16 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
+## GROWTH-01 · Invitation self-onboarding
+
+**Stage 1 · implemented locally / staging deployment and real OAuth acceptance pending · 2026-11-10**
+
+- Added append-only staging migration `0006_invitation_access.sql`: private opaque invitation hashes, atomic bounded redemptions and explicit account access states. Existing `backup_trial_members` become active `legacy_pilot` accounts without consuming invitations.
+- Supabase `(issuer,sub)` still creates only the stable D1 identity mapping. Every academic API route separately requires active enrolment. Suspended/deletion-state rows override legacy membership.
+- The Pages flow removes the token from the fragment immediately, preserves it in same-tab session storage across PKCE, redeems after authentication and opens `/board/` only after the Worker confirms access. Invalid, expired, revoked and exhausted links remain on the account page with bounded messages.
+- Operator-only local/remote Wrangler CLI creates or revokes private links; local is the default and remote requires an explicit flag. No administrator HTTP route, campaign, friend referral, attribution or analytics was added.
+- Synthetic verification: 23 Worker/API tests, API typecheck, 12 web tests and staging web production build pass. Final-slot concurrency, idempotent retry, legacy compatibility, suspension, protected import denial, OAuth interruption and account-switch isolation are covered. No deployment or real account/data mutation occurred.
+- Next gate: explicit approval to apply migration 0006 and deploy to staging, then perform the manual two-account OAuth checklist in `migration/web/README.md`. Do not begin Stage 2 until this Stage 1 acceptance is recorded.
+
 本輪狀態（2026-11-02）：Web **0.24.0** navigation dropdown／compact course plan 已依 UI 回饋實作並發布（Sites 68）；0.23.0 已發布（Sites 67），含 invitation status／semester filters／cursor pages／request limits。全朋友／不分享、private grades/WAM 與 Connect **0.5.0** 不變。下一步是版面使用者回饋及 SOCIAL-01 真實雙人試用。
 
 

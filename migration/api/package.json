@@ -10,7 +10,9 @@
     "test": "node --disable-warning=ExperimentalWarning --import tsx --test test/*.test.ts",
     "typecheck": "tsc --noEmit",
     "dev": "wrangler dev --config wrangler.local.jsonc --local",
-    "build": "wrangler deploy --config wrangler.local.jsonc --dry-run --outdir dist"
+    "build": "wrangler deploy --config wrangler.local.jsonc --dry-run --outdir dist",
+    "invite:create": "node scripts/invitations.mjs create",
+    "invite:revoke": "node scripts/invitations.mjs revoke"
   },
   "dependencies": {
     "jose": "6.2.15"

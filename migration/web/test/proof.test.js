@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { createApi, ApiError } from "../src/api.js";
 import { createController } from "../src/controller.js";
 import { readConfig, takeAuthCallback } from "../src/config.js";
+import {captureInvitation,forgetInvitation,invitationStorageKey} from "../src/invitation.js";
 
 const a = { user: { id: "a" }, access_token: "token-a" };
 const b = { user: { id: "b" }, access_token: "token-b" };
@@ -10,7 +11,8 @@ const board = (title = "Sample semester", revision = 1, completed = false) => ({
   semester: { id: "sample", title, weekLabel: "Sample week", assessments: [{ id: "a1", unitCode: "TEST1001", title: "Sample report", dueAt: "2026-11-05T12:59:00Z", weightLabel: "20%" }], tasks: [{ id: "t1", unitCode: "TEST1001", title: "Sample draft", completed }] }, revision,
 });
 const deferred = () => { let resolve; let reject; const promise = new Promise((r, j) => { resolve = r; reject = j; }); return { promise, resolve, reject }; };
-const api = overrides => ({ session: async s => ({ accountId: s.user.id }), get: async () => board(), seed: async () => board(), update: async () => board("Sample semester", 2, true), ...overrides });
+const active={state:"active",enrolled:true,source:"private_invitation",enrolledAt:"2026-11-10T00:00:00Z"};
+const api = overrides => ({ session: async s => ({ accountId: s.user.id,access:active }), get: async () => board(), seed: async () => board(), update: async () => board("Sample semester", 2, true), ...overrides });
 
 test("configuration fails closed for missing settings, admin keys and unsafe origins", () => {
   assert.equal(readConfig({}).ready, false);
@@ -29,6 +31,20 @@ test("OAuth callback is cleaned before exchange, retaining only unrelated naviga
   const query = takeAuthCallback("http://localhost:4174/?access_token=secret&refresh_token=private");
   assert.equal(query.failed, true); assert.equal(query.cleanUrl, "/");
   assert.equal(takeAuthCallback("http://localhost:4174/?error=cancelled&error_description=secret").cleanUrl, "/");
+});
+
+test("invitation fragments survive an OAuth interruption in tab-scoped storage and are removed from the URL",()=>{
+  const values=new Map(),storage={getItem:key=>values.get(key)??null,setItem:(key,value)=>values.set(key,value),removeItem:key=>values.delete(key)};
+  const token="A".repeat(43),scope="https://project.supabase.co";
+  const first=captureInvitation(`https://semester.example/#invite=${token}`,storage,scope);
+  assert.equal(first.token,token);assert.equal(first.cleanUrl,"/");
+  assert.equal(values.get(invitationStorageKey(scope)),token);
+  const returned=captureInvitation("https://semester.example/?code=oauth-code&sb_flow_id=flow",storage,scope);
+  assert.equal(returned.token,token);
+  assert.deepEqual(takeAuthCallback(`https://semester.example${returned.cleanUrl}`),{code:"oauth-code",flowId:"flow",failed:false,cleanUrl:"/"});
+  forgetInvitation(storage,scope);assert.equal(captureInvitation("https://semester.example/",storage,scope).token,null);
+  const invalid=captureInvitation("https://semester.example/#invite=short",storage,scope);
+  assert.equal(invalid.invalid,true);assert.equal(invalid.cleanUrl,"/");
 });
 
 test("API uses Supabase access token, sends only narrow update and refuses redirects", async () => {
@@ -103,4 +119,13 @@ test("missing board is explicit, seed requires an action, and refreshed tokens a
   assert.equal(c.getState().board, null); assert.equal(c.getState().checked, true); assert.equal(seeds, 0);
   c.setSession({ ...a, access_token: "refreshed-token" }); await c.seed();
   assert.deepEqual(tokens, ["refreshed-token"]); assert.equal(c.getState().board.revision, 1);
+});
+
+test("a mapped but non-enrolled session does not request or seed academic data",async()=>{
+  let reads=0,seeds=0;
+  const access={state:"none",enrolled:false,source:null,enrolledAt:null};
+  const c=createController(api({session:async()=>({accountId:"mapped",access}),get:async()=>{reads++;return board();},seed:async()=>{seeds++;return board();}}));
+  c.setSession(a);await c.refresh();await c.seed();
+  assert.equal(c.getState().accountId,"mapped");assert.deepEqual(c.getState().access,access);
+  assert.equal(c.getState().board,null);assert.equal(reads,0);assert.equal(seeds,0);
 });

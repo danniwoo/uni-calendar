@@ -1,6 +1,15 @@
 # Engineering handoff
 
-Updated: 2026-11-02. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-11-10. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+
+### 2026-11-10 · GROWTH-01 Stage 1 private invitation onboarding
+
+- Implemented staging-only private invitation enrolment. `pilot_identities` remains the verified Supabase `(issuer,sub)` mapping; new `account_access` is the authorization source. The `active`, `suspended`, `deletion_pending` and `deleted` states ensure a valid JWT is insufficient when access is disabled. Migration backfills existing `backup_trial_members`, and new redemptions create the legacy storage-parent row automatically so imports/recovery continue to use existing tables.
+- Tokens are 32 random bytes encoded as base64url. D1 stores only SHA-256 hashes. Redemption uses one transactional D1 batch with a unique claim, conditional capacity update, access grant and losing-claim cleanup. Repeats by the same active account are idempotent; existing members do not consume capacity. Stage 1 API accepts only `private` invitations even though the schema reserves future kinds.
+- Pages captures `#invite` into same-tab session storage, clears the address bar before auth/network work, keeps it through PKCE interruption, and POSTs it only to the Worker. The account page no longer redirects mapped non-members into `/board/`; the board independently verifies active access before rendering. No email-domain ownership mapping was added.
+- Minimal administration is a local-authority Wrangler CLI under `migration/api/scripts/invitations.mjs`. Local D1 is the default; `--remote` is explicit. Create prints the raw link once, while revoke uses the non-secret invitation UUID. There is no client credential or public admin endpoint.
+- Verification passed: API 23/23 tests, API TypeScript and Worker dry-run bundle, web 12/12 tests, Vite production build, repository TypeScript/build, and existing Friends invitation/scaling checks. Coverage includes new/non-enrolled redemption, populated migration and lazy legacy backfill, invalid/expired/revoked/exhausted tokens, two-account final-slot race, same-account retry, suspension, protected-route denial, OAuth token preservation and account-switch response invalidation. Builds retain pre-existing Vite `use client`/chunk-size warnings. Original Sites production, remote staging D1, Supabase settings and student data were untouched.
+- Status is implemented locally, not deployed or real-OAuth accepted. Stage 2 campaign/friend referral work is intentionally not started.
 
 ### 2026-11-02 navigation and course-plan density / Web 0.24.0
 
