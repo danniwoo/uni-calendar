@@ -13,25 +13,25 @@
 
 ## GROWTH-02 · Society campaigns + unified friend referrals
 
-**Stage 2 · implemented locally / not deployed · 2026-11-10**
+**Stage 2 · deployed to isolated staging / live referral chain not yet accepted · 2026-11-11**
 
 - Added append-only `0007_growth_referrals.sql`: society campaigns, invitation context, immutable first-touch acquisition, referral ancestry, minimal public friend profiles, request/accept/block relationships and independent friend rate windows.
 - One personal opaque link now has two server-separated effects: it may enrol a new account and record `friend_referral`, then only after explicit recipient confirmation creates a pending request. The inviter must still accept. Existing enrolled recipients consume no acquisition capacity and never have original attribution overwritten.
 - Society links record direct `society` acquisition. Friend descendants record their immediate referrer plus the original root campaign. A forwarded society URL remains direct society acquisition. Tokens remain hash-only; public Friends responses exclude internal account IDs and attribution.
 - The staging account page has minimal profile, create/revoke/copy link, request confirmation and accept/decline/remove/block controls. Existing Sites Friends tables were used as the behavioral reference but were not migrated or modified.
 - Local evidence: 25/25 Worker/API tests, 13/13 web tests, both typechecks, Worker dry-run, staging-web build, root production build and existing Friends privacy/scaling regressions pass. The synthetic test covers SYNCS A → B → C ancestry, explicit consent/acceptance, idempotent duplicate requests, self-referral, exhausted acquisition quota for an existing user and response privacy.
-- Next gate: review and commit locally, then obtain explicit approval for staging D1 migration `0007` and Worker/Pages deployment. No Stage 2 remote migration or deployment has occurred.
+- Migration `0007` and the combined Stage 3 Worker/Pages build are now on isolated staging. Existing 5/5 access rows were preserved and all 5 accounts received non-destructive attribution backfill. The remaining acceptance gate is a real society A → friend B → friend C chain plus existing-user friendship behavior; it must not be described as passed yet.
 
 ## GROWTH-03 · Semester Admin — Growth & Invitations
 
-**Stage 3 · implemented and verified locally / not deployed · 2026-11-10**
+**Stage 3 · deployed to isolated staging / owner dashboard smoke accepted · 2026-11-11**
 
 - Added migration `0008_admin_growth.sql`: explicit D1 administrator roles, append-only audit records, revisioned draft/published growth policy, campaign-wide capacity and separately attributable distribution links. Admin authority is bound to the verified Supabase `(issuer, subject)` through the existing D1 account mapping; email and editable metadata never grant it.
 - Added authenticated Worker management APIs and `/admin/` for growth-stage suggestions, draft/review/publish access controls, private invitations, campaigns and distribution URLs, user suspension/restoration, and audit history. The student-facing board shows the Admin link only after server confirmation.
 - Published policy is enforced by public redemption and Friends routes. Drafts are inert; stage presets only suggest values; publishing needs explicit confirmation plus both draft and published revision checks. Pausing new enrolments does not affect existing active accounts. New-account referral enrolment and existing-user friend requests remain separate controls.
 - Admin responses intentionally exclude boards, imports, grades, plans and other academic content. Raw invitation tokens are returned once at creation and never stored or audited. Public Semester enrolment remains disabled until its authorization model is implemented safely.
-- Local evidence: 30/30 Worker/API tests, 15/15 web tests, API/web/root typechecks and builds, Worker dry-run, and existing course-plan/Friends privacy and scaling regressions pass. No browser E2E was requested; no migration, deployment, Supabase setting, production data or real student record was changed.
-- Deployment gate: because Stage 2 remains local, a future approved staging release must back up D1, apply `0007` then `0008`, deploy the Worker, provision the first owner from a verified active `(issuer, subject)`, then publish the `migration/web/dist` Pages artifact. Stage 4 owns activation/retention analytics, conversion tables and decision guidance.
+- Evidence: 30/30 Worker/API tests, 15/15 web tests, API/web/root typechecks and builds, Worker dry-run, and existing course-plan/Friends privacy and scaling regressions pass. Before remote migration, a full D1 export was SQLite-restored with `integrity_check=ok`; SHA-256 `546c58df078fe2bb548786f1df9b48c5963944e551b5281510aedd1f1b8ed718`.
+- Staging migrations `0007` and `0008` applied with no pending ledger entries. Worker version `1daea0c8-2986-43f5-a915-80eed98d3552` is live; health, existing protected-route 401s, admin-route 401s and Pages-origin CORS 204 passed. The verified active account for `594danielwu@gmail.com` was provisioned as the sole owner and its hosted dashboard visibly loaded `Verified owner`, Published v1 and 5 enrolled accounts. No policy mutation/invitation/campaign/suspension was exercised through the hosted UI yet. Stage 4 owns activation/retention analytics, conversion tables and decision guidance.
 
 本輪狀態（2026-11-02）：Web **0.24.0** navigation dropdown／compact course plan 已依 UI 回饋實作並發布（Sites 68）；0.23.0 已發布（Sites 67），含 invitation status／semester filters／cursor pages／request limits。全朋友／不分享、private grades/WAM 與 Connect **0.5.0** 不變。下一步是版面使用者回饋及 SOCIAL-01 真實雙人試用。
 
