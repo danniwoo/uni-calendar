@@ -60,6 +60,22 @@ test("API uses Supabase access token, sends only narrow update and refuses redir
   assert.equal(calls.length, 1);
 });
 
+test("combined referral API keeps enrolment and friendship consent as separate calls",async()=>{
+  const calls=[],responses=[
+    {valid:true,kind:"friend_referral",expiresAt:"2099-01-01T00:00:00Z",remaining:0,referrer:{name:"Alice"}},
+    {access:active,alreadyEnrolled:false,invitation:{kind:"friend_referral",referrer:{name:"Alice"}}},
+    {connectionId:"11111111-1111-4111-8111-111111111111",state:"outgoing"},
+  ];
+  const client=createApi("https://api.example",async(url,init)=>{calls.push({url,init});return Response.json(responses.shift());});
+  const token="R".repeat(43);
+  const preview=await client.previewInvitation(token);assert.equal(preview.remaining,0);
+  const redeemed=await client.redeem(a,token);assert.equal(redeemed.invitation.referrer.name,"Alice");
+  assert.equal(calls.length,2,"redemption must not send a friend request");
+  await client.requestFriend(a,token);
+  assert.deepEqual(calls.map(call=>new URL(call.url).pathname),["/v1/access/invitation","/v1/access/redeem","/v1/friends/request"]);
+  assert.deepEqual(JSON.parse(calls[2].init.body),{token});
+});
+
 test("malformed API data is rejected and server error details are not echoed", async () => {
   const malformed = createApi("https://api.example", async () => Response.json({ semester: {}, revision: 1 }));
   await assert.rejects(malformed.get(a), { code: "invalid_board" });

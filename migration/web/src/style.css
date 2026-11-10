@@ -42,4 +42,11 @@ footer { color: #797486; font-size: 12px; line-height: 1.6; padding: 20px 4px; }
 .recovery-counts tbody th { font-weight:500; }
 .recovery-counts td { font-variant-numeric:tabular-nums; }
 .recovery-panel summary { cursor:pointer; color:#51449b; padding:8px 0; }
-@media (max-width: 450px) { main { padding: 22px 16px; } .panel { padding: 17px; } .badge { font-size: 9px; letter-spacing: 1px; } }
+.friend-profile,.friend-share,.friend-link,.friend-row { display:flex; align-items:center; gap:10px; margin-top:12px; }
+.friend-profile input,.friend-link input { min-width:0; flex:1; border:1px solid #d9d5e2; border-radius:9px; padding:11px 12px; min-height:44px; font:inherit; }
+.friend-row { justify-content:space-between; border-top:1px solid #eeecf2; padding-top:12px; }
+.friend-row > div:first-child { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.friend-row .actions { margin-top:0; justify-content:flex-end; }
+@media (max-width: 450px) { main { padding: 22px 16px; } .panel { padding: 17px; } .badge { font-size: 9px; letter-spacing: 1px; }
+  .friend-row { align-items:flex-start; flex-direction:column; } .friend-row .actions,.friend-link { width:100%; } .friend-profile { align-items:stretch; flex-direction:column; }
+}

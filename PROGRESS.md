@@ -2,6 +2,22 @@
 
 Updated: 2026-11-10. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
 
+### 2026-11-10 · GROWTH-02 Stage 2 society campaigns and unified friend referrals
+
+- Added `0007_growth_referrals.sql` without restructuring the academic store. `growth_campaigns` and `invitation_contexts` extend the Stage 1 token mechanism; `account_attribution` is immutable per account and separates direct channel, direct campaign, immediate referrer and root-campaign lineage. Existing access rows receive a non-destructive legacy/private attribution backfill.
+- Ported the established Sites Friends security model into the staging Worker using staging-owned tables: public display name, hashed rotating seven-day personal link, explicit request, receiver-only acceptance, remove/block/unblock, revisions, pending caps and independent fixed-window rate counters. No existing Sites Friends records were copied or changed.
+- Friend-referral redemption is atomic with access and ancestry. It never creates friendship. Existing enrolled users can still use a full referral link for friendship without consuming an acquisition slot; later links cannot overwrite original attribution. Self-referrals are rejected and a new account cannot create an ancestry cycle because it has one immutable referrer at first enrolment.
+- Added operator-only society campaign creation to the existing Wrangler CLI. It creates a named multi-use campaign invitation and prints the raw token once; D1 stores its SHA-256 hash. Routine campaign administration remains Stage 3.
+- Added a minimal account-page Friends surface and kept the opaque fragment through OAuth until the recipient sends or declines the friend request. UI/API copy states that enrolment and friendship are separate and that private grades/WAM/semester data are not shared.
+- Verification: Worker/API 25/25, web 13/13, API/root TypeScript, Worker dry-run, web/root production builds, and the original Friends course-plan/scaling suites pass. The A(SYNCS) → B(friend) → C(friend) test preserves direct attribution and root ancestry, creates no implicit friendships, exercises request/accept, duplicate request, self-referral, capacity separation and public-response privacy. No remote migration, deployment, production data or Supabase setting changed.
+
+### 2026-11-10 · GROWTH-01 Stage 1B staging acceptance
+
+- Applied only `0006_invitation_access.sql` to `semester-staging`, with 4/4 existing access rows backfilled and no pre-existing account/identity/member/board/snapshot count changed. Pre-migration D1 export checksum: `0aea3f94332e03253a606852cfba98033ef6c62667fccdc00c8c9e72bbbbd3a1`.
+- Deployed Worker version `55717d88-cc6b-44b9-96bf-94c1e0ed4d41` and the Stage 1 Pages artifact to `semester-pilot`. Health, invalid preview, unauthenticated redemption, unauthenticated academic-route denial, revoked link and expired link checks passed.
+- A clean Google identity opened a valid private link, completed real Supabase OAuth, gained D1 access without manual IDs/allowlist insertion, imported the fictional DEMO1001 practice semester and retained `Pilot reflection` after a full reload. D1 changed from 4 to 5 accounts/identities/members/access rows and recorded exactly one counted redemption. An existing enrolled account continued to open its board and did not consume the invitation.
+- At the owner's direction, browser UI/UX testing stopped after the core path. Live uninvited-account denial, two-account isolation, interrupted-OAuth retry and a hosted two-user final-slot race are deferred and must not be described as hosted passes; their local automated coverage passed. Original Sites production and Supabase settings were untouched.
+
 ### 2026-11-10 · GROWTH-01 Stage 1 private invitation onboarding
 
 - Implemented staging-only private invitation enrolment. `pilot_identities` remains the verified Supabase `(issuer,sub)` mapping; new `account_access` is the authorization source. The `active`, `suspended`, `deletion_pending` and `deleted` states ensure a valid JWT is insufficient when access is disabled. Migration backfills existing `backup_trial_members`, and new redemptions create the legacy storage-parent row automatically so imports/recovery continue to use existing tables.

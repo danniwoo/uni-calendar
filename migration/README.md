@@ -2,7 +2,7 @@
 
 Status: independent staging implementation, 2026-11-02. Daniel selected Cloudflare Workers + D1 and Supabase Auth, starting on free plans. The first provider is now Google; Apple will follow during public-release preparation. Resend, SMTP and Email+Password are deferred. A new Supabase project and D1 database have been created; the old Sites app remains unchanged.
 
-Stage 1 private invitation self-onboarding is implemented locally on 2026-11-10 and has not been deployed. Migration `0006_invitation_access.sql` separates Supabase identity mapping from D1 access, backfills current pilot members, and supports active/suspended/deletion states. The Pages client preserves an opaque invitation through PKCE in tab-scoped storage and redeems it after authentication. Campaigns, Friends referrals, attribution and admin UI remain deferred.
+Stage 1 private invitation self-onboarding was deployed to isolated staging and its real Google → redemption → D1 import path passed on 2026-11-10. Migration `0006_invitation_access.sql` separates Supabase identity mapping from D1 access, backfills current pilot members, and supports active/suspended/deletion states. Stage 2 society campaigns, unified friend referrals and immutable attribution are implemented locally in `0007_growth_referrals.sql` but are not deployed. Admin UI remains deferred to Stage 3.
 
 ## Isolation
 

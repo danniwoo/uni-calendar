@@ -1,6 +1,6 @@
 # Semester staging API
 
-Independent staging API for the Web, iPhone and widget trials. It never reads or writes the seven production tables. Stage 1 adds private invitation enrolment to the separately owned staging D1 database; Supabase authentication alone does not grant academic-route access.
+Independent staging API for the Web, iPhone and widget trials. It never reads or writes the production Sites tables. Stage 1 adds private invitation enrolment; Stage 2 adds society campaigns, unified friend referrals and first-touch attribution in the separately owned staging D1 database. Supabase authentication alone does not grant academic-route access.
 
 ## Setup
 
@@ -19,9 +19,14 @@ All responses use `Cache-Control: no-store`. Private routes need `Authorization:
 | Method/path | Request | Response |
 | --- | --- | --- |
 | `GET /health` | None | `{status:"ok",mode:"synthetic-pilot"}`; process health, not a database/auth readiness check |
-| `POST /v1/access/invitation` | `{token}`; no session | Validates a private invitation without creating an account. |
-| `POST /v1/access/redeem` | Bearer token, `{token}` | Atomically redeems the invitation and grants active D1 access. Repeating it for the same active account is idempotent. |
+| `POST /v1/access/invitation` | `{token}`; no session | Validates a private, society-campaign or friend-referral invitation without creating an account. |
+| `POST /v1/access/redeem` | Bearer token, `{token}` | Atomically grants access and immutable acquisition attribution. A friend referral returns an offer; it does not create friendship. |
 | `GET /v1/session` | Bearer token | Stable app identity plus access state. A mapped identity may still be unenrolled. |
+| `GET /v1/friends` | Enrolled bearer token | Own public profile, link status and bounded connection list; no internal account IDs or acquisition fields. |
+| `PATCH /v1/friends/profile` | `{name,expectedRevision}` | Creates or revision-updates the caller's public display name. |
+| `POST` / `DELETE /v1/friends/invitation` | Empty object / `{id}` | Rotates a personal seven-day combined link, or revokes the caller-owned link. |
+| `POST /v1/friends/request` | `{token}` | Explicitly sends an idempotent pending request after validating the still-live personal link. |
+| `POST /v1/friends/action` | `{connectionId,expectedRevision,operation}` | Receiver-only accept/decline, or participant remove/block/unblock. |
 | `GET /v1/semester` | Bearer token | `SemesterResponse`, or 404 if no sample exists |
 | `POST /v1/semester/sample` | Empty body or `{}` | Creates an explicitly labelled synthetic board once; subsequent calls return the existing board unchanged |
 | `POST /v1/backup-trial/:accountId` | Raw web backup JSON; enrolled owner only | 201 creates an independent immutable snapshot. Identical bytes return 200, a different file returns 409. |
@@ -48,7 +53,15 @@ npm run invite:create -- --hours 168 --uses 1 --base-url http://localhost:4174/
 npm run invite:revoke -- --id REPLACE_INVITATION_UUID
 ```
 
-For a future staging deployment, add both `--remote` and `--base-url https://semester-pilot.pages.dev/` only after explicitly applying the migration to the staging D1. The raw 256-bit token is printed once in the link; D1 stores only its SHA-256 hash. Labels, expiry and the use limit are operator-controlled. Stage 1 creates only `private` invitations; campaign and friend-referral behavior is deferred.
+For a future staging deployment, add both `--remote` and `--base-url https://semester-pilot.pages.dev/` only after explicitly applying the migration to the staging D1. The raw 256-bit token is printed once in the link; D1 stores only its SHA-256 hash. Labels, expiry and the use limit are operator-controlled.
+
+After migration `0007_growth_referrals.sql`, create a multi-use society campaign locally with:
+
+```sh
+npm run campaign:create -- --key SYNCS-2027S1 --name "SYNCS 2027 S1" --uses 200 --hours 2160 --base-url http://localhost:4174/
+```
+
+Add `--remote --base-url https://semester-pilot.pages.dev/` only after separate staging approval. Enrolled students create personal friend links through the authenticated Friends API; acquisition capacity (20 new accounts per rotated link in Stage 2) is independent from request caps. Existing enrolled recipients do not consume that capacity. Stage 3 will make these defaults configurable.
 
 `SemesterResponse` is defined in `src/contract.ts`: `{semester:{id,title,weekLabel,assessments:[{id,unitCode,title,dueAt,weightLabel}],tasks:[{id,title,unitCode,completed}]},revision}`. Dates are ISO strings and the initial revision is 1. Sample deadlines are relative to initial creation time and do not continually move with refreshes.
 
@@ -62,7 +75,7 @@ Account creation uses a D1 transaction (`batch`) and unique identity mapping. Ea
 
 ## Verification and limits
 
-Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, anonymous/admin tokens, malformed requests, stale/concurrent updates, idempotent seeding and exact-origin CORS. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
+Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, anonymous/admin tokens, malformed requests, stale/concurrent updates, idempotent seeding, exact-origin CORS, society/referral ancestry, explicit request/acceptance, self/duplicate requests, quota separation and Friends response privacy. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
 
 This first proof checks signed access tokens locally. Revoking a refresh token, deleting an Auth account or signing out does not immediately invalidate an already issued access token; it remains usable until expiry. The D1 access-state check still blocks suspended/deletion-state accounts on every academic request. Before real-data release, complete Auth-account deletion, required revocation checks, session lifetime policy, abuse controls and data migration. The private backup route accepts only a validated website export with an empty feed URL and limits streamed input to 1.8 MB. Admission now requires an atomic invitation redemption or preserved legacy membership; Google Testing mode alone does not enforce this. The synthetic endpoints cannot read or overwrite private restore points.
 

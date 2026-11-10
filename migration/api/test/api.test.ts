@@ -45,6 +45,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec(readFileSync(new URL("../migrations/0004_imported_completion.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0005_recovery.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0006_invitation_access.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0007_growth_referrals.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -95,6 +96,20 @@ test("the invitation migration backfills a populated legacy allowlist",t=>{
   sqlite.exec(readFileSync(new URL("../migrations/0006_invitation_access.sql",import.meta.url),"utf8"));
   const access=sqlite.prepare("SELECT state,source FROM account_access WHERE account_id=?").get(account) as {state:string;source:string};
   assert.equal(access.state,"active");assert.equal(access.source,"legacy_pilot");
+});
+
+test("growth migration backfills immutable attribution without changing access",t=>{
+  const db=new SQLiteDatabase();t.after(()=>db.sqlite.close());
+  const account="99999999-9999-4999-8999-999999999998",timestamp="2026-11-01T00:00:00.000Z";
+  db.sqlite.prepare("INSERT INTO pilot_accounts VALUES (?,?)").run(account,timestamp);
+  db.sqlite.prepare("INSERT INTO account_access VALUES (?,'active','private_invitation',NULL,?,?)").run(account,timestamp,timestamp);
+  // The migration already ran in the fixture, so exercise its idempotent backfill statement.
+  db.sqlite.exec(`INSERT INTO account_attribution(account_id,direct_channel,acquired_at)
+    SELECT account_id,CASE source WHEN 'private_invitation' THEN 'private_invitation' ELSE 'legacy_pilot' END,enrolled_at
+    FROM account_access WHERE 1 ON CONFLICT(account_id) DO NOTHING`);
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,acquired_at FROM account_attribution WHERE account_id=?").get(account) as object},
+    {direct_channel:"private_invitation",acquired_at:timestamp});
+  assert.equal(db.sqlite.prepare("SELECT state FROM account_access WHERE account_id=?").get(account)?.state,"active");
 });
 
 test("private restore is admitted, owner-bound, byte-preserving and never replaces another board", async t => {
@@ -359,6 +374,68 @@ test("legacy backup-trial members are backfilled and do not consume invitations"
   assert.equal(result.status,200);assert.equal((await result.json() as {alreadyEnrolled:boolean}).alreadyEnrolled,true);
   assert.equal(db.sqlite.prepare("SELECT redemption_count n FROM access_invitations").get()?.n,0);
   assert.equal((await call("/v1/imported/board",jwt)).status,200);
+});
+
+test("society acquisition and A to B to C referrals stay distinct from explicit friendship",async t=>{
+  const {call,db}=setup(t),aJwt=await token(alice),bJwt=await token(bob),cJwt=await token(charlie),dJwt=await token(dana);
+  const campaignId=crypto.randomUUID(),campaignToken="J".repeat(43),campaignInvite=crypto.randomUUID(),created="2026-11-10T00:00:00.000Z";
+  db.sqlite.prepare("INSERT INTO growth_campaigns VALUES (?,? ,?,'society',?,NULL)").run(campaignId,"SYNCS-2027S1","SYNCS 2027 S1",created);
+  db.sqlite.prepare(`INSERT INTO access_invitations(id,kind,token_hash,label,max_redemptions,redemption_count,expires_at,created_at)
+    VALUES (?,'campaign',?,'SYNCS',100,0,'2099-01-01T00:00:00.000Z',?)`).run(campaignInvite,await invitationHash(campaignToken),created);
+  db.sqlite.prepare("INSERT INTO invitation_contexts(invitation_id,campaign_id) VALUES (?,?)").run(campaignInvite,campaignId);
+
+  const campaignPreview=await (await call("/v1/access/invitation",undefined,"POST",{token:campaignToken})).json() as {kind:string;campaign:{key:string}};
+  assert.equal(campaignPreview.kind,"campaign");assert.equal(campaignPreview.campaign.key,"SYNCS-2027S1");
+  const aId=(await (await call("/v1/session",aJwt)).json() as {accountId:string}).accountId;
+  assert.equal((await call("/v1/access/redeem",aJwt,"POST",{token:campaignToken})).status,200);
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,campaign_id,root_campaign_id FROM account_attribution WHERE account_id=?").get(aId) as object},
+    {direct_channel:"society",campaign_id:campaignId,root_campaign_id:campaignId});
+  assert.equal((await call("/v1/friends/profile",aJwt,"PATCH",{name:"Alice",expectedRevision:0})).status,200);
+  const aInvite=await (await call("/v1/friends/invitation",aJwt,"POST",{})).json() as {id:string;url:string};
+  const aReferral=new URLSearchParams(new URL(aInvite.url).hash.slice(1)).get("invite")!;
+  assert.equal((await call("/v1/access/redeem",aJwt,"POST",{token:aReferral})).status,409);
+  assert.equal((await call("/v1/friends/request",aJwt,"POST",{token:aReferral})).status,409);
+
+  const bId=(await (await call("/v1/session",bJwt)).json() as {accountId:string}).accountId;
+  const bRedeem=await call("/v1/access/redeem",bJwt,"POST",{token:aReferral});
+  assert.equal(bRedeem.status,200);
+  assert.equal((await bRedeem.json() as {invitation:{kind:string;referrer:{name:string}}}).invitation.referrer.name,"Alice");
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM friendships").get()?.n,0,"registration must not create a friendship");
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,referrer_account_id,root_campaign_id FROM account_attribution WHERE account_id=?").get(bId) as object},
+    {direct_channel:"friend_referral",referrer_account_id:aId,root_campaign_id:campaignId});
+  assert.equal((await call("/v1/friends/request",bJwt,"POST",{token:aReferral})).status,409,"a display name is required before consent");
+  assert.equal((await call("/v1/friends/profile",bJwt,"PATCH",{name:"Bob",expectedRevision:0})).status,200);
+  assert.equal((await call("/v1/friends/request",bJwt,"POST",{token:aReferral})).status,200);
+  assert.equal((await call("/v1/friends/request",bJwt,"POST",{token:aReferral})).status,200,"duplicate requests are idempotent");
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM friendships").get()?.n,1);
+  let aFriends=await (await call("/v1/friends",aJwt)).json() as {friends:{connectionId:string;revision:number;state:string}[]};
+  assert.equal(aFriends.friends[0].state,"incoming");
+  assert.equal((await call("/v1/friends/action",aJwt,"POST",{connectionId:aFriends.friends[0].connectionId,expectedRevision:aFriends.friends[0].revision,operation:"accept"})).status,200);
+  assert.equal(((await (await call("/v1/friends",bJwt)).json() as {friends:{state:string}[]}).friends[0].state),"accepted");
+
+  const bInvite=await (await call("/v1/friends/invitation",bJwt,"POST",{})).json() as {id:string;url:string};
+  const bReferral=new URLSearchParams(new URL(bInvite.url).hash.slice(1)).get("invite")!;
+  const cId=(await (await call("/v1/session",cJwt)).json() as {accountId:string}).accountId;
+  assert.equal((await call("/v1/access/redeem",cJwt,"POST",{token:bReferral})).status,200);
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,referrer_account_id,root_campaign_id FROM account_attribution WHERE account_id=?").get(cId) as object},
+    {direct_channel:"friend_referral",referrer_account_id:bId,root_campaign_id:campaignId});
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM friendships WHERE account_a=? OR account_b=?").get(cId,cId)?.n,0);
+
+  // An enrolled account may use an exhausted referral for friendship without
+  // consuming or replacing acquisition attribution.
+  const privateToken="K".repeat(43);await addInvitation(db,privateToken);
+  const dId=(await (await call("/v1/session",dJwt)).json() as {accountId:string}).accountId;
+  assert.equal((await call("/v1/access/redeem",dJwt,"POST",{token:privateToken})).status,200);
+  await call("/v1/friends/profile",dJwt,"PATCH",{name:"Dana",expectedRevision:0});
+  db.sqlite.prepare("UPDATE access_invitations SET max_redemptions=redemption_count WHERE id=?").run(bInvite.id);
+  assert.equal((await call("/v1/access/invitation",undefined,"POST",{token:bReferral})).status,200);
+  const existing=await call("/v1/access/redeem",dJwt,"POST",{token:bReferral});
+  assert.equal(existing.status,200);assert.equal((await existing.json() as {alreadyEnrolled:boolean}).alreadyEnrolled,true);
+  assert.equal((await call("/v1/friends/request",dJwt,"POST",{token:bReferral})).status,200);
+  assert.equal(db.sqlite.prepare("SELECT direct_channel FROM account_attribution WHERE account_id=?").get(dId)?.direct_channel,"private_invitation");
+  const publicFriends=JSON.stringify(await (await call("/v1/friends",bJwt)).json());
+  assert.equal(/account_id|referrer_account_id|root_campaign_id|campaign_id/.test(publicFriends),false);
+  assert.equal(db.sqlite.prepare("SELECT redemption_count FROM access_invitations WHERE id=?").get(bInvite.id)?.redemption_count,1);
 });
 
 test("Today plans isolate accounts, preserve the restore point and reject racing or invalid writes", async t => {

@@ -44,11 +44,17 @@ export function createApi(baseUrl, fetcher = fetch) {
         headers:{"Content-Type":"application/json"},body:JSON.stringify({token})});
       let value;try{value=await response.json();}catch{throw new ApiError(response.status,"invalid_response","The invitation service returned an unreadable response.");}
       if(!response.ok){const code=value?.error?.code||"request_failed";throw new ApiError(response.status,code,safeMessage(response.status,code));}
-      if(value?.valid!==true||typeof value.expiresAt!=="string"||!Number.isSafeInteger(value.remaining)||value.remaining<1)
+      if(value?.valid!==true||!["private","campaign","friend_referral"].includes(value.kind)||typeof value.expiresAt!=="string"||!Number.isSafeInteger(value.remaining)||value.remaining<0)
         throw new ApiError(502,"invalid_response","The invitation service returned an unexpected response.");
       return value;
     },
     redeem: (session,token,signal)=>request("/v1/access/redeem",session,{method:"POST",body:{token},signal}),
+    friends: session=>request("/v1/friends",session),
+    saveFriendProfile: (session,name,expectedRevision)=>request("/v1/friends/profile",session,{method:"PATCH",body:{name,expectedRevision}}),
+    createFriendInvitation: session=>request("/v1/friends/invitation",session,{method:"POST",body:{}}),
+    revokeFriendInvitation: (session,id)=>request("/v1/friends/invitation",session,{method:"DELETE",body:{id}}),
+    requestFriend: (session,token)=>request("/v1/friends/request",session,{method:"POST",body:{token}}),
+    changeFriendship: (session,connectionId,expectedRevision,operation)=>request("/v1/friends/action",session,{method:"POST",body:{connectionId,expectedRevision,operation}}),
     get: (session, signal) => boardRequest("/v1/semester", session, { signal }),
     seed: (session, signal) => boardRequest("/v1/semester/sample", session, { method: "POST", signal }),
     update: (session, taskId, completed, expectedRevision, signal) => boardRequest(`/v1/tasks/${encodeURIComponent(taskId)}`, session, { method: "PATCH", body: { completed, expectedRevision }, signal }),
@@ -58,7 +64,9 @@ export function createApi(baseUrl, fetcher = fetch) {
 function safeMessage(status,code="") {
   const invitation={invitation_invalid:"This invitation link is not valid.",invitation_expired:"This invitation has expired.",
     invitation_revoked:"This invitation has been revoked.",invitation_exhausted:"This invitation has already been used.",
-    invitation_required:"A valid Semester invitation is required for this account.",access_disabled:"Semester access is currently disabled for this account."};
+    invitation_required:"A valid Semester invitation is required for this account.",access_disabled:"Semester access is currently disabled for this account.",
+    invitation_unavailable:"This invitation is no longer available.",self_referral:"You cannot use your own friend invitation.",
+    profile_required:"Choose a display name before sending the friend request.",friend_unavailable:"This friend invitation is unavailable."};
   if(invitation[code])return invitation[code];
   if (status === 401) return "Your API session was rejected. Sign out and sign in again.";
   if (status === 403) return "This account is not allowed to use the test API.";

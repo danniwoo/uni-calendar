@@ -2,9 +2,11 @@
 
 The [private pilot](https://semester-pilot.pages.dev/) signs students in with the same Google account as Semester Preview on iPhone. Signed-in students land on the original [semester board](https://semester-pilot.pages.dev/board/). Semester, Month, Week and Assessments use the original React components. Account & backups opens the import, export and Today tools. Empty accounts can import their semester or try the DEMO1001 practice semester.
 
-The staging Worker reads the active D1 snapshot and applies occurrence completion records shared with iOS. Board saves check the loaded revision. Refresh the page or the phone’s Assessments view to see changes from the other device. The first backup remains available through Account & backups. Course plan, Friends, timetable import and the Canvas browser connection still use the original Sites environment.
+The staging Worker reads the active D1 snapshot and applies occurrence completion records shared with iOS. Board saves check the loaded revision. Refresh the page or the phone’s Assessments view to see changes from the other device. The first backup remains available through Account & backups. Course plan, timetable import and the Canvas browser connection still use the original Sites environment. Stage 2 adds an independent staging Friends implementation; it does not copy the Sites friendships.
 
 Stage 1 private invitation links use `#invite=<opaque token>`. The web app removes the token from the address bar immediately, keeps it only in this tab's `sessionStorage` across the PKCE redirect, and sends it to the Worker in a POST body. After Google sign-in, the Worker maps identity and atomically redeems the invitation before the browser can open `/board/`. A signed-in but unenrolled account remains on the account page. Existing pilot members sign in without a new invitation.
+
+Stage 2 uses the same fragment for society and personal friend links. A personal link can enrol a new student, but the page keeps the friend offer separate: the recipient chooses a display name and explicitly sends a request; the inviter must accept it. Existing students skip enrolment capacity. The Friends panel under **Account & backups** creates/revokes a personal link and manages pending/accepted/blocked connections. It never shows grades, WAM or private semester data.
 
 ## Local setup
 
@@ -54,6 +56,8 @@ npm run build
 ```
 
 The local tests cover configuration, callback cleanup, API token/body/redirect handling, unexpected data, logout and account-switch races, stale updates, expired/rejected sessions, explicit seeding and refreshed tokens.
+
+Stage 2 manual staging acceptance, after explicit migration/deployment approval: create a society campaign and enrol synthetic A; have A create a personal link; enrol synthetic B through it, confirm the request, and accept as A; repeat B → C. Verify A is direct society acquisition, B/C are direct friend referrals with A/B as immediate referrers and the same root campaign. Then use the link with an existing enrolled account and verify acquisition/redemption counts do not change. Revoke/expire a link and verify no new request can be sent. This local implementation has not yet been deployed.
 
 Live verification on 2026-11-02: Google sign-in through the staging Supabase provider succeeded; the deployed Worker verified the account, created its synthetic semester, and saved a preparation task from revision 1 to revision 2. A full page reload restored the session and fetched the same checked task. A separate aggregate D1 query confirmed one account, one identity, one board and revision 2. Daniel's iPhone screenshot then confirmed the same verified account and revision 2 task state. After Daniel checked the second task on the phone, a web refresh independently returned revision 3 with both tasks checked. Both directions passed using explicit refresh; real multi-account provider testing and cloud widgets remain pending. Google external Testing mode did not restrict this basic-identity flow to the displayed test-user list; do not treat it as an application access allowlist.
 

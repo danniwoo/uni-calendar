@@ -2,14 +2,25 @@
 
 ## GROWTH-01 · Invitation self-onboarding
 
-**Stage 1 · implemented locally / staging deployment and real OAuth acceptance pending · 2026-11-10**
+**Stage 1 · staging core path accepted; remaining browser matrix deferred by owner · 2026-11-10**
 
 - Added append-only staging migration `0006_invitation_access.sql`: private opaque invitation hashes, atomic bounded redemptions and explicit account access states. Existing `backup_trial_members` become active `legacy_pilot` accounts without consuming invitations.
 - Supabase `(issuer,sub)` still creates only the stable D1 identity mapping. Every academic API route separately requires active enrolment. Suspended/deletion-state rows override legacy membership.
 - The Pages flow removes the token from the fragment immediately, preserves it in same-tab session storage across PKCE, redeems after authentication and opens `/board/` only after the Worker confirms access. Invalid, expired, revoked and exhausted links remain on the account page with bounded messages.
 - Operator-only local/remote Wrangler CLI creates or revokes private links; local is the default and remote requires an explicit flag. No administrator HTTP route, campaign, friend referral, attribution or analytics was added.
-- Synthetic verification: 23 Worker/API tests, API typecheck, 12 web tests and staging web production build pass. Final-slot concurrency, idempotent retry, legacy compatibility, suspension, protected import denial, OAuth interruption and account-switch isolation are covered. No deployment or real account/data mutation occurred.
-- Next gate: explicit approval to apply migration 0006 and deploy to staging, then perform the manual two-account OAuth checklist in `migration/web/README.md`. Do not begin Stage 2 until this Stage 1 acceptance is recorded.
+- Staging migration `0006` and the Stage 1 Worker/Pages builds were deployed only to `semester-staging-api` / `semester-pilot`. Worker version `55717d88-cc6b-44b9-96bf-94c1e0ed4d41`; pre-migration D1 export and Worker/Pages rollback artifacts are retained under ignored `migration/private/backups/`.
+- Real acceptance passed for a clean Google identity: invitation preview → Supabase OAuth → automatic D1 mapping/enrolment → empty board → synthetic DEMO1001 JSON import → full reload persistence. Existing pilot access and the migration backfill were also verified. The owner then explicitly deferred further browser UI/UX work; live uninvited-account denial, live two-account isolation, interrupted OAuth and a hosted final-slot race remain unclaimed (their automated coverage passes).
+
+## GROWTH-02 · Society campaigns + unified friend referrals
+
+**Stage 2 · implemented locally / not deployed · 2026-11-10**
+
+- Added append-only `0007_growth_referrals.sql`: society campaigns, invitation context, immutable first-touch acquisition, referral ancestry, minimal public friend profiles, request/accept/block relationships and independent friend rate windows.
+- One personal opaque link now has two server-separated effects: it may enrol a new account and record `friend_referral`, then only after explicit recipient confirmation creates a pending request. The inviter must still accept. Existing enrolled recipients consume no acquisition capacity and never have original attribution overwritten.
+- Society links record direct `society` acquisition. Friend descendants record their immediate referrer plus the original root campaign. A forwarded society URL remains direct society acquisition. Tokens remain hash-only; public Friends responses exclude internal account IDs and attribution.
+- The staging account page has minimal profile, create/revoke/copy link, request confirmation and accept/decline/remove/block controls. Existing Sites Friends tables were used as the behavioral reference but were not migrated or modified.
+- Local evidence: 25/25 Worker/API tests, 13/13 web tests, both typechecks, Worker dry-run, staging-web build, root production build and existing Friends privacy/scaling regressions pass. The synthetic test covers SYNCS A → B → C ancestry, explicit consent/acceptance, idempotent duplicate requests, self-referral, exhausted acquisition quota for an existing user and response privacy.
+- Next gate: review and commit locally, then obtain explicit approval for staging D1 migration `0007` and Worker/Pages deployment. No Stage 2 remote migration or deployment has occurred.
 
 本輪狀態（2026-11-02）：Web **0.24.0** navigation dropdown／compact course plan 已依 UI 回饋實作並發布（Sites 68）；0.23.0 已發布（Sites 67），含 invitation status／semester filters／cursor pages／request limits。全朋友／不分享、private grades/WAM 與 Connect **0.5.0** 不變。下一步是版面使用者回饋及 SOCIAL-01 真實雙人試用。
 
