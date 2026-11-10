@@ -47,6 +47,7 @@ class SQLiteDatabase implements SqlDatabase {
     this.sqlite.exec(readFileSync(new URL("../migrations/0006_invitation_access.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0007_growth_referrals.sql", import.meta.url), "utf8"));
     this.sqlite.exec(readFileSync(new URL("../migrations/0008_admin_growth.sql", import.meta.url), "utf8"));
+    this.sqlite.exec(readFileSync(new URL("../migrations/0009_growth_analytics.sql", import.meta.url), "utf8"));
   }
   prepare(sql: string) { return new SQLiteStatement(this.sqlite, sql); }
   async batch(statements: SqlStatement[]) {
@@ -113,6 +114,36 @@ test("growth migration backfills immutable attribution without changing access",
   assert.equal(db.sqlite.prepare("SELECT state FROM account_access WHERE account_id=?").get(account)?.state,"active");
 });
 
+test("analytics migration preserves the root distribution link for an existing A to B to C chain",t=>{
+  const sqlite=new DatabaseSync(":memory:");t.after(()=>sqlite.close());sqlite.exec("PRAGMA foreign_keys=ON");
+  for(const name of ["0001_pilot.sql","0002_backup_trial.sql","0003_today_plans.sql","0004_imported_completion.sql","0005_recovery.sql",
+    "0006_invitation_access.sql","0007_growth_referrals.sql","0008_admin_growth.sql"])
+    sqlite.exec(readFileSync(new URL(`../migrations/${name}`,import.meta.url),"utf8"));
+  const ids=["10000000-0000-4000-8000-000000000001","10000000-0000-4000-8000-000000000002","10000000-0000-4000-8000-000000000003"];
+  const invitations=["20000000-0000-4000-8000-000000000001","20000000-0000-4000-8000-000000000002","20000000-0000-4000-8000-000000000003"];
+  const campaign="30000000-0000-4000-8000-000000000001",stamp="2026-10-01T00:00:00.000Z";
+  for(const id of ids)sqlite.prepare("INSERT INTO pilot_accounts(id,created_at) VALUES (?,?)").run(id,stamp);
+  sqlite.prepare(`INSERT INTO growth_campaigns(id,campaign_key,name,channel,created_at,starts_at,max_redemptions,redemption_count,updated_at)
+    VALUES (?,'ROOT-CHAIN','Root Chain','society',?,?,10,3,?)`).run(campaign,stamp,stamp,stamp);
+  for(const [index,id] of invitations.entries())sqlite.prepare(`INSERT INTO access_invitations
+    (id,kind,token_hash,label,max_redemptions,redemption_count,expires_at,created_at)
+    VALUES (?,?,?, ?,10,1,'2099-01-01T00:00:00.000Z',?)`).run(id,index===0?"campaign":"friend_referral",String(index+1).repeat(64),`link-${index}`,stamp);
+  sqlite.prepare("INSERT INTO invitation_contexts(invitation_id,campaign_id) VALUES (?,?)").run(invitations[0],campaign);
+  sqlite.prepare("INSERT INTO invitation_contexts(invitation_id,inviter_account_id) VALUES (?,?)").run(invitations[1],ids[0]);
+  sqlite.prepare("INSERT INTO invitation_contexts(invitation_id,inviter_account_id) VALUES (?,?)").run(invitations[2],ids[1]);
+  sqlite.prepare("INSERT INTO campaign_distribution_links(invitation_id,campaign_id,label,channel,source,created_at) VALUES (?,?,'Root','society','SYNCS',?)").run(invitations[0],campaign,stamp);
+  sqlite.prepare(`INSERT INTO account_attribution(account_id,direct_channel,campaign_id,acquisition_invitation_id,root_campaign_id,acquired_at)
+    VALUES (?,'society',?,?,?,?)`).run(ids[0],campaign,invitations[0],campaign,stamp);
+  sqlite.prepare(`INSERT INTO account_attribution(account_id,direct_channel,acquisition_invitation_id,referrer_account_id,root_campaign_id,acquired_at)
+    VALUES (?,'friend_referral',?,?,?,?)`).run(ids[1],invitations[1],ids[0],campaign,stamp);
+  sqlite.prepare(`INSERT INTO account_attribution(account_id,direct_channel,acquisition_invitation_id,referrer_account_id,root_campaign_id,acquired_at)
+    VALUES (?,'friend_referral',?,?,?,?)`).run(ids[2],invitations[2],ids[1],campaign,stamp);
+  sqlite.exec(readFileSync(new URL("../migrations/0009_growth_analytics.sql",import.meta.url),"utf8"));
+  assert.deepEqual(sqlite.prepare("SELECT root_acquisition_invitation_id root FROM account_attribution ORDER BY account_id").all().map(row=>({...row})),
+    invitations.map(()=>({root:invitations[0]})));
+  assert.equal(sqlite.prepare("SELECT COUNT(*) n FROM analytics_events").get()?.n,0,"migration must not invent historical activity");
+});
+
 test("private restore is admitted, owner-bound, byte-preserving and never replaces another board", async t => {
   const { call, db } = setup(t);
   const a = await token(), b = await token(bob);
@@ -139,6 +170,7 @@ test("private restore is admitted, owner-bound, byte-preserving and never replac
   const receipt = await call(url, a, "POST", board);
   assert.equal(receipt.status, 201);
   assert.equal((await call(url, a, "POST", board)).status, 200);
+  assert.equal(db.sqlite.prepare("SELECT period_key FROM analytics_semester_usage WHERE account_id=?").get(account)?.period_key,"2026:S2C");
   assert.equal((await call(url, a, "POST", {...board,completed:{one:false}})).status, 409);
   assert.equal(await (await call(url, a)).text(), JSON.stringify(board));
   const response = await call(assessments, a);
@@ -390,8 +422,8 @@ test("society acquisition and A to B to C referrals stay distinct from explicit 
   assert.equal(campaignPreview.kind,"campaign");assert.equal(campaignPreview.campaign.key,"SYNCS-2027S1");
   const aId=(await (await call("/v1/session",aJwt)).json() as {accountId:string}).accountId;
   assert.equal((await call("/v1/access/redeem",aJwt,"POST",{token:campaignToken})).status,200);
-  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,campaign_id,root_campaign_id FROM account_attribution WHERE account_id=?").get(aId) as object},
-    {direct_channel:"society",campaign_id:campaignId,root_campaign_id:campaignId});
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,campaign_id,root_campaign_id,root_acquisition_invitation_id FROM account_attribution WHERE account_id=?").get(aId) as object},
+    {direct_channel:"society",campaign_id:campaignId,root_campaign_id:campaignId,root_acquisition_invitation_id:campaignInvite});
   assert.equal((await call("/v1/friends/profile",aJwt,"PATCH",{name:"Alice",expectedRevision:0})).status,200);
   const aInvite=await (await call("/v1/friends/invitation",aJwt,"POST",{})).json() as {id:string;url:string};
   const aReferral=new URLSearchParams(new URL(aInvite.url).hash.slice(1)).get("invite")!;
@@ -403,12 +435,14 @@ test("society acquisition and A to B to C referrals stay distinct from explicit 
   assert.equal(bRedeem.status,200);
   assert.equal((await bRedeem.json() as {invitation:{kind:string;referrer:{name:string}}}).invitation.referrer.name,"Alice");
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM friendships").get()?.n,0,"registration must not create a friendship");
-  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,referrer_account_id,root_campaign_id FROM account_attribution WHERE account_id=?").get(bId) as object},
-    {direct_channel:"friend_referral",referrer_account_id:aId,root_campaign_id:campaignId});
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,referrer_account_id,root_campaign_id,root_acquisition_invitation_id FROM account_attribution WHERE account_id=?").get(bId) as object},
+    {direct_channel:"friend_referral",referrer_account_id:aId,root_campaign_id:campaignId,root_acquisition_invitation_id:campaignInvite});
   assert.equal((await call("/v1/friends/request",bJwt,"POST",{token:aReferral})).status,409,"a display name is required before consent");
   assert.equal((await call("/v1/friends/profile",bJwt,"PATCH",{name:"Bob",expectedRevision:0})).status,200);
   assert.equal((await call("/v1/friends/request",bJwt,"POST",{token:aReferral})).status,200);
   assert.equal((await call("/v1/friends/request",bJwt,"POST",{token:aReferral})).status,200,"duplicate requests are idempotent");
+  assert.equal(db.sqlite.prepare("SELECT event_count FROM analytics_activity_days WHERE account_id=? AND feature='friends'").get(bId)?.event_count,1,
+    "idempotent retries must not inflate product-activity counts");
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM friendships").get()?.n,1);
   let aFriends=await (await call("/v1/friends",aJwt)).json() as {friends:{connectionId:string;revision:number;state:string}[]};
   assert.equal(aFriends.friends[0].state,"incoming");
@@ -419,8 +453,8 @@ test("society acquisition and A to B to C referrals stay distinct from explicit 
   const bReferral=new URLSearchParams(new URL(bInvite.url).hash.slice(1)).get("invite")!;
   const cId=(await (await call("/v1/session",cJwt)).json() as {accountId:string}).accountId;
   assert.equal((await call("/v1/access/redeem",cJwt,"POST",{token:bReferral})).status,200);
-  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,referrer_account_id,root_campaign_id FROM account_attribution WHERE account_id=?").get(cId) as object},
-    {direct_channel:"friend_referral",referrer_account_id:bId,root_campaign_id:campaignId});
+  assert.deepEqual({...db.sqlite.prepare("SELECT direct_channel,referrer_account_id,root_campaign_id,root_acquisition_invitation_id FROM account_attribution WHERE account_id=?").get(cId) as object},
+    {direct_channel:"friend_referral",referrer_account_id:bId,root_campaign_id:campaignId,root_acquisition_invitation_id:campaignInvite});
   assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM friendships WHERE account_a=? OR account_b=?").get(cId,cId)?.n,0);
 
   // An enrolled account may use an exhausted referral for friendship without
@@ -470,6 +504,98 @@ test("admin APIs require an active explicitly provisioned D1 role and leak no ac
   assert.throws(()=>db.sqlite.prepare("DELETE FROM admin_audit_log WHERE id='audit-immutable'").run(),/append-only/);
   db.sqlite.prepare("UPDATE account_access SET state='suspended' WHERE account_id=?").run(adminId);
   assert.equal((await call("/v1/admin",adminJwt)).status,403,"a suspended admin loses authority even with a valid JWT");
+});
+
+test("prospective landing and authentication tracking is token-safe, tab-scoped and idempotent",async t=>{
+  const {call,db}=setup(t),raw="Q".repeat(43),visitId="tabScopedVisitId123456",eventId=crypto.randomUUID(),jwt=await token(bob);
+  assert.equal(visitId.length,22);await addInvitation(db,raw);
+  const first=await call("/v1/analytics/landing",undefined,"POST",{token:raw,visitId,eventId});
+  assert.equal(first.status,202);assert.equal((await first.json() as {accepted:boolean;visitor:string}).accepted,true);
+  const duplicate=await call("/v1/analytics/landing",undefined,"POST",{token:raw,visitId,eventId:crypto.randomUUID()});
+  assert.equal(duplicate.status,202);assert.equal((await duplicate.json() as {accepted:boolean}).accepted,false);
+  assert.equal((await call("/v1/analytics/landing",undefined,"POST",{token:"R".repeat(43),visitId,eventId:crypto.randomUUID()})).status,404);
+  const landing=db.sqlite.prepare("SELECT * FROM analytics_events WHERE event_name='invitation_landing'").get() as Record<string,unknown>;
+  assert.equal(db.sqlite.prepare("SELECT COUNT(*) n FROM analytics_events WHERE event_name='invitation_landing'").get()?.n,1);
+  assert.notEqual(landing.visitor_hash,visitId);assert.equal(JSON.stringify(landing).includes(raw),false,"raw invitation tokens must never be retained");
+  assert.equal((await call("/v1/analytics/session",undefined,"POST",{visitId})).status,401);
+  const authenticated=await call("/v1/analytics/session",jwt,"POST",{visitId});assert.equal(authenticated.status,202);
+  assert.equal((await authenticated.json() as {accepted:boolean}).accepted,true);
+  assert.equal((await (await call("/v1/analytics/session",jwt,"POST",{visitId})).json() as {accepted:boolean}).accepted,false);
+  const session=await (await call("/v1/session",jwt)).json() as {accountId:string;access:{state:string}};
+  assert.equal(session.access.state,"none","analytics authentication mapping must not grant Semester enrolment");
+  assert.equal(db.sqlite.prepare("SELECT invitation_id FROM analytics_events WHERE event_name='auth_completed'").get()?.invitation_id,landing.invitation_id);
+});
+
+test("admin analytics measures mature campaign, retention and A to B to C referral ancestry without exposing small cohorts",async t=>{
+  const {call,db}=setup(t),adminJwt=await token(alice),studentJwt=await token(bob);
+  const adminId=await enrolledAccount(call,db,adminJwt);await enrolledAccount(call,db,studentJwt);
+  db.sqlite.prepare("INSERT INTO admin_roles(account_id,role,granted_at) VALUES (?,'owner',?)").run(adminId,"2026-10-01T00:00:00.000Z");
+  assert.equal((await call("/v1/admin/analytics")).status,401);assert.equal((await call("/v1/admin/analytics",studentJwt)).status,403);
+  const created=await call("/v1/admin/campaigns",adminJwt,"POST",{key:"SYNCS-ANALYTICS",name:"SYNCS Analytics",societyId:"SYNCS",
+    startsAt:null,maxRedemptions:20,distribution:{label:"SYNCS Workshop",channel:"society",source:"syncs_workshop",format:"workshop",placement:"welcome_week",creativeId:"workshop_01",maxRedemptions:20,expiryHours:720}});
+  assert.equal(created.status,201);const campaign=await created.json() as {campaignId:string;invitationId:string;url:string};
+  const campaignToken=new URLSearchParams(new URL(campaign.url).hash.slice(1)).get("invite")!;
+  const subjects=Array.from({length:5},(_,index)=>`60000000-0000-4000-8000-00000000000${index+1}`),direct:{id:string;jwt:string}[]=[];
+  for(const [index,subject] of subjects.entries()) {
+    const jwt=await token(subject),visitId=`analyticsVisitId00000${index}`;
+    assert.equal(visitId.length,22);
+    await call("/v1/analytics/landing",undefined,"POST",{token:campaignToken,visitId,eventId:crypto.randomUUID()});
+    const id=(await (await call("/v1/session",jwt)).json() as {accountId:string}).accountId;
+    await call("/v1/analytics/session",jwt,"POST",{visitId});
+    assert.equal((await call("/v1/access/redeem",jwt,"POST",{token:campaignToken})).status,200);direct.push({id,jwt});
+  }
+  await call("/v1/friends/profile",direct[0].jwt,"PATCH",{name:"Root A",expectedRevision:0});
+  const aLink=await (await call("/v1/friends/invitation",direct[0].jwt,"POST",{})).json() as {url:string};
+  const aToken=new URLSearchParams(new URL(aLink.url).hash.slice(1)).get("invite")!,bJwt=await token("70000000-0000-4000-8000-000000000001");
+  const bId=(await (await call("/v1/session",bJwt)).json() as {accountId:string}).accountId;
+  assert.equal((await call("/v1/access/redeem",bJwt,"POST",{token:aToken})).status,200);
+  await call("/v1/friends/profile",bJwt,"PATCH",{name:"Referral B",expectedRevision:0});
+  const bLink=await (await call("/v1/friends/invitation",bJwt,"POST",{})).json() as {url:string};
+  const bToken=new URLSearchParams(new URL(bLink.url).hash.slice(1)).get("invite")!,cJwt=await token("70000000-0000-4000-8000-000000000002");
+  const cId=(await (await call("/v1/session",cJwt)).json() as {accountId:string}).accountId;
+  assert.equal((await call("/v1/access/redeem",cJwt,"POST",{token:bToken})).status,200);
+  const descendants=db.sqlite.prepare("SELECT account_id,root_acquisition_invitation_id root FROM account_attribution WHERE account_id IN (?,?)").all(bId,cId) as {account_id:string;root:string}[];
+  assert.deepEqual(new Set(descendants.map(row=>row.account_id)),new Set([bId,cId]));
+  assert.equal(descendants.every(row=>row.root===campaign.invitationId),true);
+
+  const activated="2026-10-01T10:00:00.000Z",activationDay="2026-10-01",returnDay="2026-10-15",all=[...direct.map(row=>row.id),bId,cId];
+  for(const id of all) {
+    db.sqlite.prepare("UPDATE account_attribution SET acquired_at='2026-10-01T09:00:00.000Z' WHERE account_id=?").run(id);
+    db.sqlite.prepare(`INSERT INTO analytics_activity_days(account_id,activity_date,feature,activity_kind,first_at,last_at,event_count)
+      VALUES (?,?,'semester_import','meaningful',?,?,1)`).run(id,activationDay,activated,activated);
+  }
+  for(const id of direct.slice(0,3).map(row=>row.id))db.sqlite.prepare(`INSERT INTO analytics_activity_days(account_id,activity_date,feature,activity_kind,first_at,last_at,event_count)
+    VALUES (?,?,'today_plan','meaningful','2026-10-15T10:00:00.000Z','2026-10-15T10:00:00.000Z',2)`).run(id,returnDay);
+  for(const id of direct.map(row=>row.id))for(const period of ["2026:S1","2026:S2"])db.sqlite.prepare(`INSERT INTO analytics_semester_usage(account_id,period_key,first_at,last_at)
+    VALUES (?,?,?,?)`).run(id,period,activated,activated);
+  const immature=await (await call("/v1/admin/analytics?from=2026-09-01&to=2026-10-15&campaign=SYNCS-ANALYTICS",adminJwt)).json() as any;
+  assert.equal(immature.performance[0].week2Eligible,0,"Week-2 is not eligible until its full seven-day window has elapsed");
+  const response=await call("/v1/admin/analytics?from=2026-09-01&to=2026-11-11&campaign=SYNCS-ANALYTICS",adminJwt);
+  assert.equal(response.status,200);const report=await response.json() as any,row=report.performance[0];
+  assert.deepEqual({landing:row.landingVisits,auth:row.authenticated,joins:row.directJoins,activated:row.activated,w2Eligible:row.week2Eligible,w2Retained:row.week2Retained,descendants:row.downstreamDescendants,activatedDescendants:row.activatedDescendants},
+    {landing:5,auth:5,joins:5,activated:5,w2Eligible:5,w2Retained:3,descendants:2,activatedDescendants:2});
+  assert.equal(row.week2RetentionRate,0.6);assert.equal(row.referralAmplification,0.4);
+  assert.deepEqual({enrolled:report.funnel.enrolled,activated:report.funnel.activated,w2Eligible:report.funnel.week2Eligible,w2Retained:report.funnel.week2Retained},
+    {enrolled:5,activated:5,w2Eligible:5,w2Retained:3},"campaign filters must apply consistently to funnel cohorts");
+  assert.equal(report.cohorts[0].privacySuppressed,false);assert.equal(report.cohorts[0].week2.rate,0.6);
+  assert.deepEqual({available:report.crossSemester.available,periods:report.crossSemester.periods,accounts:report.crossSemester.accounts},{available:true,periods:2,accounts:5});
+  assert.equal((await (await call("/v1/admin/analytics?from=2026-09-01&to=2026-11-11&source=not_this_source",adminJwt)).json() as any).funnel.enrolled,0);
+  assert.equal((await call("/v1/admin/analytics?source=bad%25filter",adminJwt)).status,400);
+  db.sqlite.prepare("UPDATE analytics_state SET small_cohort_min=6 WHERE id=1").run();
+  const protectedReport=await (await call("/v1/admin/analytics?from=2026-09-01&to=2026-11-11&campaign=SYNCS-ANALYTICS",adminJwt)).json() as any;
+  assert.equal(protectedReport.performance[0].privacySuppressed,true);assert.equal(protectedReport.performance[0].directJoins,null);
+  assert.equal(protectedReport.cohorts[0].privacySuppressed,true);assert.equal(protectedReport.cohorts[0].cohortSize,null);
+  assert.equal(protectedReport.adoption.every((item:any)=>item.privacySuppressed),true);
+  assert.equal(protectedReport.crossSemester.privacySuppressed,true);assert.equal(protectedReport.crossSemester.accounts,null);
+  assert.equal(JSON.stringify(protectedReport).includes("Root A"),false,"analytics responses must not expose friend names or academic content");
+});
+
+test("analytics storage failure never blocks an enrolled student's academic mutation",async t=>{
+  const {call,db}=setup(t),jwt=await token(dana);await enrolledAccount(call,db,jwt);
+  const board=await (await call("/v1/semester/sample",jwt,"POST")).json() as SemesterResponse;
+  db.sqlite.exec("DROP TABLE analytics_activity_days");
+  const result=await call(`/v1/tasks/${board.semester.tasks[0].id}`,jwt,"PATCH",{completed:true,expectedRevision:1});
+  assert.equal(result.status,200);assert.equal((await result.json() as SemesterResponse).semester.tasks[0].completed,true);
 });
 
 test("draft policy is inert until revision-protected publish, then pauses only new enrolments",async t=>{

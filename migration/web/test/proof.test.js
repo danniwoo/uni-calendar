@@ -107,6 +107,21 @@ test("admin API keeps every management action authenticated and server-authorize
   }
 });
 
+test("analytics client keeps anonymous landing narrow and protects every account/admin measurement",async()=>{
+  const calls=[];
+  const client=createApi("https://api.example",async(url,init)=>{calls.push({url,init});return Response.json({accepted:true,performance:[]},{status:new URL(url).pathname.endsWith("landing")?202:200});});
+  await client.trackLanding("T".repeat(43),"tabScopedVisitId123456","11111111-1111-4111-8111-111111111111");
+  await client.trackAnalyticsSession(a,"tabScopedVisitId123456");
+  await client.adminAnalytics(a,{from:"2026-10-01",to:"2026-11-11",campaign:"SYNCS 2027",channel:"society",source:"syncs_workshop"});
+  assert.equal(calls[0].init.headers.Authorization,undefined);
+  assert.deepEqual(JSON.parse(calls[0].init.body),{token:"T".repeat(43),visitId:"tabScopedVisitId123456",eventId:"11111111-1111-4111-8111-111111111111"});
+  assert.equal(calls[0].init.credentials,"omit");assert.equal(calls[0].init.redirect,"error");
+  for(const call of calls.slice(1))assert.equal(call.init.headers.Authorization,"Bearer token-a");
+  assert.deepEqual(JSON.parse(calls[1].init.body),{visitId:"tabScopedVisitId123456"});
+  const query=new URL(calls[2].url);assert.equal(query.pathname,"/v1/admin/analytics");
+  assert.deepEqual(Object.fromEntries(query.searchParams),{from:"2026-10-01",to:"2026-11-11",campaign:"SYNCS 2027",channel:"society",source:"syncs_workshop"});
+});
+
 test("admin denial is bounded and never echoes privileged server details",async()=>{
   const client=createApi("https://api.example",async()=>Response.json({
     error:{code:"admin_required",message:"internal role row and account identifiers"},

@@ -4,6 +4,7 @@ import {Activity,BookOpen,Check,Clipboard,FileClock,Home,Link2,LockKeyhole,Megap
 import {pilotClient} from "./auth.js";
 import {readConfig} from "./config.js";
 import {createApi} from "./api.js";
+import AnalyticsPanel from "./analytics";
 import "./admin.css";
 
 type Tab="overview"|"invitations"|"campaigns"|"users"|"settings"|"audit"|"analytics";
@@ -34,7 +35,7 @@ function AdminApp(){
   if(!session)return <main className="admin-gate"><LockKeyhole/><h1>Administrator sign-in required</h1><p>Sign in through the Semester account page first. The admin shell contains no management data.</p><a href="/">Open Semester sign-in</a></main>;
   if(!data)return <main className="admin-gate"><ShieldCheck/><h1>{busy?"Checking administrator access…":"Access denied"}</h1><p>{error||"This verified account is not an active Semester administrator."}</p><a href="/board/">Return to Semester</a></main>;
 
-  const navigation:[Tab,string,React.ReactNode][]=[["overview","Overview",<Home/>],["invitations","Invitations",<Ticket/>],["campaigns","Campaigns",<Megaphone/>],["users","Users & Access",<Users/>],["settings","Growth Settings",<Settings/>],["audit","Audit Log",<FileClock/>],["analytics","Analytics & Retention",<Activity/>]];
+  const navigation:[Tab,string,React.ReactNode][]=[["overview","Overview",<Home/>],["invitations","Invitations",<Ticket/>],["campaigns","Campaigns",<Megaphone/>],["users","Users & Access",<Users/>],["settings","Growth Settings",<Settings/>],["analytics","Analytics & Retention",<Activity/>],["audit","Audit Log",<FileClock/>]];
   return <div className="admin-shell">
     <aside><a className="admin-brand" href="/board/"><span><BookOpen/></span><div><strong>Semester</strong><small>USYD Student Planning</small></div></a><nav>{navigation.map(([id,label,icon])=><button key={id} className={tab===id?"selected":""} onClick={()=>setTab(id)}>{icon}{label}{id==="analytics"&&<small>Stage 4</small>}</button>)}</nav><div className="admin-role"><ShieldCheck/><span>Verified {data.session.role}</span></div></aside>
     <main className="admin-main"><header><div><h1>Semester Admin Dashboard</h1><p>Growth, invitations, access and audit</p></div><div className="header-actions"><span className="published"><Check/>Published v{data.policy.published.version}</span>{data.policy.hasDraft&&<span className="draft-dot">Draft changes pending</span>}<button className="secondary" disabled={busy} onClick={()=>load()}><RefreshCw/>Refresh</button></div></header>
@@ -45,7 +46,7 @@ function AdminApp(){
       {tab==="campaigns"&&<Campaigns data={data} busy={busy} create={body=>mutate(s=>api.createCampaign(s,body),"Campaign and first distribution link created.")} addLink={body=>mutate(s=>api.createCampaignLink(s,body),"Distribution link created.")} revoke={id=>{if(window.confirm("Revoke this campaign and all of its active links? Existing attribution remains."))void mutate(s=>api.revokeCampaign(s,id),"Campaign revoked.");}}/>}
       {tab==="users"&&<UsersAccess data={data} busy={busy} change={(user,operation)=>{if(window.confirm(`${operation==="suspend"?"Suspend":"Restore"} account ${user.account_ref}?`))void mutate(s=>api.changeAccountAccess(s,{accountId:user.account_id,operation,expectedUpdatedAt:user.updated_at}),`Account ${operation==="suspend"?"suspended":"restored"}.`);}}/>}
       {tab==="audit"&&<AuditLog rows={data.audit} filter={auditFilter} setFilter={setAuditFilter}/>} 
-      {tab==="analytics"&&<AnalyticsPlaceholder message={data.analytics.message}/>} 
+      {tab==="analytics"&&<AnalyticsPanel session={session} api={api}/>}
     </main>
   </div>;
 }
@@ -65,6 +66,4 @@ function Campaigns({data,busy,create,addLink,revoke}:{data:Dashboard;busy:boolea
 function UsersAccess({data,busy,change}:{data:Dashboard;busy:boolean;change:(user:any,operation:string)=>void}){return <section className="panel"><div className="panel-title"><div><h2>Users & Access</h2><p>Identity, enrolment and acquisition only. No academic data or email ownership mapping.</p></div></div><div className="table-wrap"><table><thead><tr><th>Account reference</th><th>Access</th><th>Enrolled</th><th>Acquisition source</th><th>Acquired</th><th>Campaign / referrer</th><th>Role</th><th></th></tr></thead><tbody>{data.users.map(user=><tr key={user.account_id}><td><code>{user.account_ref}</code></td><td><Status value={user.state||"not_enrolled"}/></td><td>{date(user.enrolled_at)}</td><td>{user.acquisition_label||user.direct_channel||"—"}</td><td>{date(user.acquired_at)}</td><td>{user.campaign_key||user.referrer_name||"—"}</td><td>{user.admin_role||"student"}</td><td>{user.state==="active"&&!user.admin_role&&<button disabled={busy} className="danger-text" onClick={()=>change(user,"suspend")}>Suspend</button>}{user.state==="suspended"&&<button disabled={busy} onClick={()=>change(user,"restore")}>Restore</button>}</td></tr>)}</tbody></table></div></section>}
 
 function AuditLog({rows,filter,setFilter}:{rows:any[];filter:string;setFilter:(v:string)=>void}){const visible=rows.filter(row=>!filter||row.action.includes(filter)||row.target_type.includes(filter)||String(row.target_id||"").includes(filter));return <section className="panel"><div className="panel-title"><div><h2>Audit Log</h2><p>Append-only sensitive admin actions. Tokens and academic content are excluded.</p></div><input className="filter" placeholder="Filter actions or targets" value={filter} onChange={e=>setFilter(e.target.value)}/></div><div className="audit-list">{visible.map(row=><article key={row.id}><span className={`audit-dot ${row.result}`}/><div><strong>{row.action}</strong><p>{row.target_type}{row.target_id?` · ${String(row.target_id).slice(0,12)}`:""}</p><small>{date(row.created_at)} · admin {String(row.admin_account_id||"operator").slice(0,8)}</small></div><Status value={row.result}/></article>)}{!visible.length&&<Empty>No matching audit entries.</Empty>}</div></section>}
-function AnalyticsPlaceholder({message}:{message:string}){return <section className="panel analytics-placeholder"><Activity/><h2>Analytics & Retention — Stage 4</h2><p>{message}</p><div className="future-grid">{["Acquisition funnel","Campaign conversion","Week-2 / Week-4 retention","Referral amplification","Product engagement","Evidence-backed investigations"].map(item=><span key={item}>{item}<small>Not yet instrumented</small></span>)}</div><div className="warning">No illustrative numbers are presented as real Semester measurements.</div></section>}
-
 createRoot(document.getElementById("app")!).render(<AdminApp/>);

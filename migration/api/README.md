@@ -1,6 +1,6 @@
 # Semester staging API
 
-Independent staging API for the Web, iPhone and widget trials. It never reads or writes the production Sites tables. Stage 1 adds private invitation enrolment; Stage 2 adds society campaigns, unified friend referrals and first-touch attribution; Stage 3 adds explicit administrators, revisioned growth policy, campaign distribution management and audit in the separately owned staging D1 database. Supabase authentication alone does not grant academic-route or administrator access.
+Independent staging API for the Web, iPhone and widget trials. It never reads or writes the production Sites tables. Stage 1 adds private invitation enrolment; Stage 2 adds society campaigns, unified friend referrals and first-touch attribution; Stage 3 adds explicit administrators, revisioned growth policy, campaign distribution management and audit; Stage 4 adds prospective privacy-minimised growth/product analytics in the separately owned staging D1 database. Supabase authentication alone does not grant academic-route or administrator access.
 
 ## Setup
 
@@ -22,6 +22,8 @@ All responses use `Cache-Control: no-store`. Private routes need `Authorization:
 | `POST /v1/access/invitation` | `{token}`; no session | Validates a private, society-campaign or friend-referral invitation without creating an account. |
 | `POST /v1/access/redeem` | Bearer token, `{token}` | Atomically grants access and immutable acquisition attribution. A friend referral returns an offer; it does not create friendship. |
 | `GET /v1/session` | Bearer token | Stable app identity plus access state. A mapped identity may still be unenrolled. |
+| `POST /v1/analytics/landing` | `{token,visitId,eventId}`; no session | Validates the invitation, then records a bounded/deduplicated tab-scoped landing. Stores neither the token nor the visit ID. |
+| `POST /v1/analytics/session` | Bearer token, `{visitId}` | Correlates a verified identity with a prior tab landing. Identity mapping still does not grant enrolment. |
 | `GET /v1/friends` | Enrolled bearer token | Own public profile, link status and bounded connection list; no internal account IDs or acquisition fields. |
 | `PATCH /v1/friends/profile` | `{name,expectedRevision}` | Creates or revision-updates the caller's public display name. |
 | `POST` / `DELETE /v1/friends/invitation` | Empty object / `{id}` | Rotates a personal seven-day combined link, or revokes the caller-owned link. |
@@ -29,6 +31,7 @@ All responses use `Cache-Control: no-store`. Private routes need `Authorization:
 | `POST /v1/friends/action` | `{connectionId,expectedRevision,operation}` | Receiver-only accept/decline, or participant remove/block/unblock. |
 | `GET /v1/admin/session` | Active enrolled admin bearer token | Minimal `{admin,role}` authorization check. No role is inferred from email or metadata. |
 | `GET /v1/admin` | Active enrolled admin bearer token | Operational policy, invitation, campaign, account-access and audit views; no academic records. |
+| `GET /v1/admin/analytics` | Active enrolled admin bearer token; optional `from`, `to`, `campaign`, `channel`, `source` | Privacy-protected aggregate funnel, campaign, retention, referral and feature-adoption measurements. |
 | `PATCH /v1/admin/policy/draft` | Full policy plus expected draft revision | Saves an inert draft. Growth-stage presets are suggestions only. |
 | `POST /v1/admin/policy/publish` | Expected draft/published revisions plus `confirm:true` | Atomically publishes reviewed policy or returns 409. |
 | `POST /v1/admin/invitations` / `.../revoke` | Validated create/revoke input | Creates a private URL shown once, or revokes by ID. |
@@ -86,6 +89,21 @@ npm run admin:provision -- --issuer https://PROJECT.supabase.co/auth/v1 --subjec
 
 The operator command cannot create an identity or enrol a user. It joins the exact `(issuer, subject)` mapping to an active D1 account and appends a bootstrap audit record. Routine actions then use `/admin/`; raw invitation tokens are returned once and D1 stores only SHA-256 hashes. Audit rows are append-only at the database level.
 
+## Stage 4 analytics model and measurement limits
+
+Migration `0009_growth_analytics.sql` must follow `0008`. It is additive and starts measurement at its own `tracking_started_at`; it never fabricates historical visits, activations or retention. It adds:
+
+- `root_acquisition_invitation_id` for exact distribution-link ancestry through friend-referral descendants;
+- append-only, taxonomy-versioned transition events with unique dedupe keys;
+- one compact `analytics_activity_days` row per account/date/feature; and
+- a coarse `year:session` usage key for future cross-semester retention.
+
+Activation is the first server-observed import or meaningful successful save to Semester planning/task state. Login, board views and assessment views are not activation. Week 1/2/4 retention means meaningful activity on days 7–13, 14–20 and 28–34 after activation; users whose full window has not elapsed are excluded rather than counted as churned. Friend descendants inherit the root distribution link for amplification analysis, while only the original campaign-link enrolments count as direct joins. Connecting an already enrolled friend never changes acquisition.
+
+The browser reports only invitation landing. Its random ID is tab-scoped and hashed; there is no IP identity, fingerprint or cross-session visitor profile. The server owns authentication, enrolment, activation and Friends events. Analytics writes occur only after the product mutation succeeds and are best-effort, so analytics unavailability cannot turn a successful academic save into an error.
+
+No analytics table stores email, raw invitation tokens, unit/course names, grades, WAM, assessment/task text or semester JSON. Detailed campaign/cohort/feature rows below the configured minimum (five by default) are suppressed. Social impressions, genuine shares, historical pre-tracking activity and teaching-week/break classification are reported as unavailable. Aggregate CSV export obeys the same suppression.
+
 `SemesterResponse` is defined in `src/contract.ts`: `{semester:{id,title,weekLabel,assessments:[{id,unitCode,title,dueAt,weightLabel}],tasks:[{id,title,unitCode,completed}]},revision}`. Dates are ISO strings and the initial revision is 1. Sample deadlines are relative to initial creation time and do not continually move with refreshes.
 
 Errors use `{error:{code,message}}`. Clients should preserve their last visible data on network/503 failure, refresh on 409, and return to sign-in or attempt a session refresh on 401. Do not automatically retry a conflicting mutation with a newer revision without confirming its intent.
@@ -98,7 +116,7 @@ Account creation uses a D1 transaction (`batch`) and unique identity mapping. Ea
 
 ## Verification and limits
 
-Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, malformed requests, stale/concurrent updates, exact-origin CORS, society/referral ancestry, explicit request/acceptance, quota separation, explicit admin roles, suspended-admin denial, revision races, draft/publish separation, invitation/campaign policy enforcement, hash-only links, immutable audit and academic-data exclusion. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
+Tests execute the actual SQL against in-memory SQLite and verify real ES256 signatures using disposable keys. They cover different accounts, spoofed headers/metadata, forged signatures, wrong issuer/audience, expiration, malformed requests, stale/concurrent updates, exact-origin CORS, society/referral ancestry, explicit request/acceptance, quota separation, explicit admin roles, suspended-admin denial, revision races, draft/publish separation, invitation/campaign policy enforcement, hash-only links, immutable audit and academic-data exclusion. Stage 4 additionally covers existing-chain migration backfill, landing/auth dedupe, raw-token exclusion, administrator isolation, campaign/source filters, mature retention windows, direct versus descendant attribution, small-cohort suppression and analytics-failure isolation. They do not substitute for a live Google → Supabase → Worker → D1 device trial.
 
 This first proof checks signed access tokens locally. Revoking a refresh token, deleting an Auth account or signing out does not immediately invalidate an already issued access token; it remains usable until expiry. The D1 access-state check still blocks suspended/deletion-state accounts on every academic request. Before real-data release, complete Auth-account deletion, required revocation checks, session lifetime policy, abuse controls and data migration. The private backup route accepts only a validated website export with an empty feed URL and limits streamed input to 1.8 MB. Admission now requires an atomic invitation redemption or preserved legacy membership; Google Testing mode alone does not enforce this. The synthetic endpoints cannot read or overwrite private restore points.
 

@@ -48,6 +48,13 @@ export function createApi(baseUrl, fetcher = fetch) {
         throw new ApiError(502,"invalid_response","The invitation service returned an unexpected response.");
       return value;
     },
+    async trackLanding(token,visitId,eventId) {
+      const response=await fetcher(`${baseUrl}/v1/analytics/landing`,{method:"POST",cache:"no-store",credentials:"omit",redirect:"error",
+        headers:{"Content-Type":"application/json"},body:JSON.stringify({token,visitId,eventId})});
+      if(!response.ok)throw new ApiError(response.status,"analytics_unavailable","Analytics tracking is temporarily unavailable.");
+      return response.json();
+    },
+    trackAnalyticsSession:(session,visitId)=>request("/v1/analytics/session",session,{method:"POST",body:{visitId}}),
     redeem: (session,token,signal)=>request("/v1/access/redeem",session,{method:"POST",body:{token},signal}),
     friends: session=>request("/v1/friends",session),
     saveFriendProfile: (session,name,expectedRevision)=>request("/v1/friends/profile",session,{method:"PATCH",body:{name,expectedRevision}}),
@@ -57,6 +64,7 @@ export function createApi(baseUrl, fetcher = fetch) {
     changeFriendship: (session,connectionId,expectedRevision,operation)=>request("/v1/friends/action",session,{method:"POST",body:{connectionId,expectedRevision,operation}}),
     adminSession: (session,signal)=>request("/v1/admin/session",session,{signal}),
     adminDashboard: (session,signal)=>request("/v1/admin",session,{signal}),
+    adminAnalytics: (session,filters={},signal)=>request(`/v1/admin/analytics?${new URLSearchParams(Object.entries(filters).filter(([,value])=>value!==null&&value!==undefined&&value!=="")).toString()}`,session,{signal}),
     savePolicyDraft: (session,body)=>request("/v1/admin/policy/draft",session,{method:"PATCH",body}),
     publishPolicy: (session,body)=>request("/v1/admin/policy/publish",session,{method:"POST",body}),
     createAdminInvitation: (session,body)=>request("/v1/admin/invitations",session,{method:"POST",body}),

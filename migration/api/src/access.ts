@@ -135,13 +135,14 @@ export async function redeemInvitation(db:SqlDatabase,accountId:string,raw:unkno
       SELECT r.account_id,'active',CASE i.kind WHEN 'campaign' THEN 'campaign' WHEN 'friend_referral' THEN 'friend_referral' ELSE 'private_invitation' END,r.invitation_id,?3,?3
       FROM invitation_redemptions r JOIN access_invitations i ON i.id=r.invitation_id
       WHERE account_id=?1 AND claim_id=?2 AND counted=1 ON CONFLICT(account_id) DO NOTHING`).bind(accountId,claim,now),
-    db.prepare(`INSERT INTO account_attribution(account_id,direct_channel,campaign_id,acquisition_invitation_id,referrer_account_id,root_campaign_id,acquired_at)
+    db.prepare(`INSERT INTO account_attribution(account_id,direct_channel,campaign_id,acquisition_invitation_id,referrer_account_id,root_campaign_id,root_acquisition_invitation_id,acquired_at)
       SELECT r.account_id,
         CASE i.kind WHEN 'campaign' THEN COALESCE(l.channel,'society') WHEN 'friend_referral' THEN 'friend_referral' ELSE 'private_invitation' END,
         CASE WHEN i.kind='campaign' THEN x.campaign_id END,
         r.invitation_id,
         CASE WHEN i.kind='friend_referral' THEN x.inviter_account_id END,
         CASE WHEN i.kind='campaign' THEN x.campaign_id WHEN i.kind='friend_referral' THEN COALESCE(a.root_campaign_id,a.campaign_id) END,
+        CASE WHEN i.kind='friend_referral' THEN COALESCE(a.root_acquisition_invitation_id,a.acquisition_invitation_id) ELSE r.invitation_id END,
         ?3
       FROM invitation_redemptions r JOIN access_invitations i ON i.id=r.invitation_id
       LEFT JOIN invitation_contexts x ON x.invitation_id=i.id

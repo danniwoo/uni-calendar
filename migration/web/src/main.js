@@ -5,6 +5,7 @@ import { createController } from "./controller.js";
 import { backupCheckPanel } from "./backup-check.js";
 import { todayPlanPanel } from "./today-plan.js";
 import {captureInvitation,forgetInvitation} from "./invitation.js";
+import {analyticsEventId,analyticsVisit} from "./analytics-client.js";
 import "./style.css";
 
 const root = document.querySelector("#app");
@@ -28,6 +29,8 @@ let friendsBusy=false;
 let friendsMessage="";
 let friendLink=null;
 let adminAllowed=false;
+let analyticsSessionSubject=null;
+const analyticsVisitId=analyticsVisit(sessionStorage,config.supabaseUrl);
 
 // Only text nodes receive API/auth content. No remote HTML is inserted.
 function element(tag, text, className) {
@@ -236,6 +239,7 @@ async function previewPendingInvitation() {
   try {
     const value=await api.previewInvitation(token);
     if(pendingInvitation!==token)return;
+    await api.trackLanding(token,analyticsVisitId,analyticsEventId()).catch(()=>null);
     const date=new Intl.DateTimeFormat("en-AU",{timeZone:"Australia/Sydney",day:"numeric",month:"short",year:"numeric",hour:"numeric",minute:"2-digit"}).format(new Date(value.expiresAt));
     invitationMessage=value.kind==="friend_referral"
       ? `${value.referrer?.name||"A Semester student"} invited you · expires ${date} Sydney. New students can join through this link.`
@@ -251,6 +255,7 @@ async function previewPendingInvitation() {
 
 async function completeSession(session) {
   if(!session || controller.getState().session?.user.id!==session.user.id)return;
+  if(analyticsSessionSubject!==session.user.id){analyticsSessionSubject=session.user.id;await api.trackAnalyticsSession(session,analyticsVisitId).catch(()=>null);}
   const key=`${session.user.id}:${pendingInvitation??"none"}`;
   if(invitationAttempt===key)return;
   invitationAttempt=key;
@@ -295,7 +300,7 @@ async function signIn() {
 async function signOut() {
   authBusy = true; authMessage = ""; suppressSessionEvents = true;
   controller.clear();
-  friendsData=null;friendLink=null;referralOffer=null;adminAllowed=false;
+  friendsData=null;friendLink=null;referralOffer=null;adminAllowed=false;analyticsSessionSubject=null;
   try {
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw error;

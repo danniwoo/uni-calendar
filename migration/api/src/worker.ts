@@ -8,6 +8,7 @@ import {accessStatus,previewInvitation,redeemInvitation,requireAccess} from "./a
 import {changeFriendship,createFriendInvitation,readFriends,requestFriend,revokeFriendInvitation,saveFriendProfile} from "./friends.ts";
 import {adminSession,changeAccountAccess,createCampaign,createCampaignLink,createPrivateInvitation,publishPolicy,
   readAdminDashboard,revokeAdminInvitation,revokeCampaign,savePolicyDraft} from "./admin.ts";
+import {analyticsBestEffort,analyticsPeriodKey,readAdminAnalytics,recordActivity,recordAuthenticatedSession,recordLanding} from "./analytics.ts";
 import { createSample, getSemester, resolveAccount, updateTask, type SqlDatabase } from "./store.ts";
 import type { JWTVerifyGetKey } from "jose";
 
@@ -85,8 +86,8 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         const backup = path.match(/^\/v1\/backup-trial\/([0-9a-f-]{36})$/);
         const recovery = path.match(/^\/v1\/recovery\/([0-9a-f-]{36})$/);
         const taskMatch = path.match(/^\/v1\/tasks\/([a-zA-Z0-9_-]{1,100})$/);
-        const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments", "/v1/friends", "/v1/admin/session", "/v1/admin"].includes(path) ? ["GET"]
-          : path === "/v1/access/invitation" || path === "/v1/access/redeem" ? ["POST"]
+        const methods = ["/health", "/v1/session", "/v1/semester", "/v1/imported/assessments", "/v1/friends", "/v1/admin/session", "/v1/admin", "/v1/admin/analytics"].includes(path) ? ["GET"]
+          : path === "/v1/access/invitation" || path === "/v1/access/redeem" || path === "/v1/analytics/landing" || path === "/v1/analytics/session" ? ["POST"]
           : path === "/v1/admin/policy/draft" ? ["PATCH"]
           : ["/v1/admin/policy/publish","/v1/admin/invitations","/v1/admin/invitations/revoke","/v1/admin/campaigns",
               "/v1/admin/campaign-links","/v1/admin/campaigns/revoke","/v1/admin/users/access"].includes(path) ? ["POST"]
@@ -107,6 +108,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         }
         if (!methods.includes(request.method)) { headers.set("Allow", methods.join(", ")); throw new ApiError(405, "method_not_allowed", "This method is not supported."); }
         if (path === "/health") return send({ status: "ok", mode: "synthetic-pilot" });
+        if(path==="/v1/analytics/landing")return send(await recordLanding(env.DB,await jsonBody(request,1024)),202);
         if (path === "/v1/access/invitation") {
           const body=await jsonBody(request,512);
           if(Object.keys(body).some(key=>key!=="token"))throw new ApiError(400,"invitation_invalid","This invitation link is not valid.");
@@ -114,6 +116,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         }
         const identity = await authenticate(request, env.SUPABASE_URL, testKey);
         const accountId = await resolveAccount(env.DB, identity);
+        if(path==="/v1/analytics/session")return send(await recordAuthenticatedSession(env.DB,accountId,await jsonBody(request,512)),202);
         if(path === "/v1/session")return send({accountId,access:await accessStatus(env.DB,accountId)});
         if(path === "/v1/access/redeem") {
           const body=await jsonBody(request,512);
@@ -125,6 +128,7 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         await requireAccess(env.DB,accountId);
         if(path==="/v1/admin/session")return send(await adminSession(env.DB,accountId));
         if(path==="/v1/admin")return send(await readAdminDashboard(env.DB,accountId));
+        if(path==="/v1/admin/analytics")return send(await readAdminAnalytics(env.DB,accountId,new URL(request.url).searchParams));
         if(path==="/v1/admin/policy/draft")return send(await savePolicyDraft(env.DB,accountId,await jsonBody(request,16_384)));
         if(path==="/v1/admin/policy/publish")return send(await publishPolicy(env.DB,accountId,await jsonBody(request,2048)));
         if(path==="/v1/admin/invitations")return send(await createPrivateInvitation(env.DB,accountId,env.PILOT_WEB_URL??[...origins(env.ALLOWED_ORIGINS)][0]??"",await jsonBody(request,2048)),201);
@@ -135,28 +139,52 @@ export function createApi(testKey?: JWTVerifyGetKey) {
         if(path==="/v1/admin/users/access")return send(await changeAccountAccess(env.DB,accountId,await jsonBody(request,1024)));
         if(path==="/v1/friends")return send(await readFriends(env.DB,accountId));
         if(path==="/v1/friends/profile")return send(await saveFriendProfile(env.DB,accountId,await jsonBody(request,512)));
-        if(path==="/v1/friends/invitation")return send(request.method==="POST"
-          ? await createFriendInvitation(env.DB,accountId,env.PILOT_WEB_URL??[...origins(env.ALLOWED_ORIGINS)][0]??"")
-          : await revokeFriendInvitation(env.DB,accountId,await jsonBody(request,512)));
-        if(path==="/v1/friends/request")return send(await requestFriend(env.DB,accountId,await jsonBody(request,512)));
-        if(path==="/v1/friends/action")return send(await changeFriendship(env.DB,accountId,await jsonBody(request,512)));
-        if (path === "/v1/imported/board") return send(request.method === "GET" ? await getWebBoard(env.DB,accountId)
-          : await saveWebBoard(env.DB,accountId,await jsonBody(request,1_800_000)));
+        if(path==="/v1/friends/invitation") {
+          const result=request.method==="POST"?await createFriendInvitation(env.DB,accountId,env.PILOT_WEB_URL??[...origins(env.ALLOWED_ORIGINS)][0]??"")
+            :await revokeFriendInvitation(env.DB,accountId,await jsonBody(request,512));
+          if(request.method==="POST"&&"id" in result)await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"friends","social","friend_link_created",`friend-link:${accountId}:${result.id}`));
+          return send(result);
+        }
+        if(path==="/v1/friends/request") {
+          const result=await requestFriend(env.DB,accountId,await jsonBody(request,512));
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"friends","social","friend_request_sent",`friend-request:${accountId}:${result.connectionId}`));
+          return send(result);
+        }
+        if(path==="/v1/friends/action") {
+          const body=await jsonBody(request,512),result=await changeFriendship(env.DB,accountId,body);
+          if(body.operation==="accept")await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"friends","social","friend_request_accepted",`friend-accept:${String(body.connectionId)}`));
+          return send(result);
+        }
+        if (path === "/v1/imported/board") {
+          if(request.method==="GET") {const result=await getWebBoard(env.DB,accountId);await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"semester_board","passive",null,null));return send(result);}
+          const body=await jsonBody(request,1_800_000),result=await saveWebBoard(env.DB,accountId,body),period=analyticsPeriodKey(JSON.stringify(body.semester));
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"semester_board","meaningful","semester_board_saved",`board-save:${accountId}:${result.revision}`,period));
+          return send(result);
+        }
         if (recovery) {
           await requireMember(env.DB,accountId,recovery[1]);
-          return send(request.method==="GET" ? await currentRecovery(env.DB,accountId)
-            : await restoreRecovery(env.DB,accountId,await jsonBody(request,maxRecoveryBytes*2+1024)));
+          if(request.method==="GET")return send(await currentRecovery(env.DB,accountId));
+          const body=await jsonBody(request,maxRecoveryBytes*2+1024),result=await restoreRecovery(env.DB,accountId,body),period=typeof body.file==="string"?analyticsPeriodKey(body.file):null;
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"semester_import","meaningful","semester_imported",`recovery-import:${accountId}:${result.sha256}`,period));
+          return send(result);
         }
-        if (path === "/v1/today/plan") return send(request.method === "GET"
-          ? await readTodayPlan(env.DB,accountId) : await saveTodayPlan(env.DB,accountId,await jsonBody(request,256_000)));
-        if (path === "/v1/imported/completion") return send(await setImportedCompletion(env.DB,accountId,await jsonBody(request,8192)));
-        if (path === "/v1/imported/assessments") return send(await getImportedAssessments(env.DB, accountId));
+        if (path === "/v1/today/plan") {
+          if(request.method==="GET")return send(await readTodayPlan(env.DB,accountId));
+          const result=await saveTodayPlan(env.DB,accountId,await jsonBody(request,256_000));
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"today_plan","meaningful","today_plan_saved",`today-plan:${accountId}:${result.revision}`));
+          return send(result);
+        }
+        if (path === "/v1/imported/completion") {const result=await setImportedCompletion(env.DB,accountId,await jsonBody(request,8192));
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"task_completion","meaningful","task_completion_saved",`completion:${accountId}:${result.id}:${result.revision}`));return send(result);}
+        if (path === "/v1/imported/assessments") {const result=await getImportedAssessments(env.DB, accountId);
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"assessment_view","passive",null,null));return send(result);}
         if (backup) {
           await requireMember(env.DB, accountId, backup[1]);
           if (request.method === "GET") return new Response(await exportBackup(env.DB, accountId), { headers });
           if (request.headers.get("content-type")?.split(";")[0].trim() !== "application/json")
             throw new ApiError(415, "json_required", "Choose a JSON backup.");
-          const result = await storeBackup(env.DB, accountId, await boundedText(request, maxBackupBytes));
+          const text=await boundedText(request,maxBackupBytes),result=await storeBackup(env.DB,accountId,text);
+          await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"semester_import","meaningful","semester_imported",`backup-import:${accountId}:${result.sha256}`,analyticsPeriodKey(text)));
           return send(result, result.created ? 201 : 200);
         }
         if (path === "/v1/semester") return send(await getSemester(env.DB, accountId));
@@ -170,7 +198,9 @@ export function createApi(testKey?: JWTVerifyGetKey) {
             || typeof body.completed !== "boolean" || !Number.isSafeInteger(body.expectedRevision) || Number(body.expectedRevision) < 1) {
           throw new ApiError(400, "invalid_update", "Send completed and a positive integer expectedRevision.");
         }
-        return send(await updateTask(env.DB, accountId, taskMatch![1], body.completed, Number(body.expectedRevision)));
+        const result=await updateTask(env.DB, accountId, taskMatch![1], body.completed, Number(body.expectedRevision));
+        await analyticsBestEffort(()=>recordActivity(env.DB,accountId,"task_completion","meaningful","task_completion_saved",`pilot-task:${accountId}:${taskMatch![1]}:${result.revision}`));
+        return send(result);
       } catch (error) {
         if (error instanceof ApiError) {
           if (error.status === 401) headers.set("WWW-Authenticate", "Bearer");
