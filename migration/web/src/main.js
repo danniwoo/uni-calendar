@@ -98,8 +98,8 @@ function friendOnboardingModal() {
   const modal=element("section",undefined,"modal");
   modal.setAttribute("role","dialog");modal.setAttribute("aria-modal","true");
   if(profilePromptOpen){
-    modal.append(element("p","Friends", "modal-kicker"),element("h2","Choose your friend name"),
-      element("p","This is the name friends will see when you discover or connect with them. You can change it later.","muted"));
+    modal.append(element("p","Your Profile", "modal-kicker"),element("h2","Set your profile name"),
+      element("p","This is how other students will see your name on Semester, including in Friends. You can change it anytime in Account → Profile.","muted"));
     const input=element("input");input.type="text";input.maxLength=60;input.placeholder="e.g. Daniel Wu";input.value=profilePromptValue;input.autocomplete="nickname";
     input.addEventListener("input",()=>{profilePromptValue=input.value;});
     input.addEventListener("keydown",event=>{if(event.key==="Enter")void savePromptProfile();});
