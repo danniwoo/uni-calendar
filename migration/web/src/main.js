@@ -28,6 +28,9 @@ let friendsData=null;
 let friendsBusy=false;
 let friendsMessage="";
 let friendLink=null;
+let profilePromptOpen=false;
+let profilePromptValue="";
+let friendConfirmOpen=false;
 let adminAllowed=false;
 let analyticsSessionSubject=null;
 const analyticsVisitId=analyticsVisit(sessionStorage,config.supabaseUrl);
@@ -54,8 +57,66 @@ function status(text, kind = "notice") {
 async function loadFriends(session=controller.getState().session) {
   if(!session||!controller.getState().access?.enrolled)return;
   friendsBusy=true;friendsMessage="";render();
-  try{friendsData=await api.friends(session);}catch(error){friendsMessage=error.message||"Friends could not be loaded.";}
+  try{
+    friendsData=await api.friends(session);
+    if(!friendsData.profile){profilePromptValue="";profilePromptOpen=true;}
+    else if(referralOffer)friendConfirmOpen=true;
+  }catch(error){friendsMessage=error.message||"Friends could not be loaded.";}
   finally{friendsBusy=false;render();}
+}
+
+async function savePromptProfile() {
+  const session=controller.getState().session,name=profilePromptValue.trim();
+  if(!session)return;
+  if(!name){friendsMessage="Choose a name your friends can recognise.";render();return;}
+  friendsBusy=true;friendsMessage="";render();
+  try{
+    await api.saveFriendProfile(session,name,friendsData?.profile?.revision??0);
+    friendsData=await api.friends(session);
+    profilePromptOpen=false;profilePromptValue="";
+    if(referralOffer)friendConfirmOpen=true;
+  }catch(error){friendsMessage=error.message||"Your friend name could not be saved.";}
+  finally{friendsBusy=false;render();}
+}
+
+async function sendReferralRequest() {
+  const session=controller.getState().session;if(!session||!pendingInvitation)return;
+  friendsBusy=true;friendsMessage="";render();
+  try{
+    await api.requestFriend(session,pendingInvitation);
+    pendingInvitation=null;referralOffer=null;friendConfirmOpen=false;
+    forgetInvitation(sessionStorage,config.supabaseUrl);
+    friendsMessage="Friend request sent. They still need to accept.";
+  }catch(error){friendsMessage=error.message||"The friend request did not succeed.";}
+  finally{friendsBusy=false;render();}
+}
+
+function friendOnboardingModal() {
+  if(!profilePromptOpen&&!friendConfirmOpen)return null;
+  const overlay=element("div",undefined,"modal-backdrop");
+  overlay.setAttribute("role","presentation");
+  const modal=element("section",undefined,"modal");
+  modal.setAttribute("role","dialog");modal.setAttribute("aria-modal","true");
+  if(profilePromptOpen){
+    modal.append(element("p","Friends", "modal-kicker"),element("h2","Choose your friend name"),
+      element("p","This is the name friends will see when you discover or connect with them. You can change it later.","muted"));
+    const input=element("input");input.type="text";input.maxLength=60;input.placeholder="e.g. Daniel Wu";input.value=profilePromptValue;input.autocomplete="nickname";
+    input.addEventListener("input",()=>{profilePromptValue=input.value;});
+    input.addEventListener("keydown",event=>{if(event.key==="Enter")void savePromptProfile();});
+    modal.append(input);
+    const actions=element("div",undefined,"actions");
+    actions.append(button(friendsBusy?"Saving…":"Continue",()=>void savePromptProfile(),friendsBusy));
+    modal.append(actions);
+  }else{
+    const name=referralOffer?.name||"this student";
+    modal.append(element("p","Friend invitation","modal-kicker"),element("h2",`Send friend invitation to ${name}`),
+      element("p",`Your friend will see your chosen name. Sending a request does not share grades, WAM or private semester data.`,"muted"));
+    const actions=element("div",undefined,"actions");
+    actions.append(button(friendsBusy?"Sending…":"Send invitation",()=>void sendReferralRequest(),friendsBusy),
+      button("Not now",()=>{friendConfirmOpen=false;render();},friendsBusy,"secondary"));
+    modal.append(actions);
+  }
+  overlay.append(modal);return overlay;
 }
 
 async function friendMutation(action,success) {
@@ -131,11 +192,9 @@ function render() {
   if(invitationKind==="error")invitation.classList.add("invitation-error");
   if(state.session && !state.access?.enrolled && pendingInvitation && !invitationBusy)
     invitation.append(button("Retry invitation",()=>completeSession(state.session),state.busy||authBusy));
-  if(state.session&&referralOffer&&pendingInvitation&&!invitationBusy){
+  if(state.session&&referralOffer&&pendingInvitation&&!invitationBusy&&!friendConfirmOpen){
     invitation.append(element("p",`${referralOffer.name} invited you to connect. Sending a request does not share grades, WAM or private semester data.`,"muted"));
-    invitation.append(button(`Send friend request to ${referralOffer.name}`,()=>friendMutation(async session=>{
-      await api.requestFriend(session,pendingInvitation);pendingInvitation=null;referralOffer=null;forgetInvitation(sessionStorage,config.supabaseUrl);
-    },"Friend request sent. They still need to accept."),friendsBusy));
+    invitation.append(button(`Send friend request to ${referralOffer.name}`,()=>{friendConfirmOpen=true;render();},friendsBusy));
     invitation.append(button("Not now",()=>{pendingInvitation=null;referralOffer=null;forgetInvitation(sessionStorage,config.supabaseUrl);render();},friendsBusy,"secondary"));
   }
   main.append(invitation);
@@ -228,6 +287,7 @@ function render() {
     main.append(friendsPanel());
     main.append(diagnostics);
   }
+  const onboarding=friendOnboardingModal();if(onboarding)main.append(onboarding);
   main.append(element("footer", "Changes to test tasks are saved under your signed-in account."));
   root.replaceChildren(main);
 }
@@ -267,7 +327,6 @@ async function completeSession(session) {
       if(result.invitation?.kind==="friend_referral"){
         referralOffer={name:result.invitation.referrer?.name||"this student"};
         invitationMessage=result.alreadyEnrolled?"Semester access already active. Confirm the friend request below.":"Invitation accepted. Semester access is active; confirm the friend request below.";
-        void loadFriends(session);
       }else{
         pendingInvitation=null;forgetInvitation(sessionStorage,config.supabaseUrl);
         invitationMessage=result.alreadyEnrolled?"This account already has Semester access.":"Invitation accepted. Semester access is active.";
@@ -281,6 +340,8 @@ async function completeSession(session) {
     } finally {invitationBusy=false;invitationAttempt="";}
   } else invitationAttempt="";
   if(controller.getState().session?.user.id===session.user.id)await controller.refresh();
+  if(controller.getState().session?.user.id===session.user.id&&controller.getState().access?.enrolled&&(new URLSearchParams(location.search).has("tools")||referralOffer)&&!friendsData)
+    void loadFriends(session);
   if(controller.getState().session?.user.id===session.user.id&&controller.getState().access?.enrolled)
     adminAllowed=await api.adminSession(session).then(()=>true).catch(()=>false);
   render();
@@ -300,7 +361,7 @@ async function signIn() {
 async function signOut() {
   authBusy = true; authMessage = ""; suppressSessionEvents = true;
   controller.clear();
-  friendsData=null;friendLink=null;referralOffer=null;adminAllowed=false;analyticsSessionSubject=null;
+  friendsData=null;friendLink=null;referralOffer=null;profilePromptOpen=false;profilePromptValue="";friendConfirmOpen=false;adminAllowed=false;analyticsSessionSubject=null;
   try {
     const { error } = await client.auth.signOut({ scope: "local" });
     if (error) throw error;
