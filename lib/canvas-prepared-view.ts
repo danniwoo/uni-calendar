@@ -1,5 +1,5 @@
 import type {Semester} from "./semester";
-import {canvasGrade,canvasKey,type CanvasBundle,type CanvasChoice} from "./canvas-import";
+import {canvasKey,canvasReleasedResult,type CanvasBundle,type CanvasChoice} from "./canvas-import";
 import type {CanvasAction} from "./canvas-update-status";
 
 // The planner, not the source's numeric/text format, decides what will be saved.
@@ -17,7 +17,7 @@ export function preparedCanvasView(s:Semester,b:CanvasBundle,choices:Record<stri
     const items=attention.filter(r=>`${r.c.course.id}:${r.choice?.targetId||r.prior?.targetId||r.key}`===id);
     return {id,items,targetId:items[0].choice?.targetId||items[0].prior?.targetId};
   });
-  const useful=rows.filter(r=>r.action?.kind!=="attention"&&(r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind!=="protected"&&!r.prior&&!!canvasGrade(r.a)));
+  const useful=rows.filter(r=>r.action?.kind!=="attention"&&(r.action?.changed||baselineChanges.has(r.sourceKey)||r.action?.kind!=="protected"&&!r.prior&&canvasReleasedResult(r.a)));
   const changed=actions.filter(a=>a.changed);
   const visibleKeys=new Set([...useful,...attention].map(r=>r.sourceKey));
   const other=rows.filter(r=>!visibleKeys.has(r.sourceKey));

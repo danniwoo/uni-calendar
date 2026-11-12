@@ -1,5 +1,6 @@
 import type {Semester,Task} from "./semester";
-import {CANVAS_SOURCE,canvasGrade,canvasGroupCandidates,canvasKey,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasCandidate,type CanvasChoice,type CanvasCourse} from "./canvas-import";
+import {CANVAS_SOURCE,canvasGrade,canvasGroupCandidates,canvasKey,canvasReleasedResult,canvasTargets,isCanvasRetake,planCanvasImport,suggestCanvasMatches,type CanvasAssignment,type CanvasBundle,type CanvasCandidate,type CanvasChoice,type CanvasCourse} from "./canvas-import";
+import {existingCanvasRuleChoices} from "./canvas-update-status";
 import {simpleCanvasDestination} from "./canvas-match-view";
 import {blankAttempt,localHighestRule} from "./canvas-rule-import";
 
@@ -102,8 +103,27 @@ export function prepareCanvasImport(s:Semester,b:CanvasBundle){
       const targets=canvasTargets(s,unit),existing=targets.find(t=>t.id===choices[key]?.targetId);
       if(existing&&!simpleCanvasDestination(existing,s.tasks)){delete choices[key];issues[key]="Individual results need their assessment’s calculation rule.";}
       if(choices[key])continue;
-      if(!canvasGrade(a))continue; // No 50-item ungraded onboarding backlog.
+      if(!canvasReleasedResult(a))continue; // No 50-item ungraded onboarding backlog.
       if(!unit){issues[key]="Choose the Semester unit for this shared Canvas course.";continue;}
+      // A newly released Complete result can safely reuse a rule the student
+      // already confirmed when it belongs to the same Canvas category as that
+      // rule's saved source items. This is source-ID evidence, not a title or
+      // week-number guess. Incomplete remains review-only and is never zero.
+      if(a.result){
+        const prefix=`${b.accountId}:${c.course.id}:`;
+        const matchingRules=existingCanvasRuleChoices(s,b,c.course.id,unit).filter(({target,rule})=>{
+          if(rule.method!=="completion"||!a.groupId)return false;
+          const linkedIds=(s.canvasImports||[]).filter(r=>r.key.startsWith(prefix)&&r.targetId===target.id&&r.rule?.method==="completion").map(r=>r.key.slice(prefix.length));
+          return c.assignments.some(source=>linkedIds.includes(source.id)&&source.groupId===a.groupId);
+        });
+        if(a.result==="complete"&&matchingRules.length===1){
+          const match=matchingRules[0];
+          proposals.push({key,choice:{courseId:c.course.id,assignmentId:a.id,unit,targetId:match.target.id,mode:"part",rule:match.rule},score:96,reason:`Suggested · same Canvas category · saved ${match.target.title} completion rule`});
+          continue;
+        }
+        issues[key]=matchingRules.length>1?"More than one saved completion rule uses this Canvas category. Choose the assessment.":a.result==="incomplete"?"Canvas reports Incomplete. Review it without treating it as zero.":"Complete result found. Choose its completion-based assessment.";
+        continue;
+      }
       if(isCanvasRetake(a)){
         const matches=canvasAttemptTargets(s,unit,a),target=matches.length===1?matches[0]:undefined;
         const slot=target&&matchingAttemptSlot(s,target,a),rule=target&&localHighestRule(target);

@@ -1,6 +1,6 @@
 # ROADMAP — 現在在哪裡，下一步做什麼？
 
-本輪狀態（2026-11-07）：Web **0.24.5** 已把朋友連線改為常駐、清楚分開的「使用朋友邀請／分享自己的邀請」，並讓同瀏覽器 reload 後保留可複製 code（Sites 74）；原有全朋友／不分享、private grades/WAM 與 Connect **0.5.0** 不變。假帳戶完整 invitation → reload → account isolation → request → accept 已通過；下一步是 SOCIAL-01 正式站真實雙人試用。
+本輪狀態（2026-11-12）：Web **0.24.6** 修正既有 completion 規則漏掉後續 Canvas Complete 結果；同一 Canvas category 會沿用使用者已確認的規則，不同 category／Incomplete／歧義仍要求檢查。假資料兩筆更新、一次匯入與重複 no-op 已通過；下一步由使用者重新 Check all，在預覽核對真實 Prework 9／10 後自行決定是否匯入。Connect **0.5.1** 不變。
 
 
 10 人試用檢查補充：Connect **0.4.4** 已替換 Drive 試用 ZIP／指南，修正只開 Canvas 首頁不能 Check all 的問題；2026-11-01 使用者確認 0.4.3 已完成，可與 0.4.4 修正一併整理提交。Web 仍為 Sites 59。10 月 31 日的 57 extension tests、89 瀏覽器解析檢查、24 Web regressions、TypeScript、SQL、production build 與假資料互動通過；**不是實機 T11 或十人負載驗收**。本次提交前重跑 extension 與相關匯入回歸，未改 runtime 或重新發布；證據見 PROGRESS。先做下方 T11，再擴到十人；所有試用者需有網站邀請。
@@ -120,6 +120,8 @@ CONNECT-01 首次匯入修復已發布、等待試用。多條工作線可以並
 - 下一步：使用者更新 unpacked Connect 0.5.0、Reload、在同一 Chrome profile 開 Semester → Desktop reminders 明確授權 → Send test notification；用自己選的測試項目設定近時提醒，關 Semester 分頁但不退出 Chrome，核對一次通知／點回正確項目／修改時間／取消與重啟。其他電腦修改需重新開 Semester 才更新本機；Sleep/Focus 不保證準點。
 
 ### CONNECT-01
+
+- 2026-11-12／Web 0.24.6：修正 prepared update 只接受數字成績，導致 Canvas Marks 可見的 Complete（本次 Prework 9／10）沒有出現在 Review updates。後續 Complete 只有在同 Canvas category 已有一條使用者確認的 completion 規則時才自動建議沿用；Incomplete 不當零、不同 category／多條規則不猜。Synthetic UI 驗證兩筆一起增加 1 completion point、匯入一次、再檢查 no-op；正式資料尚待使用者預覽確認。
 
 - 2026-10-31／0.15.1：依新 quiz 試用問題，分開「待設定結果／可匯入更新／需檢查設定」。新 attempt 只建議同科同 quiz 編號、不猜最高分規則；直接開單筆設定。舊 attempt 的群組警告合併成每份 assessment 一組，列真正權重／drop-rule 前後差異；群組改名不再誤報。確認保留原計分後只更新該來源基準，Import 數量、Cancel、Undo 與合計同步。24 個 pure checks、TypeScript、SQL 及假資料實際 UI 操作通過；**已發布 Sites 59、待使用者驗收**，未碰真實資料。發布憑據見 PROGRESS。
 

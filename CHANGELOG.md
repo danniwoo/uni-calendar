@@ -1,5 +1,11 @@
 # Changelog
 
+## Web 0.24.6 — 2026-11-12
+
+- Include newly released Canvas Complete results in the prepared update flow instead of silently omitting them. When an existing completion rule already links an item from the same Canvas category, reuse that confirmed rule for later Complete items; show the reason behind **Why this match?**.
+- Keep Incomplete review-only rather than treating it as zero. A different Canvas category, multiple possible completion rules, or no prior confirmed rule still requires an explicit choice and never creates a guessed assessment.
+- Synthetic browser QA verified two later preworks appearing together, increasing the existing completion total by one point, importing once, and becoming a no-op on the next check. Existing dates, weights, manual values and calendar completion are preserved.
+
 ## Web 0.24.5 — 2026-11-07
 
 - Keep a newly created friend code available after reload on the same browser while the server continues to store only its hash. A short server fingerprint prevents another signed-in account or a replaced invite from reusing the cached code.

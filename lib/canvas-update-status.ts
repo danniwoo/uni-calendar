@@ -1,5 +1,5 @@
 import type {Semester} from "./semester";
-import {canvasGrade,canvasKey,canvasResultLabel,type CanvasBundle,type CanvasChoice} from "./canvas-import";
+import {canvasKey,canvasReleasedResult,canvasResultLabel,type CanvasBundle,type CanvasChoice} from "./canvas-import";
 import type {SourceRuleReview} from "./canvas-source-rules";
 
 export type CanvasActionKind="grade"|"protected"|"attention"|"mapping"|"added"|"unchanged"|"summary";
@@ -47,7 +47,7 @@ export function canvasUpdateStatus(s:Semester,b:CanvasBundle,choices:CanvasChoic
   const selected=new Set(choices.map(c=>`${c.courseId}:${c.assignmentId}`));
   const records=new Set(s.canvasImports?.map(r=>r.key));
   const unmatched=b.courses.flatMap(c=>c.assignments.filter(a=>!selected.has(`${c.course.id}:${a.id}`)).map(a=>({
-    key:`${c.course.id}:${a.id}`,name:a.name,course:c.course.code,result:canvasResultLabel(a),isNew:!records.has(canvasKey(b,c.course.id,a.id)),hasResult:!!canvasGrade(a)||!!a.result&&!a.omitted&&!a.submission?.excused,
+    key:`${c.course.id}:${a.id}`,name:a.name,course:c.course.code,result:canvasResultLabel(a),isNew:!records.has(canvasKey(b,c.course.id,a.id)),hasResult:canvasReleasedResult(a),
   })));
   return {
     grades:actions.filter(a=>a.kind==="grade"),

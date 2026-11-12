@@ -11,15 +11,21 @@ let saved=planCanvasImport(fixtureBoard,fixtureBundle,fixtureChoices).semester;
 saved.tasks[2].grade=null;
 saved.tasks.push({...fixtureBoard.tasks[2],id:"prep",title:"Preparation",weight:"4%",grade:undefined});
 const prepBundle=structuredClone(fixtureBundle);
-prepBundle.courses[2].assignments.push({...structuredClone(prepBundle.courses[2].assignments[1]),id:"80",name:"Preparation 1"});
+const completedPreparation={...structuredClone(prepBundle.courses[2].assignments[1]),groupId:"5",pointsPossible:0,gradingType:"pass_fail",result:"complete" as const,submission:{released:true,excused:false,score:null,grade:"complete",releaseEvidence:"marks-page",currentAttemptGraded:true}};
+prepBundle.courses[2].assignments.push({...completedPreparation,id:"80",name:"Preparation 1"});
 saved=planCanvasImport(saved,prepBundle,[{courseId:prepBundle.courses[2].course.id,assignmentId:"80",unit:"ELEC2302",targetId:"prep",mode:"part",rule:{method:"completion",count:10,bestCount:8,completionPoints:.5}}]).semester;
 const fresh=structuredClone(fixtureBundle);
 fresh.courses.forEach(c=>c.fetchedAt="2026-10-24T00:00:00Z");
 fresh.exportedAt="2026-10-24T00:00:00Z";
 fresh.courses[0].assignments[0].submission!.score=9;
 fresh.courses[0].assignments.push({...structuredClone(fresh.courses[0].assignments[1]),id:"3",name:"New practice activity"});
-fresh.courses[2].assignments.push({...structuredClone(fresh.courses[2].assignments[1]),id:"81",name:"Preparation 8"});
+fresh.courses[2].assignments.push(
+  {...completedPreparation,id:"80",name:"Preparation 1"},
+  {...completedPreparation,id:"81",name:"Preparation 9"},
+  {...completedPreparation,id:"82",name:"Preparation 10"},
+);
 const raw=JSON.stringify(fresh);
+export const completionUpdatesFixture={saved,fresh};
 export function UpdatesQA(){
   const [s,setS]=useState(saved),[open,setOpen]=useState(false),[source,setSource]=useState<string>(),[writes,setWrites]=useState(0),[checks,setChecks]=useState(0);
   const [history,setHistory]=useState(false),[focusGrade,setFocusGrade]=useState<{id:string;request:number}>();

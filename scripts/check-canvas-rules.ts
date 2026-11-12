@@ -6,6 +6,7 @@ import {backupText,readBackup} from "../lib/backup";
 import type {CanvasRule} from "../lib/semester";
 import {existingCanvasRuleChoices,defaultCanvasStage} from "../lib/canvas-update-status";
 import {attemptSchedules,newAttemptTask,saveAttempts} from "../lib/assessment-attempts";
+import {prepareCanvasImport} from "../lib/canvas-prepare";
 
 // Invented scores and identifiers, not a student's export.
 const board=structuredClone(fixtureBoard),bundle=structuredClone(fixtureBundle),course=bundle.courses[2];
@@ -112,4 +113,20 @@ assert.equal(appended.changed,1);assert.equal(appended.semester.tasks.length,cp.
 assert.equal(appended.semester.tasks[2].gradePlan!.items[7].outcome,"unknown");
 assert.equal(appended.semester.tasks[2].gradePlan!.items[4].outcome,"missed","manual miss preserved during append");
 assert.equal(planCanvasImport(cp.semester,freshPrep,auto).changed,0,"leaving new item skipped changes nothing");
+// Newly released completion results in the same Canvas category reuse the
+// already-confirmed completion rule. This covers later Prework 9/10 ticks.
+const completedPreworks=structuredClone(freshPrep);
+const prework8=completedPreworks.courses[2].assignments.at(-1)!;
+prework8.result="complete";prework8.submission={...prework8.submission!,released:true,releaseEvidence:"marks-page"};
+completedPreworks.courses[2].assignments.push({...structuredClone(prework8),id:"28",name:"Preparation 9"});
+const preparedCompletions=prepareCanvasImport(cp.semester,completedPreworks);
+assert.deepEqual(["27","28"].map(id=>preparedCompletions.choices[`${cc.course.id}:${id}`]?.rule?.method),["completion","completion"]);
+const completionPlan=planCanvasImport(cp.semester,completedPreworks,Object.values(preparedCompletions.choices));
+assert.equal(completionPlan.actions.filter(a=>a.kind==="grade"&&a.changed).length,2);
+assert.equal(partGrade(completionPlan.semester.tasks[2].gradePlan!).earned,3);
+const otherCategory=structuredClone(completedPreworks);
+otherCategory.courses[2].assignments.push({...structuredClone(prework8),id:"29",name:"Unrelated completion",groupId:"999"});
+const otherPrepared=prepareCanvasImport(cp.semester,otherCategory);
+assert.equal(otherPrepared.choices[`${cc.course.id}:29`],undefined,"a different Canvas category is never attached by completion alone");
+assert.match(otherPrepared.issues[`${cc.course.id}:29`],/Choose its completion-based assessment/);
 console.log("PASS Canvas rules: cross-group highest, best-N completion, unknowns, explicit misses, stable IDs, placeholders, updates, idempotence, manual/cleared/removed/rule protection, changed source rules, backups and isolation.");

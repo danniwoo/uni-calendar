@@ -51,6 +51,9 @@ export function readCanvasBundle(raw:string):CanvasBundle{
 }
 export const canvasKey=(b:CanvasBundle,c:string,a:string)=>`${b.accountId}:${c}:${a}`;
 export function canvasGrade(a:CanvasAssignment){const s=a.submission,g={earned:s?.score,possible:a.pointsPossible};return s?.released&&!s.excused&&s.currentAttemptGraded!==false&&!a.omitted&&validGrade(g)?g:null;}
+export function canvasReleasedResult(a:CanvasAssignment){
+  return !!canvasGrade(a)||!!a.result&&!!a.submission?.released&&!a.submission.excused&&a.submission.currentAttemptGraded!==false&&!a.omitted;
+}
 export function canvasTargets(s:Semester,unit:string){return subjectAssessments(s,unit).filter(t=>t.kind!=="task"&&t.kind!=="event");}
 // A warning, not an inferred grading rule. Unknown naming patterns still need
 // human review; never infer "highest", "latest" or an average for retakes.

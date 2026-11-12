@@ -1,0 +1,37 @@
+import assert from "node:assert/strict";
+import {createRequire} from "node:module";
+const require=createRequire(import.meta.url);
+const {chromium}=require(process.env.SEMESTER_PLAYWRIGHT_PACKAGE||"playwright");
+const browser=await chromium.launch({headless:true,...(process.env.SEMESTER_BROWSER_CHANNEL?{channel:process.env.SEMESTER_BROWSER_CHANNEL}:{})});
+const page=await browser.newPage({viewport:{width:1280,height:1100}});
+const errors=[];page.on("pageerror",e=>errors.push(e.message));
+await page.route("**/*",r=>new URL(r.request().url()).hostname==="127.0.0.1"?r.continue():r.abort());
+const shown=locator=>locator.waitFor({state:"visible"});
+try{
+  await page.goto("http://127.0.0.1:5184/?updates");
+  await page.getByRole("button",{name:"Simulate reload check",exact:true}).click();
+  await page.getByRole("button",{name:/Review/}).click();
+  await page.waitForTimeout(500);
+  const previewHeadings=await page.getByRole("heading").allTextContents();
+  if(!previewHeadings.includes("3 updates ready to import"))throw new Error(`Unexpected preview headings: ${previewHeadings.join(" | ")}`);
+  await shown(page.getByRole("heading",{name:"3 updates ready to import"}));
+  const prep9=page.getByRole("article",{name:"Prepared Preparation 9",exact:true});
+  const prep10=page.getByRole("article",{name:"Prepared Preparation 10",exact:true});
+  await shown(prep9.locator(".canvas-ready-grade").filter({hasText:"Complete"}));
+  await shown(prep10.locator(".canvas-ready-grade").filter({hasText:"Complete"}));
+  await prep9.getByText("Why this match?",{exact:true}).click();
+  await prep10.getByText("Why this match?",{exact:true}).click();
+  await shown(prep9.getByText(/same Canvas category/i));
+  await shown(prep10.getByText(/same Canvas category/i));
+  const total=page.getByRole("region",{name:"Total for Preparation",exact:true});
+  await shown(total.getByText(/^\+1 completion point/));
+  assert.equal(await page.getByRole("article",{name:"Prepared Preparation 1",exact:true}).count(),0,"previously imported completion stays out of updates");
+  await page.getByRole("button",{name:"Import 3 updates",exact:true}).click();
+  await shown(page.getByText(/Test writes: 1/));
+  await page.getByRole("button",{name:"Simulate reload check",exact:true}).click();
+  await page.getByRole("button",{name:"Connection details",exact:true}).click();
+  await page.getByRole("button",{name:"Review last preview",exact:true}).click();
+  await shown(page.getByRole("heading",{name:"No changes in this check"}));
+  assert.deepEqual(errors,[]);
+  console.log("PASS completion UI: two new Complete preworks reuse the saved same-category rule, add one point, import once, and repeat as no-op.");
+}finally{await browser.close();}

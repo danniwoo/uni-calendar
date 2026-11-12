@@ -1,6 +1,12 @@
 # Engineering handoff
 
-Updated: 2026-11-07. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+Updated: 2026-11-12. **Priorities, resumable work and acceptance tests live only in [ROADMAP](ROADMAP.md).** This file is technical context, not a second backlog.
+
+### 2026-11-12 Canvas completion updates / Web 0.24.6
+
+- Root cause: the extension already exported visible Canvas pass/fail results safely, but the prepared-update planner discarded every new result without a numeric score. Released Complete results therefore never reached Review updates even when the board already had a confirmed completion rule.
+- The shared JSON/direct planner now recognizes released text results. A new Complete reuses an existing completion rule only when a previously linked source item for that exact target is present in the same Canvas category. Incomplete, another category, multiple rules, or no confirmed rule remains explicit review and never becomes zero or a guessed new assessment. The compact row exposes the automatic reason behind **Why this match?**.
+- Pure Canvas regressions, 57 reader/bridge/reload extension tests, TypeScript, targeted lint, production build and a synthetic browser flow passed. The browser flow imported two later preworks into the existing rule, added one completion point, then confirmed the same batch was a no-op. Full repository lint remains red on pre-existing QA/cache errors; changed runtime files have no lint errors. No live Canvas, account or saved board data was read or changed. Publication evidence follows after release; real Prework 9/10 preview remains user verification.
 
 ### 2026-11-07 active invite recovery / Web 0.24.5
 
